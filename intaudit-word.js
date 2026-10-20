@@ -1,0 +1,200 @@
+/* 內部檢查缺失登錄：共用資料定義與 Word（.docx）產生器。intaudit.html（督導端）與 intaudit-reply.html（船上端）共用。
+   依賴頁面全域：JSZip、SHIPS（船舶清單，可為空）、toast；需與 intaudit-template.docx 放在同一資料夾。 */
+const TYPE_DEFS=[
+  {k:"onboard visit",label:"訪船",en:"Superintendent Visit",section:"訪船缺失",topicLabel:"",topics:null},
+  {k:"Internal audit",label:"內稽",en:"Internal Audit",section:"內稽缺失",topicLabel:"內稽區域／類別",topics:["甲板","機艙","ISM","MLC","其他"]},
+  {k:"ACCOMPANYING SHIP",label:"隨船",en:"On-Voyage Audit",section:"隨船缺失",topicLabel:"",topics:null},
+  {k:"Cross ship visit",label:"交叉訪船",en:"Cross Visit",section:"交叉訪船缺失",topicLabel:"",topics:null},
+  {k:"ISPS Audit",label:"ISPS",en:"ISPS Audit",section:"ISPS缺失",topicLabel:"",topics:null},
+  /* SAR 表單只歸屬「專項檢查」這個檢查種類，訪船／隨船／交叉訪船不重複提供 SAR 選項（主題欄位改回自由輸入）。 */
+  {k:"主題檢查",label:"專項檢查",en:"Special Inspection",section:"專項檢查缺失",topicLabel:"SAR表單／專項檢查主題",
+   topics:["SAR-FM20 靜態航行檢查評估表","SAR-FM21 動態航行檢查評估表","SAR-FM22 機艙管理檢查評估表","SAR-FM23 貨物操作檢查評估表","SAR-FM24 燃油加裝專項檢查表","SAR-FM25 主甲板、艏樓和繫泊檢查評估表","SAR-FM26 貨物機器間、貨泵艙、壓載泵艙和/或燃油泵艙檢查表","SAR-FM27 救生消防及住艙內外檢查表","其他"]}
+];
+/* 主題顯示文字：選「其他」時附上使用者輸入的說明 */
+const topicText=d=>d.topic==="其他"&&d.topicOther?"其他："+d.topicOther:(d.topic||"");
+/* 匯出檔名（Word／JSON／內控檔共用）：船名-檢查日期-檢查種類-Audit NC Deficiency Items Details Records
+   檢查種類用中文簡稱、多種用「+」串起來（例：內稽+交叉訪船+ISPS）；專項檢查附 SAR 表單編號（例：專項檢查SAR-FM20）。
+   檔名不能含斜線等特殊字元，N/C 寫成 NC。 */
+const exportTypeTag=r=>(r.types||[]).map(k=>{const t=typeDef(k);if(!t)return String(k||"");return t.label+(t.sarForm?String(t.sarForm).split(/\s+/)[0]:"");}).filter(Boolean).join("+").replace(/[\\\/:*?"<>|]/g,"_");
+const exportBaseName=r=>{const tag=exportTypeTag(r);return `${r.ship||"船名"}-${(dateText(r)||"檢查日期").replace(/\//g,"-").replace(/～/g,"~")}${tag?"-"+tag:""}-Audit NC Deficiency Items Details Records`;};
+/* 專項檢查：每張 SAR 表單可各自新增一筆「專項檢查」種類（例如同一張登錄單裡，FM20、FM22 各自
+   獨立成一個分頁），用複合 key「主題檢查::<SAR表單名稱>」表示，不佔用固定的 TYPE_DEFS 清單。
+   typeDef() 對這種複合 key 動態合成定義；找不到符合的固定 key 時才退回 TYPE_DEFS 查表
+   （舊資料若還是存純字串 "主題檢查"，仍會查到 TYPE_DEFS 裡那筆固定定義，向後相容）。 */
+const SPECIAL_TYPE_K="主題檢查";
+const SPECIAL_PREFIX=SPECIAL_TYPE_K+"::";
+const typeDef=k=>{
+  if(typeof k==="string"&&k.startsWith(SPECIAL_PREFIX)){
+    const form=k.slice(SPECIAL_PREFIX.length);
+    return {k,label:"專項檢查",en:"Special Inspection",section:"專項檢查缺失",sarForm:form,topicLabel:"",topics:null};
+  }
+  return TYPE_DEFS.find(t=>t.k===k);
+};
+const MODES=[{k:"FLOW",label:"FLOW 系統（DMP-FM01）",cls:"flow"},{k:"內控",label:"內控",cls:"ic"},{k:"系統內結案",label:"系統內結案",cls:"sys"}];
+const modeOf=k=>MODES.find(m=>m.k===k);
+const slash=s=>String(s||"").replace(/-/g,"/");
+const dateText=r=>r.dateFrom?(slash(r.dateFrom)+(r.dateTo&&r.dateTo!==r.dateFrom?"～"+slash(r.dateTo):"")):"";
+/* ══════ Word 匯出：以原「檢查缺失具體項目記錄表」的頁首／頁尾／版面設定為範本（intaudit-template.docx，
+   保留公司標題列、SAR-FM30 頁尾、A4 橫向），內文依登錄單內容重新排版並附照片，輸出 .docx ══════ */
+const W_NS_A="http://schemas.openxmlformats.org/drawingml/2006/main",W_NS_PIC="http://schemas.openxmlformats.org/drawingml/2006/picture";
+const xe=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const wRun=(t,o)=>{o=o||{};const rp=`${o.b?"<w:b/>":""}${o.i?"<w:i/>":""}${o.color?`<w:color w:val="${o.color}"/>`:""}<w:sz w:val="${o.sz||20}"/><w:szCs w:val="${o.sz||20}"/>`;
+  const lines=String(t??"").split(/\r?\n/);
+  return `<w:r><w:rPr>${rp}</w:rPr>${lines.map((l,i)=>(i?"<w:br/>":"")+`<w:t xml:space="preserve">${xe(l)}</w:t>`).join("")}</w:r>`;};
+const wPara=(inner,o)=>{o=o||{};return `<w:p><w:pPr>${o.keepNext?"<w:keepNext/>":""}${o.pb?"<w:pageBreakBefore/>":""}${o.shd?`<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>`:""}<w:spacing w:before="${o.before||0}" w:after="${o.after==null?40:o.after}"/>${o.jc?`<w:jc w:val="${o.jc}"/>`:""}</w:pPr>${inner}</w:p>`;};
+const wCell=(w,inner,o)=>{o=o||{};return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:""}${o.shd?`<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>`:""}<w:vAlign w:val="${o.va||"top"}"/></w:tcPr>${inner||wPara("")}</w:tc>`;};
+const wTbl=(cols,rows)=>`<w:tbl><w:tblPr><w:tblW w:w="${cols.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblBorders>${["top","left","bottom","right","insideH","insideV"].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="808080"/>`).join("")}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cols.map(c=>`<w:gridCol w:w="${c}"/>`).join("")}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join("")}</w:tbl>`;
+const LBL="E4F1F2";
+const lblCell=(w,t,o)=>wCell(w,wPara(wRun(t,{b:true,sz:18}),{after:0}),Object.assign({shd:LBL},o||{}));
+const txtCell=(w,t,o)=>wCell(w,wPara(wRun(t,{sz:19}),{after:0}),o);
+
+async function imgSize(dataUrl){return new Promise(res=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth,h:im.naturalHeight});im.onerror=()=>res({w:4,h:3});im.src=dataUrl;});}
+function buildDocx_photos(ctx){
+  /* 回傳 async 函式：把 photos 陣列轉成一段含多張圖片的 <w:p>，同時把圖檔登記到 ctx（之後寫進 zip） */
+  return async function(photos,maxCm){
+    if(!photos||!photos.length)return wPara("",{after:0});
+    let runs="";
+    for(const p of photos){
+      // 照片可能是內嵌的 dataUrl，也可能已經改存 Storage 只剩網址（photo-cloud.js）：網址的先下載回來再放進 Word
+      const du=p&&p.dataUrl?p.dataUrl:(typeof PhotoCloud!=="undefined"?await PhotoCloud.toDataUrl(p):"");
+      if(!du)continue;
+      const id=++ctx.n,sz=await imgSize(du),box=maxCm*360000,sc=Math.min(box/sz.w,box*0.8/sz.h);
+      const cx=Math.round(sz.w*sc),cy=Math.round(sz.h*sc),rid="rIdIa"+id;
+      ctx.files.push({name:`word/media/ia${id}.jpeg`,b64:du.split(",")[1],rid,target:`media/ia${id}.jpeg`});
+      runs+=`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="114300"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${1000+id}" name="Picture ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${W_NS_A}" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="${W_NS_A}"><a:graphicData uri="${W_NS_PIC}"><pic:pic xmlns:pic="${W_NS_PIC}"><pic:nvPicPr><pic:cNvPr id="${1000+id}" name="ia${id}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>`;
+    }
+    return `<w:p><w:pPr><w:spacing w:before="20" w:after="20"/></w:pPr>${runs}</w:p>`;
+  };
+}
+const MODE_SUFFIX={"FLOW":"需要登記到DMP-FM01中","內控":"需要登記內控中（不用輸入DMP-FM01）","系統內結案":"線上改善單改善即可"};
+const SECTION_HEAD={"onboard visit":"訪船缺失 Ship Visit","Internal audit":"內稽缺失 Internal Audit","ACCOMPANYING SHIP":"隨船缺失 On-Voyage Audit","Cross ship visit":"交叉訪船缺失 Cross Visit","ISPS Audit":"ISPS缺失 ISPS Audit","主題檢查":"專項檢查缺失 Special Inspection"};
+async function buildDocBody(r,ctx,replyOf){
+  const P=buildDocx_photos(ctx),W=14678;
+  const ship=SHIPS.find(s=>s.code===r.ship),shipTxt=ship?(ship.label||ship.name):r.ship;
+  let b="";
+  b+=wPara(wRun("檢查缺失具體項目記錄表 Audit N/C / Deficiency Items Details Records",{sz:28}),{jc:"center",after:120});
+  const specialKeysInR=(r.types||[]).filter(k=>typeof k==="string"&&(k===SPECIAL_TYPE_K||k.startsWith(SPECIAL_PREFIX)));
+  const typeChecks=TYPE_DEFS.filter(t=>t.k!==SPECIAL_TYPE_K).map(t=>`${(r.types||[]).includes(t.k)?"☑":"☐"} ${t.label} ${t.en}`).join("　　")
+    +`　　${specialKeysInR.length?"☑":"☐"} 專項檢查 Special Inspection`
+    +(specialKeysInR.length?`（${specialKeysInR.map(k=>k===SPECIAL_TYPE_K?"":k.slice(SPECIAL_PREFIX.length)).filter(Boolean).join("、")}）`:"");
+  b+=wTbl([2400,4939,2400,4939],[
+    lblCell(2400,"訪問船舶 Ship Visited：")+txtCell(4939,shipTxt)+lblCell(2400,"日期 Date：")+txtCell(4939,dateText(r)),
+    lblCell(2400,"檢查人 Auditor：")+txtCell(4939,r.inspector)+lblCell(2400,"地點 Ship's PSN：")+txtCell(4939,r.psn),
+    lblCell(2400,"檢查種類 Audit Type：")+txtCell(12278,typeChecks,{span:3}),
+    lblCell(2400,"船長 Captain：")+txtCell(4939,r.master)+lblCell(2400,"大副 C/O：")+txtCell(4939,r.co),
+    lblCell(2400,"輪機長 C/E：")+txtCell(4939,r.ce)+lblCell(2400,"大管輪 2/E：")+txtCell(4939,r.e2)
+  ]);
+  b+=wPara(wRun("*這份缺失記錄僅為具體缺失項目記錄表格，因搭配不同的檢查種類要求的表格使用。This deficiency record is intended solely for documenting specific deficiencies and shall be used together with the relevant forms required for the applicable type of inspection.",{sz:16,color:"666666"}),{before:60,after:120});
+  const crewTxt=a=>(a||[]).filter(x=>x.name||x.brief).map(x=>`${x.name||""}${x.rank?`（${x.rank}）`:""}：${x.brief||""}`).join("\n")||"N/A";
+  b+=wTbl([2900,11778],[
+    lblCell(2900,"總體評價：船上總體氣氛、TOP4配合程度、管理效果、船副管輪表現、乙級船員表現、船舶總體保養情況、機器狀況等\nOverall Assessment")+txtCell(11778,r.overall||""),
+    lblCell(2900,"TOP 4 合照")+wCell(11778,await P(r.top4&&r.top4.photos,5.5)+(r.top4&&r.top4.cap?wPara(wRun(r.top4.cap,{sz:18}),{after:0}):"")),
+    lblCell(2900,"表現亮眼船員姓名和簡述\nGood Performance Crew & Brief")+txtCell(11778,crewTxt(r.goodCrew)),
+    lblCell(2900,"表現較差船員姓名和簡述\nPoor Performance Crew & Brief")+txtCell(11778,crewTxt(r.poorCrew))
+  ]);
+  const heading=(t,pb)=>wPara(wRun(t,{b:true,sz:22}),{shd:"D9E2E8",before:200,after:80,keepNext:true,pb});
+  const tinyGap=()=>wPara(wRun("",{sz:2}),{after:0});
+  /* ── 彙整：優良案例與各檢查種類缺失數量，並依結案方式列出 FLOW／內控／系統內結案的缺失內容 ── */
+  {
+    const defs=r.defs||[],cnt=(k,m)=>defs.filter(d=>d.type===k&&(!m||d.closeMode===m)).length;
+    b+=heading("● 彙整 Summary（優良案例與缺失數量、結案方式）");
+    const sumRows=[lblCell(4678,"項目")+lblCell(2500,"合計")+lblCell(2500,"FLOW 系統（DMP-FM01）")+lblCell(2500,"內控")+lblCell(2500,"系統內結案")];
+    sumRows.push(txtCell(4678,"優良案例 Best Practice")+txtCell(2500,`${(r.best||[]).length} 項`)+txtCell(2500,"—")+txtCell(2500,"—")+txtCell(2500,"—"));
+    (r.types||[]).forEach(k=>{const t=typeDef(k)||{label:k};const lbl=t.label+(t.sarForm?"："+t.sarForm:"");sumRows.push(txtCell(4678,`${lbl}缺失`)+txtCell(2500,`${cnt(k)} 項`)+txtCell(2500,`${cnt(k,"FLOW")}`)+txtCell(2500,`${cnt(k,"內控")}`)+txtCell(2500,`${cnt(k,"系統內結案")}`));});
+    sumRows.push(wCell(4678,wPara(wRun("缺失合計",{b:true,sz:19}),{after:0}),{shd:LBL})+wCell(2500,wPara(wRun(`${defs.length} 項`,{b:true,sz:19}),{after:0}),{shd:LBL})+
+      wCell(2500,wPara(wRun(`${defs.filter(d=>d.closeMode==="FLOW").length}`,{b:true,sz:19}),{after:0}),{shd:LBL})+wCell(2500,wPara(wRun(`${defs.filter(d=>d.closeMode==="內控").length}`,{b:true,sz:19}),{after:0}),{shd:LBL})+
+      wCell(2500,wPara(wRun(`${defs.filter(d=>d.closeMode==="系統內結案").length}`,{b:true,sz:19}),{after:0}),{shd:LBL}));
+    b+=wTbl([4678,2500,2500,2500,2500],sumRows)+tinyGap();
+    const kind=d=>{const t=typeDef(d.type)||{label:d.type};return t.label+(t.sarForm?"："+t.sarForm:"")+(topicText(d)?"・"+topicText(d):"");};
+    const listBlock=(title,items,withRemark)=>{
+      // 檢查種類／主題、分類兩欄文字通常很短（訪船、內稽、防火門…），原本給太寬，擠壓到
+      // 缺失內容欄位的可讀寬度——縮窄這兩欄，把空間讓給缺失內容，總寬維持跟頁面版面一致（14678）。
+      const cols=withRemark?[700,1700,1500,7178,900,2700]:[700,2000,1800,9178,1000];
+      const head=lblCell(cols[0],"No.")+lblCell(cols[1],"檢查種類／主題")+lblCell(cols[2],"分類 Category")+lblCell(cols[3],"缺失內容 Finding")+lblCell(cols[4],"風險")+(withRemark?lblCell(cols[5],"備註：結案方式"):"");
+      const rows=[head];
+      if(!items.length)rows.push(txtCell(cols.reduce((a,c)=>a+c,0),"（無）",{span:cols.length}));
+      items.forEach((d,i)=>{const m=modeOf(d.closeMode);rows.push(txtCell(cols[0],String(i+1))+txtCell(cols[1],kind(d))+txtCell(cols[2],d.category||"")+txtCell(cols[3],d.finding||"")+txtCell(cols[4],d.risk||"")+(withRemark?txtCell(cols[5],m?m.label:""):""));});
+      return wPara(wRun(`${title}（${items.length} 項）`,{b:true,sz:20}),{before:120,after:60,keepNext:true})+wTbl(cols,rows)+tinyGap();
+    };
+    b+=listBlock("■ 需登記到 FLOW 系統（DMP-FM01）的缺失",defs.filter(d=>d.closeMode==="FLOW"),false);
+    b+=listBlock("■ 需登記內控的缺失（不用輸入 DMP-FM01）",defs.filter(d=>d.closeMode==="內控"),false);
+    b+=listBlock("■ 系統內直接結案追蹤的缺失（含內控）",defs.filter(d=>d.closeMode==="內控"||d.closeMode==="系統內結案"),true);
+  }
+  if((r.best||[]).length){
+    b+=heading("● 優良案例 Best Practice");
+    for(let i=0;i<r.best.length;i++){
+      const x=r.best[i];
+      b+=wTbl([2400,12278],[
+        lblCell(2400,"No.")+txtCell(12278,String(i+1)),
+        lblCell(2400,"分類 Category")+txtCell(12278,x.category),
+        lblCell(2400,"涉及人員姓名")+txtCell(12278,(x.persons&&x.persons.length)?x.persons.map(q=>q.name||"").join("\n"):x.people),
+        lblCell(2400,"職務")+txtCell(12278,(x.persons&&x.persons.length)?x.persons.map(q=>q.rank||"").join("\n"):x.rank),
+        lblCell(2400,"描述 Brief")+txtCell(12278,x.brief),
+        lblCell(2400,"案例照片 Photos")+wCell(12278,await P(x.photos,5))
+      ])+wPara("",{after:60});
+    }
+  }
+  // 缺失：依「檢查種類（＋主題）＋結案方式」分組，各組一個標題，跟原記錄表的分區一致。
+  // 用 d.type 字串本身（不是查表位置）當分組鍵，不同 SAR 表單的專項檢查各自獨立成組，不會混在一起；
+  // 排序時固定種類維持 TYPE_DEFS 原順序，專項檢查各實例排在最後、依 r.types 裡新增的先後排列。
+  const baseOrder=TYPE_DEFS.filter(t=>t.k!==SPECIAL_TYPE_K).map(t=>t.k),modeOrder=MODES.map(m=>m.k),groups=new Map();
+  const typeRank=k=>{
+    const bi=baseOrder.indexOf(k);
+    if(bi>=0)return bi;
+    const si=(r.types||[]).indexOf(k);
+    return baseOrder.length+(si>=0?si:0);
+  };
+  const sectionHead=k=>(typeof k==="string"&&k.startsWith(SPECIAL_PREFIX))?`專項檢查缺失 Special Inspection（${k.slice(SPECIAL_PREFIX.length)}）`:(SECTION_HEAD[k]||k);
+  (r.defs||[]).forEach(d=>{
+    const t=typeDef(d.type),topic=t&&t.topics&&["Internal audit"].includes(d.type)&&["MLC","ISPS","ISM"].includes(d.topic)?d.topic:"";
+    const key=[d.type,topic,d.closeMode].join("\u0001");
+    if(!groups.has(key))groups.set(key,{type:d.type,topic,mode:d.closeMode,items:[]});
+    groups.get(key).items.push(d);
+  });
+  const cols=[900,2200,4400,3600,1800,1778];
+  let defN=0; // 分區標題（換到下一個檢查種類/主題/結案方式分組）才換頁；同一分區內的缺失逐筆往下接，排得下就不特別跳頁
+  for(const key of [...groups.keys()].sort((a,b)=>{
+    const ga=groups.get(a),gb=groups.get(b);
+    return typeRank(ga.type)-typeRank(gb.type)||String(ga.topic).localeCompare(gb.topic)||modeOrder.indexOf(ga.mode)-modeOrder.indexOf(gb.mode);
+  })){
+    const g=groups.get(key);
+    b+=heading(`● ${sectionHead(g.type)}${g.topic?" - "+g.topic:""} - ${MODE_SUFFIX[g.mode]||""}`,defN>0);
+    for(let i=0;i<g.items.length;i++){
+      const d=g.items[i],mm=modeOf(d.closeMode),rp=(replyOf&&replyOf(d))||null;
+      defN++;
+      b+=wTbl(cols,[
+        wCell(900,wPara(wRun("No.",{b:true,sz:18}),{after:0}),{shd:LBL})+lblCell(2200,"分類 Category")+lblCell(4400,"待改善項目 Items to be corrected")+lblCell(3600,"改善完成證據/備註 Corrected Evidence / Remark")+lblCell(1800,"Reported @")+lblCell(1778,"Corrected @"),
+        txtCell(900,String(i+1))+wCell(2200,wPara(wRun(d.category||"",{b:true,sz:19}),{after:0})+(topicText(d)?wPara(wRun(topicText(d),{sz:16,color:"666666"}),{after:0}):""))+wCell(4400,await P(d.photos,2.4))+wCell(3600,wPara(wRun(rp?rp.evidence||"":"",{sz:19}),{after:0})+(rp&&(rp.photos||[]).length?await P(rp.photos,2.4):""))+txtCell(1800,slash(d.reported))+txtCell(1778,rp?slash(rp.corrected):""),
+        lblCell(3100,"Risk Level",{span:2})+txtCell(8000,d.risk||"",{span:2})+lblCell(1800,"結案方式")+txtCell(1778,mm?mm.label:""),
+        lblCell(3100,"待改善描述 Finding Brief",{span:2})+txtCell(11578,d.finding||"",{span:4}),
+        lblCell(3100,"改善措施簡述 Action Brief",{span:2})+txtCell(11578,rp?rp.action||"":"",{span:4})
+      ].concat(rp&&rp.by?[lblCell(3100,"船上回報人 Replied by",{span:2})+txtCell(11578,`${rp.by}${rp.title?"（"+rp.title+"）":""}　${rp.at?new Date(rp.at).toLocaleString("zh-TW",{hour12:false}):""}${rp.status==="reviewed"?"　✓ 海技已審核結案":rp.status==="submitted"?"　（待海技審核）":""}`,{span:4})]:[]))+tinyGap();
+    }
+  }
+  if((r.sugg||[]).length){
+    b+=heading("● 船舶訴求/建議 Ship's Demand / Suggestion");
+    const sRows=[lblCell(900,"No.")+lblCell(5200,"現狀 Situation")+lblCell(5200,"建議 Suggestion")+lblCell(3378,"照片 Photos")];
+    for(let i=0;i<r.sugg.length;i++){const s=r.sugg[i];sRows.push(txtCell(900,String(i+1))+txtCell(5200,s.situation)+txtCell(5200,s.suggestion)+wCell(3378,await P(s.photos,3.2)));}
+    b+=wTbl([900,5200,5200,3378],sRows);
+  }
+  return b;
+}
+/* 產生 .docx：replyOf(d) 回傳該缺失的船上回報內容（{action,corrected,evidence,photos,by,title,at,status}）或 null。
+   回傳 {blob, photoCount}；下載由呼叫端負責（督導端與船上端的檔名相同：船名_檢查日期_檢查缺失具體項目記錄表.docx）。 */
+async function iaMakeDocx(r,replyOf){
+  if(typeof JSZip==="undefined")throw new Error("Word 元件載入失敗，請確認網路後重新整理頁面");
+  const resp=await fetch("intaudit-template.docx");
+  if(!resp.ok)throw new Error("找不到範本檔 intaudit-template.docx（HTTP "+resp.status+"），請確認已一併上傳");
+  const zip=await JSZip.loadAsync(await resp.arrayBuffer());
+  const ctx={n:0,files:[]};
+  const body=await buildDocBody(r,ctx,replyOf);
+  let doc=await zip.file("word/document.xml").async("string");
+  if(!doc.includes("<!--BODY-->"))throw new Error("範本檔內容不符");
+  doc=doc.replace("<!--BODY-->",()=>body);
+  zip.file("word/document.xml",doc);
+  let rels=await zip.file("word/_rels/document.xml.rels").async("string");
+  ctx.files.forEach(f=>{zip.file(f.name,f.b64,{base64:true});rels=rels.replace("</Relationships>",`<Relationship Id="${f.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${f.target}"/></Relationships>`);});
+  zip.file("word/_rels/document.xml.rels",rels);
+  const blob=await zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",compression:"DEFLATE"});
+  return {blob,photoCount:ctx.n};
+}
