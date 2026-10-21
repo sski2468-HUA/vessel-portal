@@ -408,7 +408,7 @@ function renderHome(){
   // 首頁分兩區：📌 待辦事項（公司發給本船、有待回覆數量的）／🧰 填報與常用功能（有需要時才點的填報與外部平台）
   const card=e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`;
   $("#homeEntries").innerHTML=[
-    {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
+    {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。<b>列為 FLOW 的缺失僅供核對，請至 FLOW 系統填寫 DMP-FM01</b>，不需在改善單填寫。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
     {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`}
   ].map(card).join("");
   $("#homeTools").innerHTML=[
