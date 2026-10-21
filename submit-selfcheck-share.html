@@ -635,7 +635,14 @@ async function enterAsShip(){
   renderItems();
   if(repaired||window.__mig){window.__mig=false;scheduleAutoSave();}
   guideJumpUnanswered(true);
-  if((draft.items||[]).length&&(draft.items||[]).every(isAutoSelf))setTimeout(openReview,300); // 本船是全部缺失的當事船：不用作答，直接到確認／送出
+  // 深連結 ?focus=題目序號（從船舶檢查填報平台「需追蹤的項目」點「前往結案」進來）：直接跳到那一題並加橘框提示
+  const qs=new URLSearchParams(location.search),fq=parseInt(qs.get("focus"),10);
+  const focused=qs.has("focus")&&fq>=0&&fq<(draft.items||[]).length;
+  if(focused){
+    guideIdx=fq;applyViewMode();
+    setTimeout(()=>{const c=document.getElementById("item-"+fq);if(c){c.scrollIntoView({behavior:"smooth",block:"start"});c.style.outline="3px solid #e8862a";c.style.outlineOffset="2px";}},400);
+  }
+  else if((draft.items||[]).length&&(draft.items||[]).every(isAutoSelf))setTimeout(openReview,300); // 本船是全部缺失的當事船：不用作答，直接到確認／送出
   if(restoredFromLocal){
     notify("⚠ 偵測到上次有內容還沒成功同步到雲端，已從本機還原，正在自動補送…","err");
     if(cached.pendingSubmit)submitAll();else flushAutoSave();

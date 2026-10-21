@@ -86,6 +86,9 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .kpi .v{font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
 .kpi .l{font-size:12.5px;color:var(--ink2)}
 .camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+.trk{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line)}
+.trk .tt{flex:1;min-width:0}.trk .nt{font-size:13px;margin:3px 0;line-height:1.55}
+.trk.done{opacity:.75}
 .camp:first-child{border-top:0}
 .camp .tt{flex:1;min-width:0}
 /* 正面評價 */
@@ -236,6 +239,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <!-- 分享缺失自查（本船要填寫的活動） -->
   <section class="page" id="p-camp">
     <h2 class="pt">🔍 分享缺失自查 <span class="hint">他船缺失分享給全船隊，請本船自查是否有類似情形並回覆</span></h2>
+    <div id="campTracks"></div>
     <div class="panel" id="campList"></div>
   </section>
 
@@ -382,7 +386,8 @@ async function loadCampaigns(code){
     const its=c.items||[];if(its.length&&its.every(it=>srcShip(it)===code))return false;
     return true;
   });
-  if(D.camps.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
+  // items：取本船自己的作答，列出「有，需處理」還沒結案的項目（需追蹤），讓船上直接點進去結案
+  if(D.camps.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
 }
 /* 內部檢查改善單：已發單的登錄單裡，內控／系統內結案的缺失，船上回報狀態 */
 async function loadIA(code){
@@ -409,7 +414,8 @@ function renderHome(){
   const card=e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`;
   $("#homeEntries").innerHTML=[
     {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。<b>列為 FLOW 的缺失僅供核對，請至 FLOW 系統填寫 DMP-FM01</b>，不需在改善單填寫。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
-    {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`}
+    {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:(()=>{const trk=campTracks().filter(x=>!x.it.closed).length;
+      return (openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:"")+(trk?`<span class="pill warn">${trk} 項需追蹤未結案</span>`:"")+(!openCamps&&!trk?`<span class="pill ok">目前沒有待填寫的自查</span>`:"");})()}
   ].map(card).join("");
   $("#homeTools").innerHTML=[
     {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
@@ -417,6 +423,35 @@ function renderHome(){
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
   ].map(card).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
+/* 需追蹤：本船在各分享自查活動中答「有，需處理」(status=similar) 的項目。未結案的列出來＋「前往結案」
+   （開自查頁 ?focus=題號，直接跳到那一題勾「已完成改善（結案）」再送出）；已結案的收合在下方可展開查看。 */
+function campTracks(){
+  const out=[];
+  (D.resps||[]).forEach(r=>{
+    const c=(D.camps||[]).find(x=>String(x.id)===String(r.campaign_id));if(!c)return;
+    (r.items||[]).forEach((it,i)=>{if(it&&it.status==="similar")out.push({c,r,it,i});});
+  });
+  return out;
+}
+function renderCampTracks(){
+  const base=location.href.replace(/[^/]*$/,""),today=new Date().toISOString().slice(0,10);
+  const all=campTracks(),open=all.filter(x=>!x.it.closed),closed=all.filter(x=>x.it.closed);
+  open.sort((a,b)=>String(a.it.trackDue||"9999").localeCompare(String(b.it.trackDue||"9999")));
+  const row=x=>{
+    const it=x.it,over=!it.closed&&it.trackDue&&it.trackDue<today;
+    const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(x.c.id)}&ship=${encodeURIComponent(D.ship)}&focus=${x.i}`;
+    return `<div class="trk${it.closed?" done":""}">
+      <div class="tt"><b>${esc(it.topic||(it.code?"CODE "+it.code:"")||("第 "+(x.i+1)+" 題"))}</b><div class="hint">${esc(x.c.title||"缺失自查")}・第 ${x.i+1} 題</div>
+        ${it.note?`<div class="nt">本船實際狀況：${esc(it.note)}</div>`:""}
+        <div class="hint">${(it.track||[]).length?`追蹤方式：${esc(it.track.join("、"))}　`:""}${it.trackDue?`<span style="${over?"color:#c0392b;font-weight:700":""}">追蹤期限：${esc(it.trackDue)}${over?"（已逾期）":""}</span>`:""}${it.closed?`結案：${esc(it.closedAt||"")}${it.closeNote?"　"+esc(it.closeNote):""}`:""}</div></div>
+      ${it.closed?`<span class="pill ok">已結案</span>`:`<a class="btn sm dark" href="${esc(href)}" target="_blank" rel="noopener">前往結案</a>`}</div>`;};
+  return `<div class="panel" style="margin-bottom:12px;border-left:4px solid ${open.length?"#e0a020":"#2e8b57"}">
+    <b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目（本船答「有，需處理」）</b>
+    <div class="hint" style="margin:2px 0 6px">處理完成後按「前往結案」，在該題勾「✓ 已完成改善（結案）」、填改善情形與日期，再按「送出」，這裡就會變成已結案。</div>
+    ${open.length?open.map(row).join(""):`<div class="hint">目前沒有未結案的追蹤項目。</div>`}
+    ${closed.length?`<details style="margin-top:8px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${closed.map(row).join("")}</details>`:""}
+  </div>`;
+}
 function renderCamp(){
   const base=location.href.replace(/[^/]*$/,"");
   const rows=D.camps.map(c=>{
@@ -426,6 +461,7 @@ function renderCamp(){
     return `<div class="camp"><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
   }).join("");
   $("#campList").innerHTML=`<b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b>${rows?`<div style="margin-top:6px">${rows}</div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
+  const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
 }
 
 /* ════════ 外部檢查線上填單紀錄（唯讀）════════
