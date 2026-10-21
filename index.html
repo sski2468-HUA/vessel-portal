@@ -86,6 +86,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .kpi .v{font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
 .kpi .l{font-size:12.5px;color:var(--ink2)}
 .camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
 .trk{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line)}
 .trk .tt{flex:1;min-width:0}.trk .nt{font-size:13px;margin:3px 0;line-height:1.55}
 .trk.done{opacity:.75}
@@ -458,7 +459,10 @@ function renderCamp(){
     const r=D.resps.find(x=>String(x.campaign_id)===String(c.id));
     const st=r&&r.submitted_at?`<span class="pill ok">已送出</span>`:r?`<span class="pill warn">填寫中</span>`:`<span class="pill bad">尚未填寫</span>`;
     const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(c.id)}&ship=${encodeURIComponent(D.ship)}`;
-    return `<div class="camp"><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
+    // 跟海技的「分享自查彙整清單」一樣：本活動有「有，需處理」還沒結案的，標「⚠ N 項未結案」並把整列標橘底
+    const trk=r?(r.items||[]).filter(it=>it&&it.status==="similar"&&!it.closed).length:0;
+    const trkPill=trk?`<span class="pill bad">⚠ ${trk} 項未結案</span>`:"";
+    return `<div class="camp${trk?" hastrk":""}"><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${trkPill}${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
   }).join("");
   $("#campList").innerHTML=`<b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b>${rows?`<div style="margin-top:6px">${rows}</div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
   const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
