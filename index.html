@@ -407,7 +407,7 @@ function renderHome(){
     {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
     {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
     {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`},
-    {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）填報與查看：預定港口、抵離港時間。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
+    {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）；頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
   ].map(e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
