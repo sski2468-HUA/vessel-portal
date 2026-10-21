@@ -66,7 +66,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .empty{padding:26px;text-align:center;color:var(--ink3)}
 /* 首頁入口卡 */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-#homeEntries{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))} /* 首頁 5 張卡片：寬螢幕排成一列 */
+#homeEntries,#homeTools{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -196,8 +196,10 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 <main>
   <!-- 首頁 -->
   <section class="page on" id="p-home">
-    <h2 class="pt">要處理的事項 <span class="hint">點卡片前往</span></h2>
+    <h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
     <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div>
+    <h2 class="pt" style="margin-top:22px">🧰 填報與常用功能 <span class="hint">有需要時點選</span></h2>
+    <div class="grid" id="homeTools"></div>
   </section>
 
 
@@ -403,13 +405,17 @@ function renderHome(){
   const base=location.href.replace(/[^/]*$/,"");
   const iaPills=[D.ia.pending?`<span class="pill bad">待填寫 ${D.ia.pending} 項</span>`:"",D.ia.returned?`<span class="pill warn">被退回需補充 ${D.ia.returned} 項</span>`:"",D.ia.waiting?`<span class="pill mute">待督導審核 ${D.ia.waiting} 項</span>`:"",(!D.ia.pending&&!D.ia.returned)?`<span class="pill ok">目前沒有待填寫的項目</span>`:""].join("");
   const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  // 首頁分兩區：📌 待辦事項（公司發給本船、有待回覆數量的）／🧰 填報與常用功能（有需要時才點的填報與外部平台）
+  const card=e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`;
   $("#homeEntries").innerHTML=[
-    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
     {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
-    {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`},
+    {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`}
+  ].map(card).join("");
+  $("#homeTools").innerHTML=[
+    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
     {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）；頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
-  ].map(e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`).join("");}
+  ].map(card).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
 function renderCamp(){
   const base=location.href.replace(/[^/]*$/,"");
