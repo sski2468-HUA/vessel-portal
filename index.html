@@ -38,8 +38,8 @@ header{background:var(--navy);color:#fff;padding:14px 20px}
 .gate .help{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--navy2)}
 nav{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .tabs{max-width:1180px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:0 12px}
-.tabs button{border:0;background:none;padding:12px 14px;font-size:14.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
-.tabs a.extab{padding:12px 14px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
+.tabs button{border:0;background:none;padding:12px 12px;font-size:14.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs a.extab{padding:12px 12px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
 .tabs a.extab:hover{color:var(--navy)}
 .tabs button.on{color:var(--navy);border-bottom-color:var(--signal)}
 main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
@@ -66,6 +66,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .empty{padding:26px;text-align:center;color:var(--ink3)}
 /* 首頁入口卡 */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+#homeEntries{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))} /* 首頁 5 張卡片：寬螢幕排成一列 */
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -74,6 +75,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .entry.ext{border-top-color:#176670;background:linear-gradient(#eef7f8,#fff 60%)}.entry.ext .t{color:#176670}
 .entry.int{border-top-color:#5b3290;background:linear-gradient(#f4effa,#fff 60%)}.entry.int .t{color:#5b3290}
 .entry.share{border-top-color:#b5610f;background:linear-gradient(#fdf4ea,#fff 60%)}.entry.share .t{color:#9a520c}
+.entry.itin{border-top-color:#2e7d4f;background:linear-gradient(#ecf6f0,#fff 60%)}.entry.itin .t{color:#2e7d4f}
 .entry.sqms{border-top-color:#2f6690;background:linear-gradient(#edf3f9,#fff 60%)}.entry.sqms .t{color:#2f6690}
 .entry .d{font-size:13px;color:var(--ink2)}
 .entry .st{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
@@ -187,7 +189,8 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <button data-p="pos">👍 正面評價</button>
   <button data-p="exec">📅 執行情形一覽表</button>
   <button data-p="docs">📨 船隊通報單</button>
-  <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS 程序書修訂需求 ↗</a>
+  <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
+  <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
 </div></nav>
 
 <main>
@@ -404,6 +407,7 @@ function renderHome(){
     {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
     {c:"int",t:"🛠 內部檢查改善單",d:"督導上船檢查（訪船、內稽等）發出的改善單：逐筆填寫改善措施、完成日期並上傳改善後照片。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
     {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:`<span class="pill ok">目前沒有待填寫的自查</span>`},
+    {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）填報與查看：預定港口、抵離港時間。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
   ].map(e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
