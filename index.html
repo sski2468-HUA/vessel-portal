@@ -86,6 +86,19 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .kpi .v{font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
 .kpi .l{font-size:12.5px;color:var(--ink2)}
 .camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+/* 跑馬燈 */
+.mq{background:#fff8e6;border-bottom:1px solid #f0d9a8}
+.mq-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:7px 16px}
+.mq-lbl{flex:none;font-weight:800;font-size:13.5px;color:#a15c00}
+.mq-vp{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+.mq-track{display:inline-block;padding-left:100%;font-size:14px;color:#3d2c00;animation:mqmove linear infinite}
+.mq-track:hover{animation-play-state:paused}
+.mq-track .it{margin-right:46px}.mq-track .it.ok{color:#20703f}.mq-track .it.nt{font-weight:700;color:#8a3b00}
+@keyframes mqmove{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.mq-track{animation:none;padding-left:0;white-space:normal}}
+/* 首頁 FLOW 注意事項 */
+.flownote{background:#fdf1ee;border:1px solid #f0c4b9;border-left:5px solid #c0392b;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:14px;line-height:1.7;color:#5a1d14}
+.flownote ul{margin:2px 0 0;padding-left:20px}
 .camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
 .trk{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line)}
 .trk .tt{flex:1;min-width:0}.trk .nt{font-size:13px;margin:3px 0;line-height:1.55}
@@ -196,10 +209,20 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
   <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
 </div></nav>
+<!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
+<div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
 
 <main>
   <!-- 首頁 -->
   <section class="page on" id="p-home">
+    <div class="flownote">
+      <b>⚠ 請注意：在本平台填報，不能取代公司 FLOW 系統</b>
+      <div>以下項目除了在本平台填報外，<b>一樣要填報公司 FLOW 系統的 DMP-FM01</b>：</div>
+      <ul>
+        <li>外部檢查（SIRE、CDI、PSC、RightShip、FLAG、BVIQ、Terminal、第三方檢查）、內部檢查（訪船、內稽、隨船、交叉訪船）中<b>指定填入 FLOW 的項目</b></li>
+        <li>其他<b>依 DMP 規定執行</b>的異常項目</li>
+      </ul>
+    </div>
     <h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
     <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div>
     <h2 class="pt" style="margin-top:22px">🧰 填報與常用功能 <span class="hint">有需要時點選</span></h2>
@@ -373,7 +396,9 @@ async function loadAll(code){
     api(`air_submissions?select=id,status,basic:payload->basic&submitted_ship=eq.${encodeURIComponent(code)}&order=id.desc&limit=500`)
       .then(a=>D.air=(a||[]).map(r=>{const b=r.basic||{};return {id:r.id,status:r.status,basic:{date:b.date||"",itype:b.itype||"",ndef:b.ndef}};}).filter(r=>shipVisible(r.basic))).catch(()=>{D.air=[];}),
     loadCampaigns(code).catch(()=>{}),
-    loadIA(code).catch(()=>{})
+    loadIA(code).catch(()=>{}),
+    // 跑馬燈公告（主系統 Owner 在資料管理新增；唯讀）
+    getKey("portal_notices").then(p=>D.notices=(p&&Array.isArray(p.items))?p.items:[]).catch(()=>{D.notices=[];})
   ];
   await Promise.all(tasks.map(p=>p.catch(e=>console.warn(e))));
 }
@@ -406,6 +431,27 @@ async function loadIA(code){
   D.ia={pending,returned,done,waiting,orders:issued.length};
 }
 
+/* ════════ 跑馬燈 ════════
+   公司公告（期間內、全船隊或有指定本船）排前面；接著是本船自己還沒辦理的項目（預設內容）；都沒有就顯示「目前沒有待辦」。 */
+function renderMarquee(){
+  const t=new Date(),today=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  const notes=(D.notices||[]).filter(n=>n&&n.text&&(!n.from||n.from<=today)&&(!n.to||n.to>=today)&&(!(n.ships||[]).length||n.ships.includes(D.ship)));
+  const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  const trk=campTracks().filter(x=>!x.it.closed).length;
+  const todo=[
+    D.ia.pending?`🛠 內部檢查改善單：待填寫 ${D.ia.pending} 項`:"",
+    D.ia.returned?`↩ 內部檢查改善單：被退回需補充 ${D.ia.returned} 項`:"",
+    openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
+    trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:""
+  ].filter(Boolean);
+  const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
+  if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
+  const tr=$("#mqTrack");if(!tr)return;
+  tr.innerHTML=parts.join("");
+  $("#mq").style.display="";
+  // 速度固定（約每秒 60px）：內容越長跑越久，不會因為訊息多就快到看不清楚
+  requestAnimationFrame(()=>{tr.style.animationDuration=Math.max(12,Math.round(tr.scrollWidth/60))+"s";});
+}
 /* ════════ 首頁 ════════ */
 function renderHome(){
   const base=location.href.replace(/[^/]*$/,"");
@@ -585,6 +631,7 @@ $("#eYear").addEventListener("input",renderExec);
   document.title=`${shipLabel(code)} — 船舶檢查填報平台`;
   $("#homeEntries").innerHTML=`<div class="loading">載入本船資料中…</div>`;
   await loadAll(code);
+  try{renderMarquee();}catch(e){console.warn("marquee",e);}
   fillPosSrc();
   fillYear("#aYear",D.air.map(r=>r.basic),"全部年度");
   $("#aNew").href=`${location.href.replace(/[^/]*$/,"")}submit-airform.html?ship=${encodeURIComponent(code)}`;
