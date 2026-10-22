@@ -99,6 +99,8 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 /* 首頁 FLOW 注意事項 */
 .flownote{background:#fdf1ee;border:1px solid #f0c4b9;border-left:5px solid #c0392b;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:14px;line-height:1.7;color:#5a1d14}
 .flownote ul{margin:2px 0 0;padding-left:20px}
+.ftags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.ftag{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:9px;background:#e8eef9;color:#2c4f8a;border:1px solid #c5d4ee}
 .camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
 .trk{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line)}
 .trk .tt{flex:1;min-width:0}.trk .nt{font-size:13px;margin:3px 0;line-height:1.55}
@@ -378,6 +380,38 @@ function log(action,target,summary){
   const s=Auth.sess();
   api("audit_log",{method:"POST",headers:H({"Prefer":"return=minimal"}),body:JSON.stringify([{ts:Date.now(),usr:`船舶 ${s&&s.ship||""}`,action,target:"船舶檢查填報平台－"+target,summary}])}).catch(()=>{});
 }
+/* ── 使用紀錄（2026-10-22，給海技在主系統「船舶平台使用情形」看各船實際使用狀況）──
+   登入一次可維持 7 天，只記登入會看不出每天有沒有在用，所以：
+   ① 開啟平台：每船每天記一次；② 瀏覽頁籤：每個頁籤每天記一次；③ 點進主要功能（填單、改善單、自查、操作說明、通報單、外部平台）每次都記。
+   同一動作 60 秒內重複點只記一次，避免連點灌爆操作紀錄。 */
+const TRACK_KEY="ship_portal_track_v1";
+function trackOnce(scope,action,target,summary){ // scope：同一天只記一次的識別字
+  const s=Auth.sess(),ship=s&&s.ship;if(!ship)return;
+  const day=new Date().toISOString().slice(0,10),k=`${ship}|${day}|${scope}`;
+  let m={};try{m=JSON.parse(localStorage.getItem(TRACK_KEY)||"{}");}catch(e){}
+  if(m[k])return;
+  Object.keys(m).forEach(x=>{if(!x.includes("|"+day+"|"))delete m[x];}); // 只留今天的
+  m[k]=1;try{localStorage.setItem(TRACK_KEY,JSON.stringify(m));}catch(e){}
+  log(action,target,summary);
+}
+const _lastAct={};
+function trackAct(action,target,summary){
+  const k=action+"|"+target+"|"+summary,now=Date.now();
+  if(_lastAct[k]&&now-_lastAct[k]<60000)return;_lastAct[k]=now;
+  log(action,target,summary);
+}
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
+  const h=a.getAttribute("href")||"",s=Auth.sess(),ship=(s&&s.ship)||"";
+  const txt=(a.closest(".entry")?a.querySelector(".t"):a)?.textContent?.trim().slice(0,60)||"";
+  if(/submit-airform\.html/.test(h))trackAct("開啟","外部檢查線上填單",`${ship} 開啟外部檢查線上填單`);
+  else if(/intaudit-reply\.html/.test(h))trackAct("開啟","內部檢查改善單",`${ship} 開啟內部檢查改善單`);
+  else if(/submit-selfcheck-share\.html/.test(h))trackAct(/focus=/.test(h)?"前往結案":"開啟","分享缺失自查",`${ship} ${(a.closest(".camp,.trk")?.querySelector("b")?.textContent||"").trim().slice(0,60)}`);
+  else if(/ship-guide\.pdf/.test(h))trackAct("開啟","操作說明",`${ship} 開啟操作說明`);
+  else if(/ship-itinerary/.test(h))trackAct("開啟","船端 Itinerary",`${ship} 開啟船端 Itinerary`);
+  else if(/sqms/i.test(h))trackAct("開啟","SQMS",`${ship} 開啟 SQMS 程序書修訂需求管理平台`);
+  else if(a.closest("#p-docs"))trackAct("開啟","船隊通報單",`${ship} 開啟：${txt}`);
+},true);
 
 /* ════════ 資料 ════════ */
 const D={ship:"",air:[],insp:[],pos:[],docs:[],camps:[],resps:[],ia:{pending:0,returned:0,done:0,orders:0}};
@@ -394,7 +428,7 @@ async function loadAll(code){
     // 外部檢查線上填單：本船送出過的（唯讀）
     // 只讀基本資料（日期／檢查來源／缺失數），不讀缺失內容
     api(`air_submissions?select=id,status,basic:payload->basic&submitted_ship=eq.${encodeURIComponent(code)}&order=id.desc&limit=500`)
-      .then(a=>D.air=(a||[]).map(r=>{const b=r.basic||{};return {id:r.id,status:r.status,basic:{date:b.date||"",itype:b.itype||"",ndef:b.ndef}};}).filter(r=>shipVisible(r.basic))).catch(()=>{D.air=[];}),
+      .then(a=>D.air=(a||[]).map(r=>{const b=r.basic||{};return {id:r.id,status:r.status,basic:{date:b.date||"",itype:b.itype||"",ndef:b.ndef,flagType:b.flagType||""}};}).filter(r=>shipVisible(r.basic))).catch(()=>{D.air=[];}),
     loadCampaigns(code).catch(()=>{}),
     loadIA(code).catch(()=>{}),
     // 跑馬燈公告（主系統 Owner 在資料管理新增；唯讀）
@@ -405,7 +439,12 @@ async function loadAll(code){
 /* 分享缺失自查：進行中的活動，扣掉「本船就是缺失來源船」與不在指定範圍內的 */
 async function loadCampaigns(code){
   const cs=await api("selfcheck_share_campaigns?select=id,title,items,ship_scope,created_at,active&active=eq.true&order=created_at.desc&limit=200")||[];
-  const srcShip=it=>{const s=String(it&&it.src||"").trim().split(/\s+/)[0];return s;};
+  // 來源船：新活動 src 是「船代碼 來源 日期」，舊活動是「中文船名 英文船名 來源 日期」（如 SIRE-CI），
+  // 兩種都要認得，否則當事船會被列成要自查（同 submit-selfcheck-share.html 的 resolveSrcShip）
+  const srcShip=it=>{const s=String(it&&it.src||"").trim();if(!s)return "";const first=s.split(/\s+/)[0];
+    if(SHIPS.some(o=>o.code===first))return first;
+    let best="",bl=0;SHIPS.forEach(o=>[o.label,o.zh,o.en].filter(Boolean).forEach(n=>{if((s===n||s.startsWith(n+" ")||s.includes(" "+n+" ")||s.endsWith(" "+n))&&n.length>bl){best=o.code;bl=n.length;}}));
+    return best||first;};
   D.camps=cs.filter(c=>{
     const scope=(c.ship_scope&&c.ship_scope.length)?c.ship_scope:null;
     if(scope&&!scope.includes(code))return false;
@@ -527,7 +566,7 @@ function renderAir(){
   const n=k=>all.filter(r=>r.status===k).length;
   $("#aSum").innerHTML=`<span class="chip">共送出 <b>${all.length-n("rejected")}</b> 份</span><span class="chip"><span class="pill ok">海技已收錄</span> <b>${n("imported")}</b></span>${n("pending")?`<span class="chip"><span class="pill warn">審核中</span> <b>${n("pending")}</b></span>`:""}${n("rejected")?`<span class="chip hint">未採用 ${n("rejected")} 份（勾選上方可顯示）</span>`:""}`;
   $("#aList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb"><thead><tr><th>檢查日期</th><th>檢查來源</th><th>缺失數</th><th>狀態</th></tr></thead><tbody>${rows.map(r=>{const b=r.basic,st=AIR_ST[r.status]||AIR_ST.pending;
-      return `<tr style="${r.status==="rejected"?"opacity:.6":""}"><td class="d">${esc((pd(b.date)||{}).txt||b.date||"")}</td><td>${ioTag(b.itype)}${esc(b.itype||"")}</td><td class="n">${esc(b.ndef??"")}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join("")}</tbody></table></div>`
+      return `<tr style="${r.status==="rejected"?"opacity:.6":""}"><td class="d">${esc((pd(b.date)||{}).txt||b.date||"")}</td><td>${ioTag(b.itype)}${esc(b.itype||"")}${/flag/i.test(b.itype||"")?flagTags(b.flagType):""}</td><td class="n">${esc(b.ndef??"")}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join("")}</tbody></table></div>`
     :`<div class="empty">${D.air.length?"沒有符合條件的填單紀錄":"本船還沒有送出過外部檢查線上填單"}</div>`;
 }
 /* ════════ 檢查來源統計卡（檢查紀錄／正面評價共用）════════
@@ -547,6 +586,11 @@ function srcCards(el,items,which,unit,extra){
 function pickSrc(which,k){PICK[which]=PICK[which]===k?"":k;({insp:renderInsp,pos:renderPos})[which]();}
 
 /* ════════ 檢查紀錄 ════════ */
+/* FLAG 檢查項目（ASI、ISSC、MLC、SMC、Bi-Annual…）：資料是空白分隔的字串或陣列，去重後顯示成醒目的小標籤 */
+function flagTags(v){
+  const a=[...new Set((Array.isArray(v)?v:String(v||"").split(/[\s,，、／\/]+/)).map(s=>String(s).trim()).filter(Boolean))];
+  return a.length?`<div class="ftags">${a.map(s=>`<span class="ftag">${esc(s)}</span>`).join("")}</div>`:"";
+}
 function renderInsp(){
   const y=$("#iYear").value,io=$("#iIo").value,q=($("#iQ").value||"").trim().toLowerCase();
   const base=D.insp.filter(r=>(!y||String((pd(r.date)||{}).y)===y)&&(!io||(io==="i")===isInt(r.itype))&&(!q||[r.itype,r.loc,r.inspector,r.unit].join(" ").toLowerCase().includes(q)));
@@ -556,7 +600,7 @@ function renderInsp(){
   const ext=rows.filter(r=>!isInt(r.itype)).length;
   $("#iSum").innerHTML=`<span class="chip">共 <b>${rows.length}</b> 次</span><span class="chip"><span class="io e">外</span>外部 <b>${ext}</b></span><span class="chip"><span class="io i">內</span>內部 <b>${rows.length-ext}</b></span><span class="chip">缺失合計 <b>${rows.reduce((s,r)=>s+(+r.ndef||0),0)}</b></span>`;
   $("#iTb").innerHTML=`<thead><tr><th>檢查日期</th><th>檢查來源</th><th>地點</th><th>檢查員</th><th>檢查單位／油公司</th><th>缺失數</th><th>正面評價</th></tr></thead><tbody>`+
-    (rows.map(r=>`<tr><td class="d">${dateRange(r)}</td><td>${ioTag(r.itype)}${esc(r.itype)}${r.flagType?`<div class="hint">${esc(r.flagType)}</div>`:""}</td><td>${esc(r.loc)}</td><td>${esc(r.inspector)}</td><td>${esc(r.unit)}</td><td class="n" style="${(+r.ndef||0)>=4?"color:var(--bad);font-weight:700":""}">${esc(r.ndef||0)}</td><td class="n">${+r.npos?esc(r.npos):"—"}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">沒有符合條件的檢查紀錄</td></tr>`)+`</tbody>`;
+    (rows.map(r=>`<tr><td class="d">${dateRange(r)}</td><td>${ioTag(r.itype)}${esc(r.itype)}${/flag/i.test(r.itype||"")?flagTags(r.flagType):""}</td><td>${esc(r.loc)}</td><td>${esc(r.inspector)}</td><td>${esc(r.unit)}</td><td class="n" style="${(+r.ndef||0)>=4?"color:var(--bad);font-weight:700":""}">${esc(r.ndef||0)}</td><td class="n">${+r.npos?esc(r.npos):"—"}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">沒有符合條件的檢查紀錄</td></tr>`)+`</tbody>`;
 }
 
 /* ════════ 正面評價 ════════ */
@@ -617,6 +661,8 @@ function go(p){
   document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="p-"+p));
   RENDER[p]();window.scrollTo(0,0);
   try{sessionStorage.setItem("ship_portal_tab",p);}catch(e){}
+  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",exec:"執行情形一覽表",docs:"船隊通報單"};
+  if(p!=="home")trackOnce("tab:"+p,"瀏覽",TABN[p]||p,`${D.ship} 瀏覽「${TABN[p]||p}」頁籤`);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.p));
 ["#iYear","#iIo","#iQ"].forEach(s=>$(s).addEventListener("input",renderInsp));
@@ -625,11 +671,12 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.
 $("#eYear").addEventListener("input",renderExec);
 
 (async function init(){
-  try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
+  try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
   const code=await Auth.ensure();
   $("#hdShip").textContent="🚢 "+shipLabel(code);
   document.title=`${shipLabel(code)} — 船舶檢查填報平台`;
   $("#homeEntries").innerHTML=`<div class="loading">載入本船資料中…</div>`;
+  trackOnce("open","開啟","平台",`${code} 開啟船舶檢查填報平台`); // 每船每天一次
   await loadAll(code);
   try{renderMarquee();}catch(e){console.warn("marquee",e);}
   fillPosSrc();
