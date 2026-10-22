@@ -192,13 +192,14 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <button class="go" onclick="Auth.submitShip()">確認 Confirm</button>
 </div></div>
 
+<div id="pvBar" style="display:none;background:#7b4fa3;color:#fff;padding:8px 16px;font-size:13.5px;align-items:center;gap:10px;flex-wrap:wrap"></div>
 <header><div class="hd">
   <h1>🚢 船舶檢查填報平台<small>FPMC VESSEL INSPECTION REPORTING PORTAL ・ QMS &amp; VETTING</small></h1>
   <span class="shipbadge" id="hdShip"></span>
   <span class="sp"></span>
   <a class="guide" href="ship-guide.pdf" target="_blank" rel="noopener" title="開啟船舶檢查填報平台操作說明（PDF）">📖 操作說明 Guide</a>
-  <a class="lk" onclick="Auth.switchShip()">切換船舶 Change vessel</a>
-  <a class="lk" onclick="Auth.logout()">登出 Log out</a>
+  <a class="lk" id="hdSwitch" onclick="Auth.switchShip()">切換船舶 Change vessel</a>
+  <a class="lk" id="hdLogout" onclick="Auth.logout()">登出 Log out</a>
 </div></header>
 <nav><div class="tabs" id="tabs">
   <button data-p="home" class="on">🏠 首頁</button>
@@ -375,8 +376,28 @@ const Auth={
   switchShip(){const s=this.sess();if(s){this.save({ok:true,ship:""});}location.reload();},
   logout(){try{localStorage.removeItem(this.KEY);}catch(e){}location.reload();}
 };
+/* ════════ 預覽模式（2026-10-22）════════
+   主系統與本平台同在 sski2468-hua.github.io 底下，瀏覽器資料互通：主系統目前登入身分是 Owner／管理員時，
+   網址帶 ?preview=船代碼 就免密碼直接看該船畫面（給海技確認跑馬燈、自查項目等船上實際看到的內容）。
+   預覽時不寫操作紀錄（不會被算成船上使用），也不開放會寫入資料的填寫子頁面（線上填單／改善單／分享自查）。 */
+const PREVIEW=(()=>{
+  const c=new URLSearchParams(location.search).get("preview");if(!c)return null;
+  try{const s=JSON.parse(localStorage.getItem("vsm_identity_v1"));if(s&&s.exp>Date.now()&&(s.tier==="owner"||s.tier==="admin"))return {ship:c,who:s.name||""};}catch(e){}
+  return {denied:true};
+})();
+const isPreview=()=>!!(PREVIEW&&!PREVIEW.denied);
+function showPreviewBar(code){
+  const b=$("#pvBar");if(!b)return;
+  if(PREVIEW&&PREVIEW.denied){b.style.display="flex";b.style.background="#c0392b";b.innerHTML="⚠ 預覽模式需要先在主系統以 Owner／管理員身分登入（同一個瀏覽器），目前改為一般登入。";return;}
+  b.style.display="flex";
+  b.innerHTML=`<b>👁 預覽模式</b><span>${esc(PREVIEW.who)} 正以「${esc(shipLabel(code))}」的畫面檢視；不會記錄為船上操作，填寫類頁面不開放。</span><span style="flex:1"></span>
+    <span>換船</span><select style="padding:3px 6px;border-radius:5px;border:0" onchange="location.search='?preview='+encodeURIComponent(this.value)">${SHIPS.map(s=>`<option value="${esc(s.code)}" ${s.code===code?"selected":""}>${esc(s.label)}</option>`).join("")}</select>
+    <a style="color:#fff;text-decoration:underline;cursor:pointer" onclick="window.close();setTimeout(()=>location.search='',200)">結束預覽</a>`;
+  ["#hdSwitch","#hdLogout"].forEach(s=>{const e=$(s);if(e)e.style.display="none";});
+}
 /* 操作紀錄寫進主系統同一張 audit_log，海技可在主系統「操作紀錄查詢」看到船上何時登入 */
 function log(action,target,summary){
+  if(isPreview())return; // 預覽不記錄
   const s=Auth.sess();
   api("audit_log",{method:"POST",headers:H({"Prefer":"return=minimal"}),body:JSON.stringify([{ts:Date.now(),usr:`船舶 ${s&&s.ship||""}`,action,target:"船舶檢查填報平台－"+target,summary}])}).catch(()=>{});
 }
@@ -403,6 +424,11 @@ function trackAct(action,target,summary){
 document.addEventListener("click",e=>{
   const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
   const h=a.getAttribute("href")||"",s=Auth.sess(),ship=(s&&s.ship)||"";
+  if(isPreview()&&/submit-airform\.html|intaudit-reply\.html|submit-selfcheck-share\.html/.test(h)){
+    e.preventDefault();e.stopPropagation();
+    alert("預覽模式不開啟填寫頁面：這些頁面會以船上身分寫入資料（例如打開分享自查就會替該船建立填答紀錄）。\n\n要看內容請到主系統對應功能查看。");
+    return;
+  }
   const txt=(a.closest(".entry")?a.querySelector(".t"):a)?.textContent?.trim().slice(0,60)||"";
   if(/submit-airform\.html/.test(h))trackAct("開啟","外部檢查線上填單",`${ship} 開啟外部檢查線上填單`);
   else if(/intaudit-reply\.html/.test(h))trackAct("開啟","內部檢查改善單",`${ship} 開啟內部檢查改善單`);
@@ -672,7 +698,9 @@ $("#eYear").addEventListener("input",renderExec);
 
 (async function init(){
   try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
-  const code=await Auth.ensure();
+  let code;
+  if(isPreview()&&SHIPS.some(s=>s.code===PREVIEW.ship)){code=PREVIEW.ship;showPreviewBar(code);}
+  else{if(PREVIEW)showPreviewBar("");code=await Auth.ensure();}
   $("#hdShip").textContent="🚢 "+shipLabel(code);
   document.title=`${shipLabel(code)} — 船舶檢查填報平台`;
   $("#homeEntries").innerHTML=`<div class="loading">載入本船資料中…</div>`;
