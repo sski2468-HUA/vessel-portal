@@ -217,7 +217,7 @@ const todayIso=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 const typeLabels=r=>(r.types||[]).map(k=>(typeDef(k)||{label:k}).label).join("、");
 function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
 const fname=(r,ext)=>exportBaseName(r)+ext;
-function openLightbox(u){$("#lightboxImg").src=u;$("#lightbox").style.display="flex";}
+function openLightbox(u){const pu=PhotoCloud.pdfUrlFromSrc&&PhotoCloud.pdfUrlFromSrc(u);if(pu){window.open(pu,"_blank","noopener");return;}$("#lightboxImg").src=u;$("#lightbox").style.display="flex";}
 async function loadShips(){try{const r=await api("app_db?select=payload&k=eq.ships");const p=r&&r[0]&&r[0].payload;if(Array.isArray(p))SHIPS=p.map(s=>({code:s.code,name:s.zh||s.name||s.code,en:s.name||s.code,label:[s.zh,s.name].filter(Boolean).join(" ")||s.code}));}catch(e){}}
 function shipLabel(code){const s=SHIPS.find(x=>x.code===code);return s?s.label:(code||"");}
 const nonFlow=r=>(r.defs||[]).filter(d=>d.closeMode!=="FLOW"&&d.uid);
