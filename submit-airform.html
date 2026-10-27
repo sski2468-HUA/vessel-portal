@@ -347,9 +347,11 @@ async function uploadPhotoToStorage(photo, folder){
 /* PDF 附件（例：維修報告、證書）：不壓縮、不存 base64（草稿會爆量），選檔當下就直接上傳 Storage，
    只在表單裡留 {name,url,type,size}；所以 PDF 必須連網才能加入。 */
 const PDF_MAX_BYTES = 10*1024*1024;
+/* Storage 檔案路徑只接受英數字等字元（中文會回 400 Invalid key），路徑一律轉成英數字；原始檔名另存在 name 欄位 */
+function storageSafe(s, fallback){ const v = String(s||"").replace(/[^A-Za-z0-9_-]/g,"_").replace(/_+/g,"_").replace(/^_|_$/g,""); return v || fallback; }
 const isPdfAtt = p => !!p && (p.type==="application/pdf" || /\.pdf$/i.test(p.name||""));
 async function uploadPdfToStorage(file){
-  const ship = ((document.getElementById("f-ship")||{}).value||"未填船名").replace(/[^\w一-鿿-]/g,"_");
+  const ship = storageSafe((document.getElementById("f-ship")||{}).value, "noship");
   const path = `${ship}/pdf/${Date.now()}_${Math.random().toString(36).slice(2,8)}.pdf`;
   const res = await fetch(`${CLOUD.url}/storage/v1/object/${PHOTO_BUCKET}/${path}`, {
     method: "POST",
@@ -364,7 +366,7 @@ async function uploadPdfToStorage(file){
 async function uploadAllDefectPhotos(payload){
   let failCount = 0;
   let firstError = "";
-  const folderBase = `${(payload.basic.ship||"未填船名").replace(/[^\w\u4e00-\u9fff-]/g,"_")}/${(payload.basic.date||"未填日期").replace(/\//g,"-")}`;
+  const folderBase = `${storageSafe(payload.basic.ship,"noship")}/${storageSafe((payload.basic.date||"").replace(/\//g,"-"),"nodate")}`;
   for(const d of (payload.defects||[])){
     for(const kind of ["photosBefore","photosAfter"]){
       const list = d[kind];
