@@ -325,10 +325,12 @@ async function reloadReplies(){
 }
 function phHtml(d){
   const list=val(d).photos,full=list.length>=MAX_PH;
-  return `<div class="phs">${list.map((p,k)=>`<div class="ph"><img src="${PhotoCloud.src(p)}" onclick="openLightbox(this.src)"><button type="button" title="刪除這張照片" onclick="delPhoto('${d.uid}',${k})">×</button></div>`).join("")}${full?`<span class="hint">最多 ${MAX_PH} 張</span>`:`<label class="phadd">＋ 上傳<br>改善後照片<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos('${d.uid}',this)"></label>`}</div>`;
+  return `<div class="phs">${list.map((p,k)=>`<div class="ph"><img src="${PhotoCloud.src(p)}" onclick="openLightbox(this.src)"><button type="button" title="刪除這張照片" onclick="delPhoto('${d.uid}',${k})">×</button></div>`).join("")}${full?`<span class="hint">最多 ${MAX_PH} 張</span>`:`<label class="phadd">＋ 上傳改善後<br>照片／PDF<input type="file" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="addPhotos('${d.uid}',this)"></label>`}</div>`;
 }
 const byUid=u=>(rec.defs||[]).find(d=>d.uid===u);
-function readImg(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const M=1280,s=Math.min(1,M/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*s);cv.height=Math.round(img.height*s);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);res({name:file.name,dataUrl:cv.toDataURL("image/jpeg",0.8)});};img.onerror=()=>res(null);img.src=fr.result;};fr.onerror=()=>res(null);fr.readAsDataURL(file);});}
+/* PDF：不縮圖，直接上傳 Storage（需連網、≤10MB），回傳 {name,url,path,type,size}；失敗回 null 並提示 */
+async function readPdf(file){try{toast(`「${file.name}」上傳中…`);const p=await PhotoCloud.uploadPdf(file);toast(`✓「${file.name}」已上傳`);return p;}catch(e){toast(`⚠ PDF 需連網上傳：「${file.name}」未加入（${e.message||e}）`,true);return null;}}
+function readImg(file){if(PhotoCloud.isPdfFile(file))return readPdf(file);return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const M=1280,s=Math.min(1,M/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*s);cv.height=Math.round(img.height*s);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);res({name:file.name,dataUrl:cv.toDataURL("image/jpeg",0.8)});};img.onerror=()=>res(null);img.src=fr.result;};fr.onerror=()=>res(null);fr.readAsDataURL(file);});}
 async function addPhotos(uid,input){
   const files=[...input.files];input.value="";const d=byUid(uid),list=dr(d).photos;let skip=0;
   for(const f of files){if(list.length>=MAX_PH){skip++;continue;}const p=await readImg(f);if(p)list.push(p);}
