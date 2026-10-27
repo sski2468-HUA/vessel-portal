@@ -92,7 +92,9 @@ input[type=text]{padding:9px 10px;border:1px solid var(--line-2);border-radius:8
       <h1>✏ 對外回覆編輯</h1>
       <p id="hdr-note">讀取中…</p>
     </div>
-    <a href="./" class="back-link">↩ 回船舶檢查填報平台</a>
+    <!-- 這頁是岸上從主系統「另開分頁」進來的：按返回＝關掉這個分頁回主系統；
+         若不是從主系統開的（無法關閉分頁），改成回上一頁 -->
+    <a href="#" class="back-link" onclick="event.preventDefault();window.close();setTimeout(function(){if(history.length>1)history.back();else alert('請直接關閉此分頁，回到主系統。');},300);">↩ 回主系統</a>
   </header>
 
   <div id="listView" style="display:none">

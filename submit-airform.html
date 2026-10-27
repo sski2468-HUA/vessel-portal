@@ -100,6 +100,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy-3);outline-
 .photoGrid{display:flex;flex-wrap:wrap;gap:8px}
 .photoThumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid var(--line-2);background:#eef1f3;flex:none}
 .photoThumb img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.photoThumb .pdfTile{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;background:#fdecea;color:#c0392b;font-size:10px;font-weight:700;text-align:center;padding:2px;box-sizing:border-box}
+.photoThumb .pdfTile span{font-weight:400;color:#7a2a20;font-size:9px;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .photoThumb .rmPhoto{position:absolute;top:2px;right:2px;background:rgba(10,20,28,.62);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;text-align:center;cursor:pointer;padding:0}
 .photoAddBtn{width:72px;height:72px;border:1.5px dashed var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink-3);cursor:pointer;background:#fafbfc;flex:none}
 .photoAddBtn:hover{background:#f0f4f7;border-color:var(--navy-3)}
@@ -342,6 +344,21 @@ async function uploadPhotoToStorage(photo, folder){
   if(!res.ok){ const t = await res.text().catch(()=>""); throw new Error(`HTTP ${res.status}${t?"："+t.slice(0,100):""}`); }
   return { name: photo.name, url: `${CLOUD.url}/storage/v1/object/public/${PHOTO_BUCKET}/${path}`, w: photo.w, h: photo.h };
 }
+/* PDF 附件（例：維修報告、證書）：不壓縮、不存 base64（草稿會爆量），選檔當下就直接上傳 Storage，
+   只在表單裡留 {name,url,type,size}；所以 PDF 必須連網才能加入。 */
+const PDF_MAX_BYTES = 10*1024*1024;
+const isPdfAtt = p => !!p && (p.type==="application/pdf" || /\.pdf$/i.test(p.name||""));
+async function uploadPdfToStorage(file){
+  const ship = ((document.getElementById("f-ship")||{}).value||"未填船名").replace(/[^\w一-鿿-]/g,"_");
+  const path = `${ship}/pdf/${Date.now()}_${Math.random().toString(36).slice(2,8)}.pdf`;
+  const res = await fetch(`${CLOUD.url}/storage/v1/object/${PHOTO_BUCKET}/${path}`, {
+    method: "POST",
+    headers: { "apikey": CLOUD.key, "Authorization": "Bearer "+CLOUD.key, "Content-Type": "application/pdf", "x-upsert": "true" },
+    body: file
+  });
+  if(!res.ok){ const t = await res.text().catch(()=>""); throw new Error(`HTTP ${res.status}${t?"："+t.slice(0,100):""}`); }
+  return { name: file.name||"附件.pdf", url: `${CLOUD.url}/storage/v1/object/public/${PHOTO_BUCKET}/${path}`, type: "application/pdf", size: file.size };
+}
 /* 把整份 payload 裡所有缺失的 photosBefore/photosAfter 逐張上傳，成功的換成 {name,url}，
    失敗的維持原本的 {name,dataUrl}；回傳有幾張沒換成功，讓呼叫端決定要不要提示使用者。 */
 async function uploadAllDefectPhotos(payload){
@@ -497,7 +514,8 @@ function compressImage(file, maxDim, quality){
   });
 }
 function photoThumbHtml(kind, idx, p){
-  return `<div class="photoThumb" data-idx="${idx}"><img class="d-photo-view" data-kind="${kind}" data-idx="${idx}" src="${p.dataUrl}"><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>`;
+  if(isPdfAtt(p)) return `<div class="photoThumb" data-idx="${idx}"><div class="pdfTile d-photo-view" data-kind="${kind}" data-idx="${idx}" title="${esc(p.name||"")}">📄 PDF<span>${esc(p.name||"")}</span></div><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>`;
+  return `<div class="photoThumb" data-idx="${idx}"><img class="d-photo-view" data-kind="${kind}" data-idx="${idx}" src="${p.dataUrl||p.url}"><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>`;
 }
 function renderPhotoThumbs(div, kind){
   const list=(div._photos&&div._photos[kind])||[];
@@ -515,6 +533,14 @@ async function addPhotosToDefect(div, kind, files){
   const picked=[...files].slice(0,room);
   if(files.length>room) notify(`超過張數上限，只加入前 ${room} 張`,"err");
   for(const f of picked){
+    if(f.type==="application/pdf" || /\.pdf$/i.test(f.name||"")){
+      if(f.size>PDF_MAX_BYTES){ notify(`「${f.name}」超過 10MB，請壓縮或拆檔後再上傳`,"err"); continue; }
+      if(navigator.onLine===false){ notify(`PDF 需連網上傳：「${f.name}」未加入，請連上網路後再選一次`,"err"); continue; }
+      notify(`「${f.name}」上傳中…`);
+      try{ list.push(await uploadPdfToStorage(f)); notify(`✓「${f.name}」已上傳`); }
+      catch(e){ notify(`PDF 需連網上傳：「${f.name}」上傳失敗（${e.message||"未知錯誤"}），請稍後再試`,"err"); }
+      continue;
+    }
     if(!/^image\//.test(f.type)) continue;
     try{
       const {dataUrl,w,h}=await compressImage(f);
@@ -547,7 +573,8 @@ function bindPhotoEvents(div){
     if(img){
       const kind=img.dataset.kind, idx=+img.dataset.idx;
       const p=div._photos[kind][idx];
-      if(p) openLightbox(p.dataUrl, (kind==="before"?"矯正前":"矯正後")+"："+(p.name||""));
+      if(p && isPdfAtt(p)){ if(p.url) window.open(p.url,"_blank","noopener"); return; }
+      if(p) openLightbox(p.dataUrl||p.url,(kind==="before"?"矯正前":"矯正後")+"："+(p.name||""));
     }
   });
 }
@@ -1162,14 +1189,14 @@ function addDefectRow(data){
     </div>
     <div class="grid two" style="margin-top:10px">
       <div class="photoSec" style="${PHOTO_UPLOAD_ENABLED?"":"display:none"}">
-        <span class="lbl">📷 矯正前照片<span class="photoCount d-photoCount-before">（0/${MAX_PHOTOS}）</span></span>
+        <span class="lbl">📷 矯正前照片／PDF<span class="photoCount d-photoCount-before">（0/${MAX_PHOTOS}）</span></span>
         <div class="photoGrid d-photoGrid-before"></div>
-        <input type="file" class="d-photoInput-before" accept="image/*" multiple style="display:none">
+        <input type="file" class="d-photoInput-before" accept="image/*,application/pdf,.pdf" multiple style="display:none">
       </div>
       <div class="photoSec" style="${PHOTO_UPLOAD_ENABLED?"":"display:none"}">
-        <span class="lbl">📷 矯正後照片<span class="photoCount d-photoCount-after">（0/${MAX_PHOTOS}）</span></span>
+        <span class="lbl">📷 矯正後照片／PDF<span class="photoCount d-photoCount-after">（0/${MAX_PHOTOS}）</span></span>
         <div class="photoGrid d-photoGrid-after"></div>
-        <input type="file" class="d-photoInput-after" accept="image/*" multiple style="display:none">
+        <input type="file" class="d-photoInput-after" accept="image/*,application/pdf,.pdf" multiple style="display:none">
       </div>
     </div>
   `;
@@ -1907,6 +1934,7 @@ function exportDraftWordFile(silent){
   const DOC_IMG_W = 200; // Word 文件裡照片顯示寬度（像素）
   const photoRow=(label,list)=>{
     const imgs=(list||[]).map(p=>{
+      if(isPdfAtt(p)) return `<p>📄 PDF 附件：<a href="${esc(p.url||"")}">${esc(p.name||"")}</a></p>`;
       const w=DOC_IMG_W;
       const h=(p.w&&p.h)?Math.round(DOC_IMG_W*p.h/p.w):Math.round(DOC_IMG_W*0.75);
       // Word 的 HTML→DOC 轉換器對純 CSS 的 width/height 不可靠，常常直接用圖片原始像素塞版，
