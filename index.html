@@ -712,7 +712,10 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.
 $("#eYear").addEventListener("input",renderExec);
 
 (async function init(){
-  try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code,deckSup:s.deckSup||"",engineSup:s.engineSup||"",cso:s.cso||"",mgr:s.mgr||""})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
+  // 船舶資料：主系統現在逐筆存在 sync_ships（app_db 的 ships 是 8/6 之後就沒再更新的舊整包），讀不到才退回舊的
+  try{let p=null;try{const r=await api("sync_ships?select=payload");p=(r||[]).map(x=>x&&x.payload).filter(s=>s&&!s._deleted);if(!p.length)p=null;}catch(e){}
+    if(!p)p=await getKey("ships");
+    if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code,deckSup:s.deckSup||"",engineSup:s.engineSup||"",cso:s.cso||"",mgr:s.mgr||""})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
   let code;
   if(isPreview()&&SHIPS.some(s=>s.code===PREVIEW.ship)){code=PREVIEW.ship;showPreviewBar(code);}
   else{if(PREVIEW)showPreviewBar("");code=await Auth.ensure();}
