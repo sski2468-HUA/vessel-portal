@@ -93,6 +93,11 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .mq-vp{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
 .mq-track{display:inline-block;padding-left:100%;font-size:14px;color:#3d2c00;animation:mqmove linear infinite}
 .mq-track:hover{animation-play-state:paused}
+.sc{background:#fff;border-bottom:1px solid #e3e8ef}
+.sc-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:6px 18px;padding:7px 16px;font-size:13.5px;color:#22313f}
+.sc-lbl{font-weight:800;color:#1d3b5c}
+.sc-it{display:inline-flex;align-items:center;gap:6px}
+.sc-k{font-size:12px;color:#5a6b7d;background:#eef3f8;border-radius:4px;padding:1px 6px}
 .mq-track .it{margin-right:46px}.mq-track .it.ok{color:#20703f}.mq-track .it.nt{font-weight:700;color:#8a3b00}
 @keyframes mqmove{from{transform:translateX(0)}to{transform:translateX(-100%)}}
 @media (prefers-reduced-motion:reduce){.mq-track{animation:none;padding-left:0;white-space:normal}}
@@ -214,6 +219,8 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 </div></nav>
 <!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
 <div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
+<!-- 本船聯絡窗口：甲板督導／機艙督導／CSO／海技負責人（主系統「船舶資料」） -->
+<div class="sc" id="shipContacts" style="display:none"></div>
 
 <main>
   <!-- 首頁 -->
@@ -517,6 +524,14 @@ function renderMarquee(){
   // 速度固定（約每秒 60px）：內容越長跑越久，不會因為訊息多就快到看不清楚
   requestAnimationFrame(()=>{tr.style.animationDuration=Math.max(12,Math.round(tr.scrollWidth/60))+"s";});
 }
+/* ════════ 本船聯絡窗口（跑馬燈下方）：讀主系統「船舶資料」的甲板督導／機艙督導／CSO／海技經管，沒填的不顯示 ════════ */
+function renderContacts(code){
+  const s=SHIPS.find(x=>x.code===code)||{},el=$("#shipContacts");if(!el)return;
+  const items=[["甲板督導",s.deckSup],["機艙督導",s.engineSup],["CSO",s.cso],["海技負責人",s.mgr]].filter(x=>x[1]);
+  if(!items.length){el.style.display="none";return;}
+  el.innerHTML=`<div class="sc-in"><span class="sc-lbl">👥 本船聯絡窗口</span>${items.map(([k,v])=>`<span class="sc-it"><span class="sc-k">${k}</span>${esc(v)}</span>`).join("")}</div>`;
+  el.style.display="";
+}
 /* ════════ 首頁 ════════ */
 function renderHome(){
   const base=location.href.replace(/[^/]*$/,"");
@@ -697,7 +712,7 @@ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.
 $("#eYear").addEventListener("input",renderExec);
 
 (async function init(){
-  try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
+  try{const p=await getKey("ships");if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code,deckSup:s.deckSup||"",engineSup:s.engineSup||"",cso:s.cso||"",mgr:s.mgr||""})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
   let code;
   if(isPreview()&&SHIPS.some(s=>s.code===PREVIEW.ship)){code=PREVIEW.ship;showPreviewBar(code);}
   else{if(PREVIEW)showPreviewBar("");code=await Auth.ensure();}
@@ -707,6 +722,7 @@ $("#eYear").addEventListener("input",renderExec);
   trackOnce("open","開啟","平台",`${code} 開啟船舶檢查填報平台`); // 每船每天一次
   await loadAll(code);
   try{renderMarquee();}catch(e){console.warn("marquee",e);}
+  try{renderContacts(code);}catch(e){console.warn("contacts",e);}
   fillPosSrc();
   fillYear("#aYear",D.air.map(r=>r.basic),"全部年度");
   $("#aNew").href=`${location.href.replace(/[^/]*$/,"")}submit-airform.html?ship=${encodeURIComponent(code)}`;
