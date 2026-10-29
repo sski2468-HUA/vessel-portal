@@ -77,6 +77,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .entry.share{border-top-color:#b5610f;background:linear-gradient(#fdf4ea,#fff 60%)}.entry.share .t{color:#9a520c}
 .entry.itin{border-top-color:#2e7d4f;background:linear-gradient(#ecf6f0,#fff 60%)}.entry.itin .t{color:#2e7d4f}
 .entry.sqms{border-top-color:#2f6690;background:linear-gradient(#edf3f9,#fff 60%)}.entry.sqms .t{color:#2f6690}
+.entry.ntf{border-top-color:#a8323a;background:linear-gradient(#fbeeee,#fff 60%)}.entry.ntf .t{color:#a8323a}
 .entry .d{font-size:13px;color:var(--ink2)}
 .entry .st{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
 .pill{display:inline-block;font-size:12.5px;font-weight:700;border-radius:12px;padding:2px 10px}
@@ -208,6 +209,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <button data-p="pos">👍 正面評價</button>
   <button data-p="exec">📅 執行情形一覽表</button>
   <button data-p="docs">📨 船隊通報單</button>
+  <button data-p="ntf">📇 緊急通報名單</button>
   <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
   <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
 </div></nav>
@@ -296,6 +298,17 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
     <h2 class="pt">📨 船隊通報單 <span class="hint">公司通報、通告清單與回簽資料夾，點擊開啟</span></h2>
     <div id="docList"><div class="loading">載入中…</div></div>
   </section>
+
+  <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；可下載 Word、列印存 PDF -->
+  <section class="page" id="p-ntf">
+    <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
+    <div class="flt">
+      <button class="btn sm dark noprint" onclick="ntfWord()">⬇ 下載 Word</button>
+      <button class="btn sm noprint" onclick="ntfPrint()">🖨 列印／存成 PDF</button>
+      <span class="hint" id="ntfInfo"></span>
+    </div>
+    <div style="border:1px solid #d5dde3;border-radius:8px;background:#fff;overflow:auto"><iframe id="ntfFrame" style="width:100%;height:1180px;border:0" title="緊急通報名單"></iframe></div>
+  </section>
 </main>
 
 <script>
@@ -331,7 +344,7 @@ function pd(s){const m=String(s||"").match(/(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{
 function dateRange(r){const a=pd(r.date),b=pd(r.dateTo);if(!a)return esc(r.date||"");if(!b||b.iso===a.iso)return a.txt;return a.txt+"～"+(a.y===b.y?`${b.m}/${b.d}`:b.txt);}
 
 /* ── 船舶清單、內部檢查判定（沿用主系統「分類規則」的內部檢查關鍵字） ── */
-let SHIPS=[],INTKW=["internal audit","isps","onboard visit","accompanying","cross ship visit","交叉訪船","專項檢查","sar-fm"];
+let SHIPS=[],SHIPS_RAW=[],INTKW=["internal audit","isps","onboard visit","accompanying","cross ship visit","交叉訪船","專項檢查","sar-fm"];
 const shipLabel=c=>{const s=SHIPS.find(x=>x.code===c);return s?s.label:(c||"");};
 const isInt=t=>{const s=String(t||"").toLowerCase();return s.includes("內部檢查")||INTKW.some(k=>k&&s.includes(String(k).toLowerCase()));};
 /* 不給船隊看的檢查來源（公司內部用）：「機器故障」等。要再排除其他來源，加進這個清單即可 */
@@ -529,6 +542,7 @@ function renderHome(){
   ].map(card).join("");
   $("#homeTools").innerHTML=[
     {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
+    {c:"ntf",t:"📇 緊急通報名單",d:"Notification List：本船的 DPA、CSO、督導（含代理人）與岸上緊急應變小組電話。公司更新後這裡自動是最新版，可下載 Word 或列印存 PDF。",href:"#ntf",go:"ntf",st:`<span class="pill mute">Word／PDF</span>`},
     {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）；頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
   ].map(card).join("");}
@@ -678,14 +692,102 @@ function renderDocs(){
   $("#docList").innerHTML=list.map(d=>`<a class="doc" href="${esc(d.url)}" target="_blank" rel="noopener">${d.pinned?"📌":"📄"}<span class="t">${esc(d.title)}</span><span class="hint">${d.createdAt?new Date(d.createdAt).toLocaleDateString("zh-TW"):""}</span><span class="btn sm">開啟 ↗</span></a>`).join("")||`<div class="empty">目前沒有通報單連結。</div>`;
 }
 
+/* ════════ 📇 緊急通報名單（Notification List）════════
+   ⚠ 與主系統（上傳GitHub\index.html）的 NotifyDoc 是同一份程式，改版面時兩邊要一起改。
+   資料：app_db staffDirectory（公司人員通訊錄＋共用設定，主系統維護）＋本船船舶資料（CSO、督導與代理人）。 */
+const NotifyDoc={
+  norm(n){return String(n||"").replace(/\s+/g,"").replace(/雙/g,"双");},
+  person(dir,name){const k=this.norm(name);if(!k)return null;return ((dir&&dir.people)||[]).find(p=>p.active!==false&&this.norm(p.zh)===k)||null;},
+  full(dir,name){const p=this.person(dir,name);return p?[p.zh,p.en].filter(Boolean).join(" "):String(name||"").trim();},
+  fmtDate(s){const m=String(s||"").match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(!m)return "";
+    const M=["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return `${M[+m[2]-1]} ${+m[3]}, ${m[1]}`;},
+  build(dir,ship){
+    const e=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+    const c=(dir&&dir.common)||{},warns=[],seen=new Set();
+    const chk=(name,role)=>{if(!String(name||"").trim()){warns.push(`未設定${role}`);return;}
+      const p=this.person(dir,name),k=this.norm(name)+"|"+role;if(seen.has(k))return;seen.add(k);
+      if(!p){if(/[一-鿿]/.test(name))warns.push(`${name}（${role}）不在公司人員通訊錄`);return;}
+      const miss=[!p.en&&"英文名",!p.ext&&!p.mobile&&"分機／手機"].filter(Boolean);
+      if(miss.length)warns.push(`${p.zh}（${role}）缺${miss.join("、")}`);};
+    const members=[];
+    ((dir&&dir.fixed)||[]).forEach(f=>{chk(f.name,f.titleZh||"固定成員");members.push({name:f.name,tz:f.titleZh,te:f.titleEn});});
+    [["deckSup","甲板督導","Superintendent(in Charge)"],["deckSupAlt","甲板代理督導","Superintendent(the alternate)"],
+     ["engineSup","機艙督導","Superintendent(in Charge)"],["engineSupAlt","機艙代理督導","Superintendent(the alternate)"]].forEach(([f,role,te])=>{
+      const n=String(ship[f]||"").trim();chk(n,role);if(n)members.push({name:n,tz:"船東督導",te});});
+    chk(c.dpa,"DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
+    const pair=(a,b)=>[a,b].map(n=>String(n||"").trim()).filter(Boolean).map(n=>this.full(dir,n)).join(" / ");
+    const office=`日(Day)：<br>${e(c.officeDay)}<br><br>夜(Night)：<br>${e(c.officeNight)}<br>(24 hours)`;
+    const rows=members.map((m,i)=>{const p=this.person(dir,m.name)||{};
+      const ext=p.ext?`~ ${e(String(p.ext).replace(/^~\s*/,""))}`:"";
+      return `<tr><td class="nm">${e(p.zh||m.name)}</td><td>${e(m.tz)}</td>${i===0?`<td class="of" rowspan="${members.length*2}">${office}</td>`:""}<td class="ce" rowspan="2">${ext}</td><td class="ce" rowspan="2">${e(p.mobile||"")}</td></tr>
+        <tr><td class="nm en">${e(p.en||"")}</td><td class="en">${e(m.te)}</td></tr>`;}).join("");
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Notification List (${e(ship.name)})</title><style>
+@page{size:A4 portrait;margin:14mm 14mm 12mm}
+body{font-family:"Times New Roman","新細明體",PMingLiU,serif;font-size:11pt;color:#000;margin:0;background:#fff}
+.co{text-align:center;font-weight:bold;font-size:17pt;letter-spacing:6px;margin:0}
+.coen{text-align:center;font-weight:bold;font-size:13pt;margin:2px 0 0}
+.ship{text-align:center;font-weight:bold;font-size:13pt;margin:6px 0 10px}
+table{border-collapse:collapse}
+.hd td{font-size:11pt;padding:0}
+.ln{margin:3px 0;font-size:11pt;line-height:1.45}
+.t{width:100%;margin-top:4px}
+.t th,.t td{border:1px solid #000;padding:2px 5px;font-size:10.5pt;vertical-align:middle}
+.t th{font-weight:bold;text-align:center;background:#f2f2f2}
+.t .nm{white-space:nowrap}.t .en{font-size:10pt}.t .ce{text-align:center;white-space:nowrap}.t .of{text-align:center;font-size:10pt;width:23%}
+</style></head><body>
+<p class="co">${e(c.companyZh)}</p><p class="coen">${e(c.companyEn)}</p>
+<p class="ship">m. v. ${e(ship.name)}</p>
+<table class="hd" style="width:100%"><tr><td style="font-weight:bold;font-size:14pt;text-decoration:underline">NOTIFICATION LIST</td><td style="text-align:right">Effective Date: ${e(this.fmtDate(c.effDate))}</td></tr></table>
+<p class="ln" style="margin-top:8px">DPA : ${e(this.full(dir,c.dpa))}　/　MLC Representative : ${e(this.full(dir,c.mlc))}</p>
+<p class="ln">CSO : ${e(this.full(dir,ship.cso))}</p>
+<p class="ln">Superintendent : ${e(pair(ship.deckSup,ship.engineSup))} (in charge)</p>
+${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="ln">Superintendent : ${e(pair(ship.deckSupAlt,ship.engineSupAlt))} (the alternate)</p>`:""}
+<p class="ln" style="margin-top:10px">緊急專線電話 (Emergency Hot Line) ： ( 24 hours )　<b>${e(c.hotline)}</b></p>
+<p class="ln">台北應急中心　${e(c.center)}</p>
+<p class="ln" style="margin-top:10px;font-weight:bold">緊急應變處理小組成員（Shore Emergency Response Team）</p>
+<table class="t"><thead><tr><th rowspan="2" style="width:22%">姓 名<br>Name</th><th rowspan="2">職 稱<br>Rank</th><th colspan="3">電 話 Tel</th></tr>
+<tr><th>Office No.</th><th style="width:11%">Ext.</th><th style="width:17%">Mobile Phone</th></tr></thead><tbody>${rows}</tbody></table>
+</body></html>`;
+    return {html,warns};
+  }
+};
+let NTF=null; // {dir, ship}
+async function loadNtf(){
+  if(NTF)return NTF;
+  const dir=await getKey("staffDirectory").catch(()=>null);
+  const ship=(SHIPS_RAW||[]).find(s=>s.code===D.ship)||null;
+  NTF={dir,ship};return NTF;
+}
+async function renderNtf(){
+  const fr=$("#ntfFrame"),info=$("#ntfInfo");
+  info.textContent="載入中…";
+  const {dir,ship}=await loadNtf();
+  if(!dir||!ship){fr.srcdoc="";info.textContent="⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。";return;}
+  fr.srcdoc=NotifyDoc.build(dir,ship).html;
+  info.textContent=(dir.common&&dir.common.effDate)?`生效日期 ${dir.common.effDate.replace(/-/g,"/")}　內容由公司統一更新，請以最新版本為準`:"";
+}
+function ntfWord(){
+  if(!NTF||!NTF.dir||!NTF.ship)return;
+  const html=NotifyDoc.build(NTF.dir,NTF.ship).html.replace("<html>",'<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">');
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+html],{type:"application/msword"}));
+  a.download=`Notification List (${NTF.ship.name}).doc`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  trackAct("下載","緊急通報名單",`${D.ship} 下載緊急通報名單 Word`);
+}
+function ntfPrint(){
+  const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir)return;
+  fr.contentWindow.focus();fr.contentWindow.print();
+  trackAct("列印","緊急通報名單",`${D.ship} 列印緊急通報名單`);
+}
+
 /* ════════ 頁籤 ════════ */
-const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:renderInsp,pos:renderPos,exec:renderExec,docs:renderDocs};
+const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:renderInsp,pos:renderPos,exec:renderExec,docs:renderDocs,ntf:renderNtf};
 function go(p){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
   document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="p-"+p));
   RENDER[p]();window.scrollTo(0,0);
   try{sessionStorage.setItem("ship_portal_tab",p);}catch(e){}
-  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",exec:"執行情形一覽表",docs:"船隊通報單"};
+  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",exec:"執行情形一覽表",docs:"船隊通報單",ntf:"緊急通報名單"};
   if(p!=="home")trackOnce("tab:"+p,"瀏覽",TABN[p]||p,`${D.ship} 瀏覽「${TABN[p]||p}」頁籤`);
 }
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.p));
@@ -698,6 +800,7 @@ $("#eYear").addEventListener("input",renderExec);
   // 船舶資料：主系統現在逐筆存在 sync_ships（app_db 的 ships 是 8/6 之後就沒再更新的舊整包），讀不到才退回舊的
   try{let p=null;try{const r=await api("sync_ships?select=payload");p=(r||[]).map(x=>x&&x.payload).filter(s=>s&&!s._deleted);if(!p.length)p=null;}catch(e){}
     if(!p)p=await getKey("ships");
+    if(Array.isArray(p))SHIPS_RAW=p.filter(s=>s&&s.code);
     if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
   let code;
   if(isPreview()&&SHIPS.some(s=>s.code===PREVIEW.ship)){code=PREVIEW.ship;showPreviewBar(code);}
