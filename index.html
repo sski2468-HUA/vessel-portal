@@ -77,6 +77,30 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .entry.share{border-top-color:#b5610f;background:linear-gradient(#fdf4ea,#fff 60%)}.entry.share .t{color:#9a520c}
 .entry.itin{border-top-color:#2e7d4f;background:linear-gradient(#ecf6f0,#fff 60%)}.entry.itin .t{color:#2e7d4f}
 .entry.sqms{border-top-color:#2f6690;background:linear-gradient(#edf3f9,#fff 60%)}.entry.sqms .t{color:#2f6690}
+/* 緊急通報名單：畫面版（列印另用正式格式） */
+.nv-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.nv-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:860px){.nv-grid{grid-template-columns:1fr}}
+.nv-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.nv-card h3{margin:0 0 10px;font-size:15px;color:var(--navy)}
+.nv-hot{background:linear-gradient(135deg,#a8323a,#c0392b);color:#fff;border-radius:12px;padding:14px 16px}
+.nv-hot .lbl{font-size:12.5px;opacity:.85}
+.nv-hot .big{font-size:28px;font-weight:800;letter-spacing:1px;margin:2px 0 10px;font-variant-numeric:tabular-nums}
+.nv-hot .row{display:flex;gap:18px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;font-size:13px}
+.nv-hot .row b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.nv-kv{display:grid;grid-template-columns:128px 1fr;gap:8px 10px;align-items:start}
+.nv-kv .k{color:var(--ink2);font-size:12.5px;padding-top:2px}
+.nv-who b{font-size:14.5px}.nv-who .en{color:var(--ink2);font-size:12.5px;margin-left:5px}
+.nv-who .tel{display:block;font-size:12.5px;color:var(--navy2);font-variant-numeric:tabular-nums;margin-top:1px}
+.nv-tag{display:inline-block;font-size:11px;font-weight:700;border-radius:9px;padding:0 7px;margin-left:6px;vertical-align:1px}
+.nv-tag.m{background:#e3edf7;color:var(--navy)}.nv-tag.a{background:#f1f3f5;color:var(--ink2)}
+.nv-tb{width:100%;border-collapse:collapse}
+.nv-tb th{background:#eef3f7;color:var(--navy);font-size:12.5px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.nv-tb td{padding:8px 10px;border-bottom:1px solid #edf1f4;vertical-align:middle}
+.nv-tb tr.sup td{background:#f7fafc}
+.nv-tb .zh{font-weight:700}.nv-tb .en{color:var(--ink2);font-size:12.5px}
+.nv-tb td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.nv-tb td.sec{font-size:12px;color:var(--ink2);font-weight:700;letter-spacing:.5px;padding:10px 10px 4px;background:#fff}
 /* 頁內子頁籤（檢查紀錄／內部檢查執行情形一覽表） */
 .subtabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:0 0 12px;flex-wrap:wrap}
 .subtabs button{border:1px solid var(--line);border-bottom:none;background:#f3f6f8;color:var(--ink2);font-size:14px;font-weight:700;padding:7px 16px;border-radius:8px 8px 0 0;cursor:pointer;margin-bottom:-2px;font-family:inherit}
@@ -315,7 +339,9 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
       <button class="btn sm dark noprint" onclick="ntfPrint()">🖨 列印／存成 PDF</button>
       <span class="hint" id="ntfInfo"></span>
     </div>
-    <div style="border:1px solid #d5dde3;border-radius:8px;background:#fff;overflow:auto"><iframe id="ntfFrame" style="width:100%;height:1180px;border:0" title="緊急通報名單"></iframe></div>
+    <div id="ntfView"><div class="loading">載入中…</div></div>
+    <!-- 列印用的正式格式（NotifyDoc）放在畫面外，按「列印／存成 PDF」才印這份 -->
+    <iframe id="ntfFrame" title="緊急通報名單（列印用）" style="position:absolute;left:-10000px;top:0;width:800px;height:1130px;border:0" aria-hidden="true"></iframe>
   </section>
 </main>
 
@@ -728,7 +754,7 @@ const NotifyDoc={
       const n=String(ship[f]||"").trim();chk(n,role);if(n)members.push({name:n,tz:"船東督導",te,main});});
     chk(c.dpa,"DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
     const pair=(a,b)=>[a,b].map(n=>String(n||"").trim()).filter(Boolean).map(n=>this.full(dir,n)).join(" / ");
-    const office=`公司電話 Office No.：日(Day) ${e(c.officeDay)}　／　夜(Night) ${e(c.officeNight)} (24 hours)　　※ Ext. 為公司分機`;
+    const office=`公司電話 Office No.：${e(c.officeDay)}`;
     const rows=members.map((m,i)=>{const p=this.person(dir,m.name)||{},b=m.main?" mn":"";
       const ext=p.ext?`~ ${e(String(p.ext).replace(/^~\s*/,""))}`:"";
       return `<tr><td class="zh${b}" style="border-bottom:none">${e(p.zh||m.name)}</td><td class="zh${b}" style="border-bottom:none">${e(m.tz)}</td><td class="ce" rowspan="2">${ext}</td><td class="ce" rowspan="2">${e(p.mobile||"")}</td></tr>
@@ -773,8 +799,7 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
 <table class="hot kai"><tr><td>緊急專線電話 (Emergency Hot Line) ： ( 24 hours )</td><td style="text-align:right;white-space:nowrap">${e(c.hotline)}</td></tr>
 <tr><td colspan="2" style="border-bottom:none">台北應急中心　${e(c.center)}</td></tr></table>
 <p class="sub kai">緊急應變處理小組成員（Shore Emergency Response Team）</p>
-<p class="of">${office}</p>
-<table class="t"><thead><tr><th rowspan="2" style="width:24%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="2">電　　話　Tel</th></tr>
+<table class="t"><thead><tr><th rowspan="2" style="width:24%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="2" style="line-height:1.45">電　　話　Tel<br><span style="font-size:8.5pt">${office}</span></th></tr>
 <tr><th style="width:14%">Ext.</th><th style="width:22%">Mobile Phone</th></tr></thead><tbody>${rows}</tbody></table>
 </td></tr></table>
 </body></html>`;
@@ -797,12 +822,37 @@ async function loadNtf(){
   NTF={dir,ship};return NTF;
 }
 async function renderNtf(){
-  const fr=$("#ntfFrame"),info=$("#ntfInfo");
-  info.textContent="載入中…";
+  const fr=$("#ntfFrame"),info=$("#ntfInfo"),view=$("#ntfView");
+  info.textContent="";
   const {dir,ship}=await loadNtf();
-  if(!dir||!ship){fr.srcdoc="";info.textContent="⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。";return;}
-  fr.srcdoc=NotifyDoc.build(dir,ship).html;
-  info.textContent=(dir.common&&dir.common.effDate)?`生效日期 ${dir.common.effDate.replace(/-/g,"/")}　內容由公司統一更新，請以最新版本為準`:"";
+  if(!dir||!ship){fr.srcdoc="";view.innerHTML=`<div class="empty">⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。</div>`;return;}
+  fr.srcdoc=NotifyDoc.build(dir,ship).html; // 列印用（正式格式）
+  view.innerHTML=ntfScreen(dir,ship);       // 畫面用（好讀版）
+  info.textContent="列印時會印成公司正式格式";
+}
+/* 畫面版：緊急電話大卡＋本船聯絡窗口＋應變小組表（本船督導在前、公司成員在後），資料跟列印版同一份 */
+function ntfScreen(dir,ship){
+  const c=dir.common||{},P=n=>NotifyDoc.person(dir,n)||{zh:String(n||"")};
+  const ext=p=>p.ext?`~ ${esc(String(p.ext).replace(/^~\s*/,""))}`:"";
+  const tels=p=>[p.ext?`分機 ${esc(String(p.ext).replace(/^~\s*/,""))}`:"",p.mobile?`📱 ${esc(p.mobile)}`:""].filter(Boolean).join("　")||`<span class="hint">—</span>`;
+  const who=n=>{if(!String(n||"").trim())return `<span class="hint">—</span>`;const p=P(n);return `<div class="nv-who"><b>${esc(p.zh)}</b><span class="en">${esc(p.en||"")}</span><span class="tel">${tels(p)}</span></div>`;};
+  const row=(p,tz,te,tag,cls)=>`<tr class="${cls||""}"><td><div class="zh">${esc(p.zh)}</div><div class="en">${esc(p.en||"")}</div></td><td>${esc(tz)}${tag||""}<div class="en">${esc(te||"")}</div></td><td class="num">${ext(p)}</td><td class="num">${esc(p.mobile||"")}</td></tr>`;
+  const sups=[["deckSup","甲板督導","Superintendent (in Charge)",1],["deckSupAlt","甲板代理督導","Superintendent (the alternate)",0],["engineSup","機艙督導","Superintendent (in Charge)",1],["engineSupAlt","機艙代理督導","Superintendent (the alternate)",0]]
+    .filter(x=>String(ship[x[0]]||"").trim()).map(([f,tz,te,m])=>row(P(ship[f]),tz,te,`<span class="nv-tag ${m?"m":"a"}">${m?"主責":"代理"}</span>`,"sup")).join("");
+  const fixed=(dir.fixed||[]).map(f=>row(P(f.name),f.titleZh,f.titleEn)).join("");
+  return `<div class="nv-chips"><span class="chip">m. v. ${esc(ship.name||"")}</span><span class="chip">生效日期 Effective Date：${esc(NotifyDoc.fmtDate(c.effDate))}</span></div>
+  <div class="nv-grid">
+    <div class="nv-hot"><div class="lbl">緊急專線電話 Emergency Hot Line（24 hours）</div><div class="big">${esc(c.hotline||"")}</div>
+      <div class="row"><div>台北應急中心<b>${esc(c.center||"")}</b></div></div>
+      <div class="row"><div>公司電話 Office<b>${esc(c.officeDay||"")}</b></div></div></div>
+    <div class="nv-card"><h3>本船聯絡窗口</h3><div class="nv-kv">
+      <div class="k">DPA</div>${who(c.dpa)}<div class="k">MLC Representative</div>${who(c.mlc)}<div class="k">CSO</div>${who(ship.cso)}</div></div>
+  </div>
+  <div class="nv-card" style="padding:0;overflow:hidden">
+    <h3 style="padding:14px 16px 4px;margin:0">緊急應變處理小組成員 <span class="hint" style="font-weight:400">Shore Emergency Response Team　・　分機請撥公司電話 ${esc(c.officeDay||"")} 轉接</span></h3>
+    <div class="tbwrap" style="border:0;border-radius:0"><table class="nv-tb"><thead><tr><th style="width:26%">姓名 Name</th><th>職稱 Rank</th><th style="width:13%">分機 Ext.</th><th style="width:20%">手機 Mobile</th></tr></thead>
+    <tbody>${sups?`<tr><td colspan="4" class="sec">本船督導 Superintendents</td></tr>${sups}`:""}<tr><td colspan="4" class="sec">公司應變小組 Company Team</td></tr>${fixed}</tbody></table></div>
+  </div>`;
 }
 function ntfPrint(){
   const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir)return;
