@@ -751,7 +751,7 @@ const NotifyDoc={
     [["deckSup","甲板督導","Superintendent(in Charge)",1],["deckSupAlt","甲板代理督導","Superintendent(the alternate)",0],
      ["engineSup","機艙督導","Superintendent(in Charge)",1],["engineSupAlt","機艙代理督導","Superintendent(the alternate)",0]].forEach(([f,role,te,main])=>{
       const n=String(ship[f]||"").trim();chk(n,role);if(n)members.push({name:n,tz:"船東督導",te,main});});
-    chk(c.dpa,"DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
+    chk(c.dpa,"DPA");if(String(c.dpaAlt||"").trim())chk(c.dpaAlt,"Alternate DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
     const pair=(a,b)=>[a,b].map(n=>String(n||"").trim()).filter(Boolean).map(n=>this.full(dir,n)).join(" / ");
     const office=`公司電話 Office<br><b style="font-size:10.5pt">${e(c.officeDay)}</b>`;
     const rows=members.map((m,i)=>{const p=this.person(dir,m.name)||{},b=m.main?" mn":"";
@@ -790,7 +790,8 @@ table{border-collapse:collapse}
 <p class="ship sans">m. v. ${e(ship.name)}</p>
 <table style="width:100%"><tr><td class="ttl">NOTIFICATION LIST</td><td class="eff">Effective Date: ${e(this.fmtDate(c.effDate))}</td></tr></table>
 <div style="margin-top:4pt">
-<p class="sm">DPA ： ${e(this.full(dir,c.dpa))}　/　MLC Representative ： ${e(this.full(dir,c.mlc))}</p>
+<p class="sm">DPA ： ${e(this.full(dir,c.dpa))}${String(c.dpaAlt||"").trim()?`　/　Alternate DPA ： ${e(this.full(dir,c.dpaAlt))}`:""}</p>
+<p class="sm">MLC Representative ： ${e(this.full(dir,c.mlc))}</p>
 <p class="sm">CSO ： ${e(this.full(dir,ship.cso))}</p>
 <p class="sm">Superintendent ： ${e(pair(ship.deckSup,ship.engineSup))} (in charge)</p>
 ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pair(ship.deckSupAlt,ship.engineSupAlt))} (the alternate)</p>`:""}
@@ -845,7 +846,7 @@ function ntfScreen(dir,ship){
       <div class="row"><div>台北應急中心<b>${esc(c.center||"")}</b></div></div>
       <div class="row"><div>公司電話 Office<b>${esc(c.officeDay||"")}</b></div></div></div>
     <div class="nv-card"><h3>本船聯絡窗口</h3><div class="nv-kv">
-      <div class="k">DPA</div>${who(c.dpa)}<div class="k">MLC Representative</div>${who(c.mlc)}<div class="k">CSO</div>${who(ship.cso)}</div></div>
+      <div class="k">DPA</div>${who(c.dpa)}${String(c.dpaAlt||"").trim()?`<div class="k">Alternate DPA</div>${who(c.dpaAlt)}`:""}<div class="k">MLC Representative</div>${who(c.mlc)}<div class="k">CSO</div>${who(ship.cso)}</div></div>
   </div>
   <div class="nv-card" style="padding:0;overflow:hidden">
     <h3 style="padding:14px 16px 4px;margin:0">緊急應變處理小組成員 <span class="hint" style="font-weight:400">Shore Emergency Response Team　・　分機請撥公司電話 ${esc(c.officeDay||"")} 轉接</span></h3>
