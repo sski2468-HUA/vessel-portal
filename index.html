@@ -308,12 +308,11 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
     <div id="docList"><div class="loading">載入中…</div></div>
   </section>
 
-  <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；可下載 Word、列印存 PDF -->
+  <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；只提供列印／存成 PDF -->
   <section class="page" id="p-ntf">
     <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
     <div class="flt">
-      <button class="btn sm dark noprint" onclick="ntfWord()">⬇ 下載 Word</button>
-      <button class="btn sm noprint" onclick="ntfPrint()">🖨 列印／存成 PDF</button>
+      <button class="btn sm dark noprint" onclick="ntfPrint()">🖨 列印／存成 PDF</button>
       <span class="hint" id="ntfInfo"></span>
     </div>
     <div style="border:1px solid #d5dde3;border-radius:8px;background:#fff;overflow:auto"><iframe id="ntfFrame" style="width:100%;height:1180px;border:0" title="緊急通報名單"></iframe></div>
@@ -551,7 +550,7 @@ function renderHome(){
   ].map(card).join("");
   $("#homeTools").innerHTML=[
     {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
-    {c:"ntf",t:"📇 緊急通報名單",d:"Notification List：本船的 DPA、CSO、督導（含代理人）與岸上緊急應變小組電話。公司更新後這裡自動是最新版，可下載 Word 或列印存 PDF。",href:"#ntf",go:"ntf",st:`<span class="pill mute">Word／PDF</span>`},
+    {c:"ntf",t:"📇 緊急通報名單",d:"Notification List：本船的 DPA、CSO、督導（含代理人）與岸上緊急應變小組電話。公司更新後這裡自動是最新版，可直接列印或存成 PDF。",href:"#ntf",go:"ntf",st:`<span class="pill mute">列印／PDF</span>`},
     {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）；頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
   ].map(card).join("");}
@@ -729,17 +728,17 @@ const NotifyDoc={
       const n=String(ship[f]||"").trim();chk(n,role);if(n)members.push({name:n,tz:"船東督導",te,main});});
     chk(c.dpa,"DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
     const pair=(a,b)=>[a,b].map(n=>String(n||"").trim()).filter(Boolean).map(n=>this.full(dir,n)).join(" / ");
-    const office=`日(Day)：<br>${e(c.officeDay)}<br><br>夜(Night)：<br>${e(c.officeNight)}<br>(24 hours)`;
+    const office=`公司電話 Office No.：日(Day) ${e(c.officeDay)}　／　夜(Night) ${e(c.officeNight)} (24 hours)　　※ Ext. 為公司分機`;
     const rows=members.map((m,i)=>{const p=this.person(dir,m.name)||{},b=m.main?" mn":"";
       const ext=p.ext?`~ ${e(String(p.ext).replace(/^~\s*/,""))}`:"";
-      return `<tr><td class="zh${b}" style="border-bottom:none">${e(p.zh||m.name)}</td><td class="zh${b}" style="border-bottom:none">${e(m.tz)}</td>${i===0?`<td class="of" rowspan="${members.length*2}">${office}</td>`:""}<td class="ce" rowspan="2">${ext}</td><td class="ce" rowspan="2">${e(p.mobile||"")}</td></tr>
+      return `<tr><td class="zh${b}" style="border-bottom:none">${e(p.zh||m.name)}</td><td class="zh${b}" style="border-bottom:none">${e(m.tz)}</td><td class="ce" rowspan="2">${ext}</td><td class="ce" rowspan="2">${e(p.mobile||"")}</td></tr>
         <tr><td class="en${b}" style="border-top:none">${e(p.en||"")}</td><td class="en${b}" style="border-top:none">${e(m.te)}</td></tr>`;}).join("");
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Notification List (${e(ship.name)})</title><style>
 @page{size:A4 portrait;margin:10mm 10mm 10mm}
 body{font-family:"Times New Roman","新細明體",PMingLiU,serif;font-size:10.5pt;color:#000;margin:0;background:#fff}
 table{border-collapse:collapse}
-.frame{width:100%;border:1.5pt solid #000}
-.frame>tbody>tr>td{padding:10pt 14pt 14pt;vertical-align:top}
+.frame{width:100%}
+.frame>tbody>tr>td{padding:0;vertical-align:top}
 .kai{font-family:"標楷體",DFKai-SB,"BiauKai","Times New Roman",serif}
 .sans{font-family:Arial,"Microsoft JhengHei",sans-serif}
 .cozh{font-size:8.5pt;letter-spacing:1px}
@@ -756,7 +755,7 @@ table{border-collapse:collapse}
 .t th{font-weight:normal;font-size:9pt}
 .t .zh{padding-top:3pt}.t .en{padding-bottom:3pt}
 .t .mn{font-weight:bold;font-size:11pt}
-.t .ce{white-space:nowrap;font-size:10pt}.t .of{font-size:9.5pt;width:16%}
+.t .ce{white-space:nowrap;font-size:10.5pt}.of{margin:0 0 4pt;font-size:9.5pt}
 </style></head><body>
 <table class="frame"><tr><td>
 <table style="width:100%"><tr>
@@ -774,8 +773,9 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
 <table class="hot kai"><tr><td>緊急專線電話 (Emergency Hot Line) ： ( 24 hours )</td><td style="text-align:right;white-space:nowrap">${e(c.hotline)}</td></tr>
 <tr><td colspan="2" style="border-bottom:none">台北應急中心　${e(c.center)}</td></tr></table>
 <p class="sub kai">緊急應變處理小組成員（Shore Emergency Response Team）</p>
-<table class="t"><thead><tr><th rowspan="2" style="width:20%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="3">電　　話　Tel</th></tr>
-<tr><th>Office No.</th><th style="width:13%">Ext.</th><th style="width:20%">Mobile Phone</th></tr></thead><tbody>${rows}</tbody></table>
+<p class="of">${office}</p>
+<table class="t"><thead><tr><th rowspan="2" style="width:24%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="2">電　　話　Tel</th></tr>
+<tr><th style="width:14%">Ext.</th><th style="width:22%">Mobile Phone</th></tr></thead><tbody>${rows}</tbody></table>
 </td></tr></table>
 </body></html>`;
     return {html,warns};
@@ -803,12 +803,6 @@ async function renderNtf(){
   if(!dir||!ship){fr.srcdoc="";info.textContent="⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。";return;}
   fr.srcdoc=NotifyDoc.build(dir,ship).html;
   info.textContent=(dir.common&&dir.common.effDate)?`生效日期 ${dir.common.effDate.replace(/-/g,"/")}　內容由公司統一更新，請以最新版本為準`:"";
-}
-function ntfWord(){
-  if(!NTF||!NTF.dir||!NTF.ship)return;
-  const a=document.createElement("a");a.href=URL.createObjectURL(NotifyDoc.wordBlob(NTF.dir,NTF.ship));
-  a.download=`Notification List (${NTF.ship.name}).doc`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
-  trackAct("下載","緊急通報名單",`${D.ship} 下載緊急通報名單 Word`);
 }
 function ntfPrint(){
   const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir)return;
