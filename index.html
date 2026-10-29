@@ -37,9 +37,10 @@ header{background:var(--navy);color:#fff;padding:14px 20px}
 .hd a.guide:hover{background:#fff7e6}
 .gate .help{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--navy2)}
 nav{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-.tabs{max-width:1180px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:0 12px}
-.tabs button{border:0;background:none;padding:12px 12px;font-size:14.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
-.tabs a.extab{padding:12px 12px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
+/* 頁籤不用左右滑動：一排放得下就一排，螢幕較窄時自動換到第二排 */
+.tabs{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:0 2px;padding:0 12px}
+.tabs button{border:0;background:none;padding:12px 9px;font-size:14.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs a.extab{padding:12px 9px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
 .tabs a.extab:hover{color:var(--navy)}
 .tabs button.on{color:var(--navy);border-bottom-color:var(--signal)}
 main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
@@ -67,9 +68,14 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 /* 首頁入口卡 */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 #homeEntries,#homeTools,#homeFill{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
-.homeTop{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:22px;align-items:start}
-@media(max-width:900px){.homeTop{grid-template-columns:1fr}}
-#homeFill{grid-template-columns:1fr} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
+/* 首頁卡片同寬：整頁當成 3 欄、欄距都是 12px——上排左邊「待辦事項」佔 2 欄（裡面 2 張卡各 1 欄）、右邊「填報」佔 1 欄；下排「常用功能」3 張各 1 欄 */
+.homeTop{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+.homeTop>div:first-child{grid-column:span 2}
+#homeEntries{grid-template-columns:repeat(2,minmax(0,1fr))}
+#homeFill{grid-template-columns:minmax(0,1fr)}
+#homeTools{grid-template-columns:repeat(3,minmax(0,1fr))}
+#homeEntries .entry,#homeFill .entry,#homeTools .entry{min-height:200px}
+@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>div:first-child{grid-column:auto}#homeEntries,#homeTools{grid-template-columns:1fr}} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -342,6 +348,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；只提供列印／存成 PDF -->
   <section class="page" id="p-ntf">
     <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
+    <div style="background:#eaf2fb;border:1px solid #b9d0ea;border-left:5px solid var(--navy);color:var(--navy);border-radius:8px;padding:9px 14px;margin:0 0 10px;font-size:14.5px;font-weight:700">📌 此份為 SOPEP／SMPEP 中的 NOTIFICATION LIST，請務必下載最新版本檢附於 SOPEP／SMPEP 計畫中。</div>
     <div class="flt">
       <button class="btn sm dark noprint" onclick="ntfPrint()">🖨 列印／存成 PDF</button>
       <span class="hint" id="ntfInfo"></span>
