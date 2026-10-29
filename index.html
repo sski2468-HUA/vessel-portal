@@ -795,7 +795,7 @@ table{border-collapse:collapse}
 <p class="sm">Superintendent ： ${e(pair(ship.deckSup,ship.engineSup))} (in charge)</p>
 ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pair(ship.deckSupAlt,ship.engineSupAlt))} (the alternate)</p>`:""}
 </div>
-<table class="hot kai"><tr><td>緊急專線電話 (Emergency Hot Line) ： ( 24 hours )</td><td style="text-align:right;white-space:nowrap">${e(c.hotline)}</td></tr>
+<table class="hot kai"><tr><td>緊急專線電話 (Emergency Hot Line) ： ( 24 hours )</td><td style="text-align:right;white-space:nowrap">${String(c.hotline||"").split(/\s*[；;，,\n]\s*/).filter(Boolean).map(e).join("<br>")}</td></tr>
 <tr><td colspan="2" style="border-bottom:none">台北應急中心　${e(c.center)}</td></tr></table>
 <p class="sub kai">緊急應變處理小組成員（Shore Emergency Response Team）</p>
 <table class="t"><thead><tr><th rowspan="2" style="width:24%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="2">電　　話　Tel</th></tr>
@@ -841,7 +841,7 @@ function ntfScreen(dir,ship){
   const fixed=(dir.fixed||[]).map(f=>row(P(f.name),f.titleZh,f.titleEn)).join("");
   return `<div class="nv-chips"><span class="chip">m. v. ${esc(ship.name||"")}</span><span class="chip">生效日期 Effective Date：${esc(NotifyDoc.fmtDate(c.effDate))}</span></div>
   <div class="nv-grid">
-    <div class="nv-hot"><div class="lbl">緊急專線電話 Emergency Hot Line（24 hours）</div><div class="big">${esc(c.hotline||"")}</div>
+    <div class="nv-hot"><div class="lbl">緊急專線電話 Emergency Hot Line（24 hours）</div><div class="big">${String(c.hotline||"").split(/\s*[；;，,\n]\s*/).filter(Boolean).map(esc).join("<br>")}</div>
       <div class="row"><div>台北應急中心<b>${esc(c.center||"")}</b></div></div>
       <div class="row"><div>公司電話 Office<b>${esc(c.officeDay||"")}</b></div></div></div>
     <div class="nv-card"><h3>本船聯絡窗口</h3><div class="nv-kv">
