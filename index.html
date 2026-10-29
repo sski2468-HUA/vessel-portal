@@ -66,7 +66,10 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .empty{padding:26px;text-align:center;color:var(--ink3)}
 /* 首頁入口卡 */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-#homeEntries,#homeTools{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
+#homeEntries,#homeTools,#homeFill{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.homeTop{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:900px){.homeTop{grid-template-columns:1fr}}
+#homeFill{grid-template-columns:1fr} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -245,9 +248,14 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 <main>
   <!-- 首頁 -->
   <section class="page on" id="p-home">
-    <h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
-    <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div>
-    <h2 class="pt" style="margin-top:22px">🧰 填報與常用功能 <span class="hint">有需要時點選</span></h2>
+    <!-- 第一排：左＝待辦事項、右＝填報（外部檢查線上填單）；第二排：常用功能 -->
+    <div class="homeTop">
+      <div><h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
+        <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div></div>
+      <div><h2 class="pt">📝 填報 <span class="hint">每次外部檢查後填寫</span></h2>
+        <div class="grid" id="homeFill"></div></div>
+    </div>
+    <h2 class="pt" style="margin-top:22px">🧰 常用功能 <span class="hint">有需要時點選</span></h2>
     <div class="grid" id="homeTools"></div>
     <div class="flownote" style="margin:22px 0 0">
       <b>⚠ 請注意：在本平台填報，不能取代公司 FLOW 系統</b>
@@ -502,7 +510,9 @@ async function loadAll(code){
     loadCampaigns(code).catch(()=>{}),
     loadIA(code).catch(()=>{}),
     // 跑馬燈公告（主系統 Owner 在資料管理新增；唯讀）
-    getKey("portal_notices").then(p=>D.notices=(p&&Array.isArray(p.items))?p.items:[]).catch(()=>{D.notices=[];})
+    getKey("portal_notices").then(p=>D.notices=(p&&Array.isArray(p.items))?p.items:[]).catch(()=>{D.notices=[];}),
+    // 緊急通報名單：開站就算好「有沒有更新沒列印」，頁籤／首頁卡片／跑馬燈才能提示
+    loadNtf().then(()=>ntfBadge()).catch(()=>{})
   ];
   await Promise.all(tasks.map(p=>p.catch(e=>console.warn(e))));
 }
@@ -551,7 +561,8 @@ function renderMarquee(){
     D.ia.pending?`🛠 內部檢查改善單：待填寫 ${D.ia.pending} 項`:"",
     D.ia.returned?`↩ 內部檢查改善單：被退回需補充 ${D.ia.returned} 項`:"",
     openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
-    trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:""
+    trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
+    ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":""
   ].filter(Boolean);
   const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
   if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
@@ -573,11 +584,15 @@ function renderHome(){
     {c:"share",t:"🔍 分享缺失自查",d:"他船發生的缺失分享給全船隊，請本船自查是否有類似情形並回覆。",href:"#camp",go:"camp",st:(()=>{const trk=campTracks().filter(x=>!x.it.closed).length;
       return (openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:"")+(trk?`<span class="pill warn">${trk} 項需追蹤未結案</span>`:"")+(!openCamps&&!trk?`<span class="pill ok">目前沒有待填寫的自查</span>`:"");})()}
   ].map(card).join("");
+  // 第一排右側：填報（外部檢查線上填單）
+  $("#homeFill").innerHTML=[
+    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`}
+  ].map(card).join("");
+  // 第二排：常用功能（船端 Itinerary → SQMS → 緊急通報名單）
   $("#homeTools").innerHTML=[
-    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`},
-    {c:"ntf",t:"📇 緊急通報名單",d:"Notification List：本船的 DPA、CSO、督導（含代理人）與岸上緊急應變小組電話。公司更新後這裡自動是最新版，可直接列印或存成 PDF。",href:"#ntf",go:"ntf",st:`<span class="pill mute">列印／PDF</span>`},
     {c:"itin",t:"🧭 船端 Itinerary",d:"本船航程（Itinerary）；頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
-    {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
+    {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，到這裡提出。（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`},
+    {c:"ntf",t:"📇 緊急通報名單",d:"Notification List：本船的 DPA、CSO、督導（含代理人）與岸上緊急應變小組電話。公司更新後這裡自動是最新版，可直接列印或存成 PDF。",href:"#ntf",go:"ntf",st:ntfNeedsPrint()?`<span class="pill bad">🔔 UPDATE：名單已更新，請重新列印</span>`:`<span class="pill mute">列印／PDF</span>${NTF&&NTF.printed?`<span class="pill ok">已列印最新版</span>`:""}`}
   ].map(card).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
 /* 需追蹤：本船在各分享自查活動中答「有，需處理」(status=similar) 的項目。未結案的列出來＋「前往結案」
@@ -805,6 +820,8 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
 </body></html>`;
     return {html,warns};
   },
+  /* 版本碼：名單內容（含生效日期、人員、電話）任何一個字有變就不同；船上列印時記進操作紀錄，用來判斷「有更新、該輪還沒重新列印」 */
+  sig(dir,ship){const s=this.build(dir,ship).html;let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);},
   /* Word：包成 MHT（單一檔案網頁），公司 MARK 圖片內嵌在檔案裡，船上離線開也看得到 */
   wordBlob(dir,ship){
     const loc="file:///C:/fpmc_notify_logo.png",bd="----=_NextPart_FPMC_NOTIFY";
@@ -814,12 +831,24 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
     return new Blob([mht],{type:"application/msword"});
   }
 };
-let NTF=null; // {dir, ship}
+let NTF=null; // {dir, ship, sig（目前版本碼）, printed:{sig,ts}（本船最後一次列印）}
+const NTF_TARGET="船舶檢查填報平台－緊急通報名單";
 async function loadNtf(){
   if(NTF)return NTF;
   const dir=await getKey("staffDirectory").catch(()=>null);
   const ship=(SHIPS_RAW||[]).find(s=>s.code===D.ship)||null;
-  NTF={dir,ship};return NTF;
+  // 本船最後一次「列印」紀錄（操作紀錄的摘要裡帶「[版本 xxx]」）——換電腦也算，因為存在雲端
+  let printed=null;
+  try{const r=await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+D.ship)}&target=eq.${encodeURIComponent(NTF_TARGET)}&action=eq.${encodeURIComponent("列印")}&order=ts.desc&limit=1`)||[];
+    if(r[0]){const m=String(r[0].summary||"").match(/\[版本 ([0-9a-z]+)\]/);printed={sig:m?m[1]:"",ts:r[0].ts};}}catch(e){}
+  NTF={dir,ship,sig:(dir&&ship)?NotifyDoc.sig(dir,ship):"",printed};return NTF;
+}
+/* 有更新、本船還沒重新列印（從沒列印過也算） */
+function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!==NTF.sig));}
+/* 頁籤上的 UPDATE 標記 */
+function ntfBadge(){
+  const b=document.querySelector('#tabs button[data-p="ntf"]');if(!b)return;
+  b.innerHTML=`📇 緊急通報名單${ntfNeedsPrint()?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">UPDATE</span>`:""}`;
 }
 async function renderNtf(){
   const fr=$("#ntfFrame"),info=$("#ntfInfo"),view=$("#ntfView");
@@ -827,8 +856,8 @@ async function renderNtf(){
   const {dir,ship}=await loadNtf();
   if(!dir||!ship){fr.srcdoc="";view.innerHTML=`<div class="empty">⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。</div>`;return;}
   fr.srcdoc=NotifyDoc.build(dir,ship).html; // 列印用（正式格式）
-  view.innerHTML=ntfScreen(dir,ship);       // 畫面用（好讀版）
-  info.textContent="列印時會印成公司正式格式";
+  view.innerHTML=(ntfNeedsPrint()?`<div style="background:#fde8e6;border:1px solid #f1b8b0;color:#a8323a;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-weight:700">🔔 UPDATE：名單已更新${NTF.printed?`（本船上次列印：${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`:"，本船尚未列印過"}，請按「🖨 列印／存成 PDF」更新船上留存的版本。</div>`:"")+ntfScreen(dir,ship); // 畫面用（好讀版）
+  info.textContent=ntfNeedsPrint()?"列印時會印成公司正式格式":`✓ 本船已列印最新版（${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`;
 }
 /* 畫面版：緊急電話大卡＋本船聯絡窗口＋應變小組表（本船督導在前、公司成員在後），資料跟列印版同一份 */
 function ntfScreen(dir,ship){
@@ -861,7 +890,9 @@ function ntfPrint(){
   const restore=()=>{document.title=oldTitle;window.removeEventListener("afterprint",restore);};
   window.addEventListener("afterprint",restore);setTimeout(restore,60000);
   fr.contentWindow.focus();fr.contentWindow.print();
-  trackAct("列印","緊急通報名單",`${D.ship} 列印緊急通報名單`);
+  // 記下列印的版本（主系統「各船下載狀態」與本船的 UPDATE 提示都看這筆）；預覽模式不記，也不清提示
+  log("列印","緊急通報名單",`${D.ship} 列印緊急通報名單 [版本 ${NTF.sig}]`);
+  if(!isPreview()){NTF.printed={sig:NTF.sig,ts:Date.now()};ntfBadge();renderNtf();try{renderMarquee();}catch(e){}}
 }
 
 /* ════════ 頁籤 ════════ */
