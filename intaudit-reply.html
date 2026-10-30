@@ -542,7 +542,7 @@ function renderPreview(keepConfirm){
       <div class="ih">👤 填寫人資料${(!nameVal||!titleVal)?'<span class="badge red">尚未填完</span>':""}</div>
       <div>姓名：<b>${esc(nameVal||"（未填）")}</b>　職稱：<b>${esc(titleVal||"（未選）")}</b></div>
     </div>
-    ${flows.length?`<div class="banner">提醒：這張改善單另有 <b>${flows.length}</b> 項 FLOW 系統缺失，請自行至 FLOW 系統（DMP-FM01）辦理，本頁送出不包含這些項目。</div>`:""}
+    ${flows.length?`<div class="banner" style="border-color:#e0a49c;background:#fdecea;color:#a3271b;font-weight:700">📋 這張改善單另有 <b>${flows.length}</b> 項 FLOW 缺失，請務必至 FLOW 系統（DMP-FM01）填單；本頁送出不包含這些項目。</div>`:""}
     <div class="ih" style="margin:14px 14px 0">📋 系統填報項目（共 ${items.length} 項）</div>
     <div class="hint" style="font-size:13px;margin:4px 14px 0">已改善（已送出）<b style="color:var(--navy)">${c.sent+c.lock}</b>　已填妥待送出 <b style="color:var(--ok)">${c.green}</b>　未改善 <b style="color:var(--bad)">${c.red}</b>　<b>本次按「送出」會先送出 ${readyCount} 項</b>（其餘之後再回來補）</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 14px 4px">
