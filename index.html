@@ -829,6 +829,8 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
   },
   /* 版本碼：名單內容（含生效日期、人員、電話）任何一個字有變就不同；船上列印時記進操作紀錄，用來判斷「有更新、該輪還沒重新列印」 */
   sig(dir,ship){const s=this.build(dir,ship).html;let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);},
+  /* 列印用：在名單右下角加一行很小的版本碼（Ver. xxx），督導上船可對照紙本是否最新版；版本碼本身仍以不含這行的 build() 計算 */
+  printHtml(dir,ship){const h=this.build(dir,ship).html;return h.replace("</body></html>",`<div style="text-align:right;font-size:6pt;color:#999;margin-top:2pt">Ver. ${this.sig(dir,ship)}</div></body></html>`);},
   /* Word：包成 MHT（單一檔案網頁），公司 MARK 圖片內嵌在檔案裡，船上離線開也看得到 */
   wordBlob(dir,ship){
     const loc="file:///C:/fpmc_notify_logo.png",bd="----=_NextPart_FPMC_NOTIFY";
@@ -865,7 +867,7 @@ async function renderNtf(){
   info.textContent="";
   const {dir,ship}=await loadNtf();
   if(!dir||!ship){fr.srcdoc="";view.innerHTML=`<div class="empty">⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。</div>`;return;}
-  fr.srcdoc=NotifyDoc.build(dir,ship).html; // 列印用（正式格式）
+  fr.srcdoc=NotifyDoc.printHtml(dir,ship); // 列印用（正式格式，右下角帶小字版本碼）
   view.innerHTML=(ntfNeedsPrint()?`<div style="background:#fde8e6;border:1px solid #f1b8b0;color:#a8323a;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-weight:700">🔔 UPDATE：名單已更新${NTF.printed?`（本船上次列印：${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`:"，本船尚未列印過"}，請按「🖨 列印／存成 PDF」更新船上留存的版本。</div>`:"")+ntfScreen(dir,ship); // 畫面用（好讀版）
   info.textContent=ntfNeedsPrint()?"列印時會印成公司正式格式":`✓ 本船已列印最新版（${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`;
 }
@@ -879,7 +881,7 @@ function ntfScreen(dir,ship){
   const sups=[["deckSup","甲板督導","Superintendent (in Charge)",1],["deckSupAlt","甲板代理督導","Superintendent (the alternate)",0],["engineSup","機艙督導","Superintendent (in Charge)",1],["engineSupAlt","機艙代理督導","Superintendent (the alternate)",0]]
     .filter(x=>String(ship[x[0]]||"").trim()).map(([f,tz,te,m])=>row(P(ship[f]),tz,te,`<span class="nv-tag ${m?"m":"a"}">${m?"主責":"代理"}</span>`,"sup")).join("");
   const fixed=(dir.fixed||[]).map(f=>row(P(f.name),f.titleZh,f.titleEn)).join("");
-  return `<div class="nv-chips"><span class="chip">${esc(ship.name||"")}</span><span class="chip">生效日期 Effective Date：${esc(NotifyDoc.fmtDate(c.effDate))}</span></div>
+  return `<div class="nv-chips"><span class="chip">${esc(ship.name||"")}</span><span class="chip">生效日期 Effective Date：${esc(NotifyDoc.fmtDate(c.effDate))}</span><span class="chip" title="名單內容的版本碼；印出來的名單右下角也有同樣的 Ver. 代碼">版本 Ver. ${esc(NotifyDoc.sig(dir,ship))}</span></div>
   <div class="nv-grid">
     <div class="nv-hot"><div class="lbl">緊急專線電話 Emergency Hot Line（24 hours）</div><div class="big">${String(c.hotline||"").split(/\s*[；;，,\n]\s*/).filter(Boolean).map(esc).join("<br>")}</div>
       <div class="row"><div>台北應急中心<b>${esc(c.center||"")}</b></div></div>
