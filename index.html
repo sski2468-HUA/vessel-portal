@@ -348,7 +348,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；只提供列印／存成 PDF -->
   <section class="page" id="p-ntf">
     <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
-    <div style="background:#eaf2fb;border:1px solid #b9d0ea;border-left:5px solid var(--navy);color:var(--navy);border-radius:8px;padding:7px 12px;margin:0 0 12px;font-size:12.5px;font-weight:600">📌 此份為 SOPEP／SMPEP 中的 NOTIFICATION LIST，請務必下載最新版本檢附於 SOPEP／SMPEP 計畫中。</div>
+    <div style="background:#eaf2fb;border:1px solid #b9d0ea;border-left:5px solid var(--navy);color:var(--navy);border-radius:8px;padding:6px 12px;margin:0 0 12px;font-size:11.5px;font-weight:600;line-height:1.6">📌 此份為 SOPEP／SMPEP 中的 NOTIFICATION LIST，請務必下載最新版本檢附於 SOPEP／SMPEP 計畫中。<br><span style="font-weight:400">🔖 名單右下角印有版本碼（Ver.），人員或電話（含手機）有任何異動，版本碼就會改變。請核對船上留存紙本的版本碼與本頁顯示的版本是否一致；不一致時請重新列印，並更換 SOPEP／SMPEP 內的名單。</span></div>
     <div class="flt">
       <button class="btn noprint" onclick="ntfPrint()" style="background:#e8842c;border-color:#e8842c;color:#fff;font-size:17px;font-weight:800;padding:11px 26px;border-radius:10px;box-shadow:0 3px 10px rgba(232,132,44,.35)">🖨 列印／存成 PDF</button>
       <span class="hint" id="ntfInfo"></span>
@@ -593,7 +593,7 @@ function renderHome(){
   ].map(card).join("");
   // 第一排右側：填報（外部檢查線上填單）
   $("#homeFill").innerHTML=[
-    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`}
+    {c:"ext",t:"📝 外部檢查線上填單",d:"PSC、SIRE、CDI、FLAG 等外部檢查結束後，在這裡線上填寫檢查結果與缺失（After Inspection Review）。<b style=\"color:#c0392b\">每次外部檢查都要填報，零缺失也要填報</b>。（正面評論若有才需填寫）<br><b style=\"color:#c0392b\">外部檢查缺失一律需至 FLOW 系統填報 DMP-FM01，進行核簽流程。</b>",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`}
   ].map(card).join("");
   // 第二排：常用功能（船端 Itinerary → SQMS → 緊急通報名單）
   $("#homeTools").innerHTML=[
