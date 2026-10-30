@@ -70,12 +70,12 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 #homeEntries,#homeTools,#homeFill{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 /* 首頁卡片同寬：整頁當成 3 欄、欄距都是 12px——上排左邊「待辦事項」佔 2 欄（裡面 2 張卡各 1 欄）、右邊「填報」佔 1 欄；下排「常用功能」3 張各 1 欄 */
 .homeTop{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
-.homeTop>div:first-child{grid-column:span 2}
+.homeTop>.homeTodo{grid-column:span 2}
 #homeEntries{grid-template-columns:repeat(2,minmax(0,1fr))}
 #homeFill{grid-template-columns:minmax(0,1fr)}
 #homeTools{grid-template-columns:repeat(3,minmax(0,1fr))}
 #homeEntries .entry,#homeFill .entry,#homeTools .entry{min-height:200px}
-@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>div:first-child{grid-column:auto}#homeEntries,#homeTools{grid-template-columns:1fr}} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
+@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>.homeTodo{grid-column:auto}#homeEntries,#homeTools{grid-template-columns:1fr}} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -254,12 +254,12 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 <main>
   <!-- 首頁 -->
   <section class="page on" id="p-home">
-    <!-- 第一排：左＝待辦事項、右＝填報（外部檢查線上填單）；第二排：常用功能 -->
+    <!-- 第一排：左＝填報（外部檢查線上填單）、右＝待辦事項；第二排：常用功能 -->
     <div class="homeTop">
-      <div><h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
-        <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div></div>
       <div><h2 class="pt">📝 填報 <span class="hint">每次外部檢查後填寫</span></h2>
         <div class="grid" id="homeFill"></div></div>
+      <div class="homeTodo"><h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
+        <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div></div>
     </div>
     <h2 class="pt" style="margin-top:22px">🧰 常用功能 <span class="hint">有需要時點選</span></h2>
     <div class="grid" id="homeTools"></div>
