@@ -561,7 +561,7 @@ async function loadIA(code){
    公司公告（期間內、全船隊或有指定本船）排前面；接著是本船自己還沒辦理的項目（預設內容）；都沒有就顯示「目前沒有待辦」。 */
 function renderMarquee(){
   const t=new Date(),today=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
-  const notes=(D.notices||[]).filter(n=>n&&n.text&&(!n.from||n.from<=today)&&(!n.to||n.to>=today)&&(!(n.ships||[]).length||n.ships.includes(D.ship)));
+  const notes=(D.notices||[]).filter(n=>n&&n.text&&!n.paused&&(!n.from||n.from<=today)&&(!n.to||n.to>=today)&&(!(n.ships||[]).length||n.ships.includes(D.ship)));
   const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
   const trk=campTracks().filter(x=>!x.it.closed).length;
   const todo=[
