@@ -846,9 +846,12 @@ async function loadNtf(){
   const ship=(SHIPS_RAW||[]).find(s=>s.code===D.ship)||null;
   // 本船最後一次「列印」紀錄（操作紀錄的摘要裡帶「[版本 xxx]」）——換電腦也算，因為存在雲端
   let printed=null;
-  try{const r=await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+D.ship)}&target=eq.${encodeURIComponent(NTF_TARGET)}&action=eq.${encodeURIComponent("列印")}&order=ts.desc&limit=1`)||[];
-    if(r[0]){const m=String(r[0].summary||"").match(/\[版本 ([0-9a-z]+)\]/);printed={sig:m?m[1]:"",ts:r[0].ts};}}catch(e){}
-  NTF={dir,ship,sig:(dir&&ship)?NotifyDoc.sig(dir,ship):"",printed};return NTF;
+  try{const r=await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+D.ship)}&target=eq.${encodeURIComponent(NTF_TARGET)}&action=eq.${encodeURIComponent("列印")}&order=ts.desc&limit=200`)||[];
+    // 印過「目前這一版」就算已列印最新版（不只看最後一筆，避免舊版快取頁面印的、沒帶版本碼的紀錄蓋掉）
+    if(r[0]){const sigs=r.map(x=>(String(x.summary||"").match(/\[版本 ([0-9a-z]+)\]/)||[])[1]).filter(Boolean);printed={sig:sigs[0]||"",sigs,ts:r[0].ts};}}catch(e){}
+  const curSig=(dir&&ship)?NotifyDoc.sig(dir,ship):"";
+  if(printed&&curSig&&printed.sigs.includes(curSig))printed.sig=curSig;
+  NTF={dir,ship,sig:curSig,printed};return NTF;
 }
 /* 有更新、本船還沒重新列印（從沒列印過也算） */
 function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!==NTF.sig));}
