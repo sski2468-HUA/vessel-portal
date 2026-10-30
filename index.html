@@ -725,7 +725,7 @@ function renderPos(){
 const EO_TYPES=[{k:"audit",t:"內稽",it:"INTERNALAUDIT"},{k:"visit",t:"訪船",it:"ONBOARDVISIT"},{k:"cross",t:"交叉訪船",it:"CROSSSHIPVISIT"},{k:"accompany",t:"隨船",it:"ACCOMPANYINGSHIP"},{k:"isps",t:"ISPS",it:"ISPSAUDIT"}];
 const normIt=t=>String(t||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 function eoEvents(){
-  const map={};EO_TYPES.forEach(t=>map[t.it]=t.k);
+  const map={ISPSINTERNALAUDIT:"isps"};EO_TYPES.forEach(t=>map[t.it]=t.k);
   return D.insp.map(r=>{const k=map[normIt(r.itype)]||(/交叉訪船/.test(r.itype||"")?"cross":undefined);const d=pd(r.date);if(!k||!d)return null;return Object.assign({k,insp:r.inspector||"",loc:r.loc||"",range:dateRange(r)},d);}).filter(Boolean);
 }
 function renderExec(){
