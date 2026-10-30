@@ -850,10 +850,17 @@ async function loadNtf(){
   let printed=null;
   try{const r=await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+D.ship)}&target=eq.${encodeURIComponent(NTF_TARGET)}&action=eq.${encodeURIComponent("列印")}&order=ts.desc&limit=200`)||[];
     // 印過「目前這一版」就算已列印最新版（不只看最後一筆，避免舊版快取頁面印的、沒帶版本碼的紀錄蓋掉）
-    if(r[0]){const sigs=r.map(x=>(String(x.summary||"").match(/\[版本 ([0-9a-z]+)\]/)||[])[1]).filter(Boolean);printed={sig:sigs[0]||"",sigs,ts:r[0].ts};}}catch(e){}
+    if(r[0]){const sigs=r.map(x=>(String(x.summary||"").match(/\[版本 ([0-9a-z]+)\]/)||[])[1]).filter(Boolean);const ns=r.find(x=>!/\[版本 [0-9a-z]+\]/.test(String(x.summary||"")));printed={sig:sigs[0]||"",sigs,ts:r[0].ts,noSigTs:ns?ns.ts:0};}}catch(e){}
   const curSig=(dir&&ship)?NotifyDoc.sig(dir,ship):"";
   if(printed&&curSig&&printed.sigs.includes(curSig))printed.sig=curSig;
-  NTF={dir,ship,sig:curSig,printed};return NTF;
+  // 沒帶版本碼的列印（舊版快取頁面印的）：在名單最後一次異動（通訊錄／本船資料）之後印的，就是目前這一版
+  if(printed&&curSig&&printed.sig!==curSig&&printed.noSigTs){try{
+    const a=await api("app_db?select=updated&k=eq.staffDirectory"),b=await api(`sync_ships?select=updated&id=eq.${encodeURIComponent(D.ship)}`);
+    const dirAt=+((a&&a[0]&&a[0].updated)||0),shipAt=+((b&&b[0]&&b[0].updated)||0);
+    if(dirAt&&printed.noSigTs>Math.max(dirAt,shipAt))printed.sig=curSig;}catch(e){}}
+  NTF={dir,ship,sig:curSig,printed};
+  if(!dir||!ship){const n=NTF;NTF=null;return n;} // 資料沒讀到不要記住，下次再重讀
+  return NTF;
 }
 /* 有更新、本船還沒重新列印（從沒列印過也算） */
 function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!==NTF.sig));}
@@ -896,7 +903,8 @@ function ntfScreen(dir,ship){
   </div>`;
 }
 function ntfPrint(){
-  const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir)return;
+  const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir||!NTF.ship)return;
+  if(!NTF.sig)NTF.sig=NotifyDoc.sig(NTF.dir,NTF.ship);
   // 「另存為 PDF」的預設檔名取自上層頁面標題：列印期間暫時改成「NOTIFICATION LIST-船名」，印完還原
   const oldTitle=document.title;document.title=`NOTIFICATION LIST-${(NTF.ship&&NTF.ship.name)||D.ship}`;
   const restore=()=>{document.title=oldTitle;window.removeEventListener("afterprint",restore);};
