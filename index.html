@@ -267,7 +267,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <button data-p="camp">🔍 分享缺失自查</button>
   <div class="dd" data-g="doc"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">📚 公司文件<span class="gbw"></span> ▾</button><div class="ddm">
     <button data-p="docs">📨 船隊通報單</button>
-    <button data-p="ntf">📇 緊急通報名單</button>
+    <button data-p="ntf">📇 緊急通報名單 <span style="font-weight:400;font-size:12.5px">Notification List</span></button>
     <button data-p="ref">📚 參考文件</button>
   </div></div>
   <div class="dd" data-g="ext"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">🔗 外部平台 ▾</button><div class="ddm">
@@ -474,13 +474,13 @@ const Auth={
    預覽時不寫操作紀錄（不會被算成船上使用），也不開放會寫入資料的填寫子頁面（線上填單／改善單／分享自查）。 */
 const PREVIEW=(()=>{
   const c=new URLSearchParams(location.search).get("preview");if(!c)return null;
-  try{const s=JSON.parse(localStorage.getItem("vsm_identity_v1"));if(s&&s.exp>Date.now()&&(s.tier==="owner"||s.tier==="admin"))return {ship:c,who:s.name||""};}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem("vsm_identity_v1"));if(s&&s.exp>Date.now()&&["owner","admin","op1","op3"].includes(s.tier))return {ship:c,who:s.name||""}; /* 2026-11-03 開放督導（op1）、管理層等岸上人員（op3）；船舶帳號（op2）不行 */}catch(e){}
   return {denied:true};
 })();
 const isPreview=()=>!!(PREVIEW&&!PREVIEW.denied);
 function showPreviewBar(code){
   const b=$("#pvBar");if(!b)return;
-  if(PREVIEW&&PREVIEW.denied){b.style.display="flex";b.style.background="#c0392b";b.innerHTML="⚠ 預覽模式需要先在主系統以 Owner／管理員身分登入（同一個瀏覽器），目前改為一般登入。";return;}
+  if(PREVIEW&&PREVIEW.denied){b.style.display="flex";b.style.background="#c0392b";b.innerHTML="⚠ 預覽模式需要先在主系統以岸上人員身分（Owner／管理員／督導／管理層等）登入（同一個瀏覽器），目前改為一般登入。";return;}
   b.style.display="flex";
   b.innerHTML=`<b>👁 預覽模式</b><span>${esc(PREVIEW.who)} 正以「${esc(shipLabel(code))}」的畫面檢視；不會記錄為船上操作，填寫類頁面不開放。</span><span style="flex:1"></span>
     <span>換船</span><select style="padding:3px 6px;border-radius:5px;border:0" onchange="location.search='?preview='+encodeURIComponent(this.value)">${SHIPS.map(s=>`<option value="${esc(s.code)}" ${s.code===code?"selected":""}>${esc(s.label)}</option>`).join("")}</select>
@@ -636,7 +636,7 @@ function renderHome(){
   $("#homeTools").innerHTML=[
     {c:"itin",t:"🧭 船端 Itinerary",d:"1. 本船航程（Itinerary）。<br>2. 頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。<br>（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，請在這裡提出。<br>（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`},
-    {c:"ntf",t:"📇 緊急通報名單",d:"1. 本船 Notification List：DPA、CSO、督導（含代理人）與岸上緊急應變小組電話；公司更新後這裡自動為最新版。<br>2. 可直接列印或存成 PDF。<br>3. <b style=\"color:#c0392b\">名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。</b>",href:"#ntf",go:"ntf",st:ntfNeedsPrint()?`<span class="pill bad">🔔 UPDATE：名單已更新，請重新列印</span>`:`<span class="pill mute">列印／PDF</span>${NTF&&NTF.printed?`<span class="pill ok">已列印最新版</span>`:""}`},
+    {c:"ntf",t:"📇 緊急通報名單 Notification List",d:"1. 本船 Notification List：DPA、CSO、督導（含代理人）與岸上緊急應變小組電話；公司更新後這裡自動為最新版。<br>2. 可直接列印或存成 PDF。<br>3. <b style=\"color:#c0392b\">名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。</b>",href:"#ntf",go:"ntf",st:ntfNeedsPrint()?`<span class="pill bad">🔔 UPDATE：名單已更新，請重新列印</span>`:`<span class="pill mute">列印／PDF</span>${NTF&&NTF.printed?`<span class="pill ok">已列印最新版</span>`:""}`},
     {c:"ref",t:"📚 參考文件",d:"1. 公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。<br>2. 有新的或更新時這裡會提示，請下載或閱讀。",href:"#ref",go:"ref",st:refVisible().length?(refPending().length?`<span class="pill bad">🔔 ${refPending().length} 份新的／有更新，請查看</span>`:`<span class="pill ok">都已下載／閱讀</span>`):`<span class="pill mute">目前沒有文件</span>`}
   ].map(card).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
@@ -905,7 +905,7 @@ function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!
 /* 頁籤上的 UPDATE 標記 */
 function ntfBadge(){
   const b=document.querySelector('#tabs button[data-p="ntf"]');if(!b)return;
-  b.innerHTML=`📇 緊急通報名單${ntfNeedsPrint()?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">UPDATE</span>`:""}`;
+  b.innerHTML=`📇 緊急通報名單 <span style="font-weight:400;font-size:12.5px">Notification List</span>${ntfNeedsPrint()?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">UPDATE</span>`:""}`;
   try{groupBadge();}catch(e){}
 }
 async function renderNtf(){
@@ -1008,7 +1008,7 @@ function renderRef(){
   box.innerHTML=head+(list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has,files=d.files||[];
     return `<div class="rdoc${need?" new":""}"><div class="bd">
       <div class="tt">${d.pinned?`<span title="置頂">📌</span> `:""}${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
-      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${d.createdBy?`　<span class="hint">分享人：${esc(String(d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
+      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${(d.sharer||d.createdBy)?`　<span class="hint">分享人：${esc(String(d.sharer||d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
       ${d.note?`<div class="nt">${esc(d.note)}</div>`:""}
       ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
       <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
