@@ -133,6 +133,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .rdoc .tt{font-size:15.5px;font-weight:700;color:var(--navy)}
 .rdoc .vr{font-size:13px;margin:2px 0}
 .rdoc .nt{font-size:13px;color:var(--ink2);white-space:pre-line;margin-top:4px}
+.rdoc .nt.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.rdoc .nt.clamp3.open{display:block;-webkit-line-clamp:unset}
 .rdoc .ac{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .entry .d{font-size:13px;color:var(--ink2)}
 .entry .st{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
@@ -1009,7 +1010,8 @@ function renderRef(){
     return `<div class="rdoc${need?" new":""}"><div class="bd">
       <div class="tt">${d.pinned?`<span title="置頂">📌</span> `:""}${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
       <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${(d.sharer||d.createdBy)?`　<span class="hint">分享人：${esc(String(d.sharer||d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
-      ${d.note?`<div class="nt">${esc(d.note)}</div>`:""}
+      ${d.note?(()=>{const s=String(d.note),long=s.length>150||(s.match(/\n/g)||[]).length>2; /* 太長只顯示前 3 行，按「詳全文」展開 */
+        return `<div class="nt${long?" clamp3":""}">${esc(s)}</div>`+(long?`<a href="#" class="more" onclick="event.preventDefault();const o=this.previousElementSibling.classList.toggle('open');this.textContent=o?'收合 ▲':'詳全文 ▼'">詳全文 ▼</a>`:"");})():""}
       ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
       <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
       <div class="ac">${d.url?`<a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
