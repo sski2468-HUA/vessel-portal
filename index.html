@@ -387,6 +387,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <!-- 參考文件（主系統「20 海技參考資料 → 📤 分享船隊」維護，app_db ref_downloads）：公司分享給船隊的文件／訊息，船上下載或閱讀會記錄版本 -->
   <section class="page" id="p-ref">
     <h2 class="pt">📚 參考文件 Reference Documents <span class="hint">公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求），有新版時請下載並更換船上留存版本</span></h2>
+    <div class="flt"><input id="refQ" placeholder="🔍 搜尋標題／說明／附件名稱／分類" style="flex:1;max-width:420px"><select id="refMonth"><option value="">全部月份</option></select></div>
     <div id="refList"><div class="loading">載入中…</div></div>
   </section>
 </main>
@@ -605,7 +606,7 @@ function renderMarquee(){
     openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
     trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
     ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":"",
-    refPending().length?`📚 參考文件：${refPending().map(d=>d.title).join("、")}，請下載／閱讀`:""
+    refPending().length?`📚 參考文件：${refPending().map(d=>d.title).join("、")}`:""
   ].filter(Boolean);
   const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
   if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
@@ -989,24 +990,31 @@ function refSize(n){n=+n||0;return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.
 function refHref(f){return /pdf|image/i.test(f.type||"")?f.url:`${f.url}?download=${encodeURIComponent(f.name||"")}`;}
 function renderRef(){
   const box=$("#refList");if(!box)return;
-  const vis=refVisible(),cats=[...new Set(vis.map(d=>d.cat||"其他"))].sort();
+  // 搜尋（2026-11-03）：標題、說明、分類、版本、附件檔名都找得到；分類按鈕的數字跟著搜尋結果變
+  const q=String(($("#refQ")||{}).value||"").trim().toLowerCase();
+  const hit=d=>!q||[d.title,d.note,d.cat,d.ver,d.verDate,...(d.files||[]).map(f=>f.name)].join(" ").toLowerCase().includes(q);
+  // 發布月份（依文件日期）
+  const ms=$("#refMonth");if(ms){const cur=ms.value,mm=[...new Set(refVisible().map(d=>String(d.verDate||"").slice(0,7)).filter(Boolean))].sort().reverse();
+    ms.innerHTML=`<option value="">全部月份</option>`+mm.map(m=>`<option value="${m}">${m.replace("-"," 年 ")} 月</option>`).join("");if(mm.includes(cur))ms.value=cur;}
+  const mo=ms?ms.value:"";
+  const vis=refVisible().filter(d=>hit(d)&&(!mo||String(d.verDate||"").startsWith(mo))),cats=[...new Set(refVisible().map(d=>d.cat||"其他"))].sort();
   if(REF.cat&&!cats.includes(REF.cat))REF.cat="";
   const chip=(c,label,n,p)=>`<button type="button" class="btn sm${REF.cat===c?" dark":""}" onclick="REF.cat='${esc(c)}';renderRef()">${esc(label)}（${n}）${p?` <span style="color:#c0392b;font-weight:800">●</span>`:""}</button>`;
   const pend=refPending();
-  const head=vis.length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
+  const head=refVisible().length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
   const list=vis.filter(d=>!REF.cat||(d.cat||"其他")===REF.cat).slice()
-    .sort((a,b)=>(refPending().includes(a)?0:1)-(refPending().includes(b)?0:1)||String(b.verDate||"").localeCompare(String(a.verDate||"")));
+    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(refPending().includes(a)?0:1)-(refPending().includes(b)?0:1)||String(b.verDate||"").localeCompare(String(a.verDate||""))); // 📌 置頂 → 未下載 → 日期新到舊
   const fmt=ts=>new Date(ts).toLocaleDateString("zh-TW");
   box.innerHTML=head+(list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has,files=d.files||[];
     return `<div class="rdoc${need?" new":""}"><div class="bd">
-      <div class="tt">${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
-      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}</div>
+      <div class="tt">${d.pinned?`<span title="置頂">📌</span> `:""}${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
+      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${d.createdBy?`　<span class="hint">分享人：${esc(String(d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
       ${d.note?`<div class="nt">${esc(d.note)}</div>`:""}
       ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
       <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
       <div class="ac">${d.url?`<a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
       ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}
-      ${need&&!files.length&&!d.url?`<button type="button" class="btn sm dark" onclick="refDownloaded('${esc(d.id)}','閱讀')">✓ 已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">目前沒有公司分享的參考文件。</div>`);
+      ${need?`<button type="button" class="btn dark" onclick="refDownloaded('${esc(d.id)}','閱讀')" title="看完內容後按這裡確認（點開附件或連結也會自動算已下載）">✓ 確認已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">${q?`沒有符合「${esc(q)}」的文件，請換個關鍵字。`:"目前沒有公司分享的參考文件。"}</div>`);
 }
 
 /* ════════ 頁籤 ════════ */
@@ -1046,6 +1054,8 @@ document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.
 ["#pYear","#pQ"].forEach(s=>$(s).addEventListener("input",renderPos));
 ["#aYear","#aQ","#aRej"].forEach(s=>$(s).addEventListener("input",renderAir));
 $("#eYear").addEventListener("input",renderExec);
+$("#refQ").addEventListener("input",renderRef);
+$("#refMonth").addEventListener("change",renderRef);
 
 (async function init(){
   // 船舶資料：主系統現在逐筆存在 sync_ships（app_db 的 ships 是 8/6 之後就沒再更新的舊整包），讀不到才退回舊的
