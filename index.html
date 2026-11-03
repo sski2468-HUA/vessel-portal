@@ -43,6 +43,17 @@ nav{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-
 .tabs a.extab{padding:12px 9px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
 .tabs a.extab:hover{color:var(--navy)}
 .tabs button.on{color:var(--navy);border-bottom-color:var(--signal)}
+/* 下拉群組（2026-11-03）：功能變多後收成「檢查紀錄／公司文件／外部平台」三組，導覽列維持一行；
+   群組裡有 UPDATE／NEW 時，群組名稱旁顯示紅色數字，不會因為收起來就漏看 */
+.dd{position:relative;display:flex}
+.dd.on>.ddb{color:var(--navy);border-bottom-color:var(--signal)}
+.ddm{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 22px rgba(20,40,60,.14);min-width:230px;padding:5px;z-index:30}
+.dd:last-child .ddm{left:auto;right:0}
+.dd.open .ddm{display:block}
+.tabs .ddm button,.tabs .ddm a.extab{display:block;width:100%;text-align:left;border-bottom:0;padding:10px 12px;border-radius:6px;font-size:14px}
+.tabs .ddm button:hover,.tabs .ddm a.extab:hover{background:#f2f6fa}
+.tabs .ddm button.on{background:#eaf1f8;color:var(--navy)}
+.gb{background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px}
 main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
 .page{display:none}.page.on{display:block}
 h2.pt{margin:4px 0 12px;font-size:19px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -248,15 +259,21 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 </div></header>
 <nav><div class="tabs" id="tabs">
   <button data-p="home" class="on">🏠 首頁</button>
-  <button data-p="insp">📋 檢查紀錄</button>
-  <button data-p="air">📝 外部檢查線上填單紀錄</button>
+  <div class="dd" data-g="rec"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">📋 檢查紀錄<span class="gbw"></span> ▾</button><div class="ddm">
+    <button data-p="insp">📋 檢查紀錄</button>
+    <button data-p="air">📝 外部檢查線上填單紀錄</button>
+    <button data-p="pos">👍 正面評價</button>
+  </div></div>
   <button data-p="camp">🔍 分享缺失自查</button>
-  <button data-p="pos">👍 正面評價</button>
-  <button data-p="docs">📨 船隊通報單</button>
-  <button data-p="ntf">📇 緊急通報名單</button>
-  <button data-p="ref">📥 參考文件下載</button>
-  <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
-  <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
+  <div class="dd" data-g="doc"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">📚 公司文件<span class="gbw"></span> ▾</button><div class="ddm">
+    <button data-p="docs">📨 船隊通報單</button>
+    <button data-p="ntf">📇 緊急通報名單</button>
+    <button data-p="ref">📚 參考文件</button>
+  </div></div>
+  <div class="dd" data-g="ext"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">🔗 外部平台 ▾</button><div class="ddm">
+    <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
+    <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
+  </div></div>
 </div></nav>
 <!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
 <div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
@@ -367,9 +384,9 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
     <iframe id="ntfFrame" title="緊急通報名單（列印用）" style="position:absolute;left:-10000px;top:0;width:800px;height:1130px;border:0" aria-hidden="true"></iframe>
   </section>
 
-  <!-- 參考文件下載（主系統「資料管理 → 維護者」設定，app_db ref_downloads）：外部定期更新的文件，船上按下載會記錄版本 -->
+  <!-- 參考文件（主系統「20 海技參考資料 → 📤 分享船隊」維護，app_db ref_downloads）：公司分享給船隊的文件／訊息，船上下載或閱讀會記錄版本 -->
   <section class="page" id="p-ref">
-    <h2 class="pt">📥 參考文件下載 Reference Documents <span class="hint">公司指定船上留存、會定期更新的文件（例如 IMO SOPEP 聯絡清單），有新版時請下載並更換船上留存版本</span></h2>
+    <h2 class="pt">📚 參考文件 Reference Documents <span class="hint">公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求），有新版時請下載並更換船上留存版本</span></h2>
     <div id="refList"><div class="loading">載入中…</div></div>
   </section>
 </main>
@@ -588,7 +605,7 @@ function renderMarquee(){
     openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
     trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
     ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":"",
-    refPending().length?`📥 參考文件有新版：${refPending().map(d=>d.title).join("、")}，請下載更新`:""
+    refPending().length?`📚 參考文件：${refPending().map(d=>d.title).join("、")}，請下載／閱讀`:""
   ].filter(Boolean);
   const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
   if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
@@ -619,7 +636,7 @@ function renderHome(){
     {c:"itin",t:"🧭 船端 Itinerary",d:"1. 本船航程（Itinerary）。<br>2. 頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。<br>（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，請在這裡提出。<br>（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`},
     {c:"ntf",t:"📇 緊急通報名單",d:"1. 本船 Notification List：DPA、CSO、督導（含代理人）與岸上緊急應變小組電話；公司更新後這裡自動為最新版。<br>2. 可直接列印或存成 PDF。<br>3. <b style=\"color:#c0392b\">名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。</b>",href:"#ntf",go:"ntf",st:ntfNeedsPrint()?`<span class="pill bad">🔔 UPDATE：名單已更新，請重新列印</span>`:`<span class="pill mute">列印／PDF</span>${NTF&&NTF.printed?`<span class="pill ok">已列印最新版</span>`:""}`},
-    {c:"ref",t:"📥 參考文件下載",d:"1. 公司指定船上留存、會定期更新的外部文件（例如 IMO SOPEP 聯絡清單）。<br>2. 有新版時這裡會提示，請下載並更換船上留存版本。",href:"#ref",go:"ref",st:refVisible().length?(refPending().length?`<span class="pill bad">🔔 ${refPending().length} 份有新版，請下載</span>`:`<span class="pill ok">已下載最新版</span>`):`<span class="pill mute">目前沒有文件</span>`}
+    {c:"ref",t:"📚 參考文件",d:"1. 公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。<br>2. 有新的或更新時這裡會提示，請下載或閱讀。",href:"#ref",go:"ref",st:refVisible().length?(refPending().length?`<span class="pill bad">🔔 ${refPending().length} 份新的／有更新，請查看</span>`:`<span class="pill ok">都已下載／閱讀</span>`):`<span class="pill mute">目前沒有文件</span>`}
   ].map(card).join("");}
 /* ════════ 分享缺失自查（本船） ════════ */
 /* 需追蹤：本船在各分享自查活動中答「有，需處理」(status=similar) 的項目。未結案的列出來＋「前往結案」
@@ -888,6 +905,7 @@ function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!
 function ntfBadge(){
   const b=document.querySelector('#tabs button[data-p="ntf"]');if(!b)return;
   b.innerHTML=`📇 緊急通報名單${ntfNeedsPrint()?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">UPDATE</span>`:""}`;
+  try{groupBadge();}catch(e){}
 }
 async function renderNtf(){
   const fr=$("#ntfFrame"),info=$("#ntfInfo"),view=$("#ntfView");
@@ -935,46 +953,60 @@ function ntfPrint(){
   if(!isPreview()){NTF.printed={sig:NTF.sig,ts:Date.now()};ntfBadge();renderNtf();try{renderMarquee();}catch(e){}}
 }
 
-/* ════════ 📥 參考文件下載（2026-11-03）════════
-   資料：app_db ref_downloads（主系統「資料管理 → 維護者」維護）{items:[{id,title,cat,ver,verDate,vid,url,page,note,track,ships,paused}]}。
-   vid＝版本識別碼，主系統改了網址／版本時就換一個。船上按「下載」記一筆操作紀錄（摘要帶 [文件 id] [版本 vid]），
-   主系統「各船下載情形」與本船的「有新版」提示都看這筆。 */
+/* ════════ 📚 參考文件（公司分享給船隊，2026-11-03）════════
+   資料：app_db ref_downloads（主系統「20 海技參考資料 → 📤 分享船隊」維護）
+   {items:[{id,title,cat,verDate,ver,note,files:[{name,url,type,size}],url,page,track,ships,paused,vid}]}。
+   vid＝版本識別碼，主系統改了日期／版本／連結／附件時就換一個。船上點附件或連結記「下載」、按「已閱讀」記「閱讀」
+   （摘要帶 [文件 id] [版本 vid]），主系統「各船下載／閱讀」與本船的「有新版」提示都看這筆。 */
 const REF_TARGET="船舶檢查填報平台－參考文件下載";
-const REF={docs:[],dl:{}}; // dl：{文件id:{vids:Set, ts:最後下載時間}}
+const REF={docs:[],dl:{},cat:""}; // dl：{文件id:{vids:Set, ts:最後一次時間}}
 async function loadRef(code){
   const p=await getKey("ref_downloads").catch(()=>null);
   REF.docs=(p&&Array.isArray(p.items))?p.items:[];
   REF.dl={};
-  try{(await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+code)}&target=eq.${encodeURIComponent(REF_TARGET)}&action=eq.${encodeURIComponent("下載")}&order=ts.desc&limit=500`)||[]).forEach(r=>{
+  try{(await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+code)}&target=eq.${encodeURIComponent(REF_TARGET)}&action=in.(${encodeURIComponent("下載")},${encodeURIComponent("閱讀")})&order=ts.desc&limit=500`)||[]).forEach(r=>{
     const s=String(r.summary||""),id=(s.match(/\[文件 ([^\]]+)\]/)||[])[1],v=(s.match(/\[版本 ([^\]]+)\]/)||[])[1];if(!id)return;
     const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:r.ts};if(v)o.vids.add(v);});}catch(e){}
 }
-function refVisible(){return REF.docs.filter(d=>d&&d.url&&!d.paused&&(!(d.ships||[]).length||d.ships.includes(D.ship)));}
+function refVisible(){return REF.docs.filter(d=>d&&!d.paused&&(!(d.ships||[]).length||d.ships.includes(D.ship)));}
 function refHas(d){const o=REF.dl[d.id];return !!(o&&o.vids.has(d.vid));}
 function refPending(){return refVisible().filter(d=>d.track!==false&&!refHas(d));}
 function refBadge(){
   const b=document.querySelector('#tabs button[data-p="ref"]');if(!b)return;const n=refPending().length;
-  b.innerHTML=`📥 參考文件下載${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
+  b.innerHTML=`📚 參考文件${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
+  try{groupBadge();}catch(e){}
 }
-function refDownloaded(id){
+/* 點附件／連結＝下載；沒有附件的訊息按「已閱讀」 */
+function refDownloaded(id,act){
   const d=REF.docs.find(x=>x.id===id);if(!d)return;
-  log("下載","參考文件下載",`${D.ship} 下載：${d.title}（${d.ver||""}）[文件 ${d.id}] [版本 ${d.vid}]`);
+  const a=act==="閱讀"?"閱讀":"下載";
+  log(a,"參考文件下載",`${D.ship} ${a==="閱讀"?"已閱讀":"下載"}：［${d.cat||""}］${d.title}（${d.verDate||""}${d.ver?" "+d.ver:""}）[文件 ${d.id}] [版本 ${d.vid}]`);
   if(isPreview())return; // 預覽不記錄，也不清提示
   const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:0};o.vids.add(d.vid);o.ts=Date.now();
   setTimeout(()=>{refBadge();renderRef();try{renderMarquee();}catch(e){}},300);
 }
+function refSize(n){n=+n||0;return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";}
+function refHref(f){return /pdf|image/i.test(f.type||"")?f.url:`${f.url}?download=${encodeURIComponent(f.name||"")}`;}
 function renderRef(){
   const box=$("#refList");if(!box)return;
-  const list=refVisible().slice().sort((a,b)=>(refHas(a)?1:0)-(refHas(b)?1:0)||String(a.cat||"").localeCompare(String(b.cat||""))||String(a.title).localeCompare(String(b.title)));
+  const vis=refVisible(),cats=[...new Set(vis.map(d=>d.cat||"其他"))].sort();
+  if(REF.cat&&!cats.includes(REF.cat))REF.cat="";
+  const chip=(c,label,n,p)=>`<button type="button" class="btn sm${REF.cat===c?" dark":""}" onclick="REF.cat='${esc(c)}';renderRef()">${esc(label)}（${n}）${p?` <span style="color:#c0392b;font-weight:800">●</span>`:""}</button>`;
+  const pend=refPending();
+  const head=vis.length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
+  const list=vis.filter(d=>!REF.cat||(d.cat||"其他")===REF.cat).slice()
+    .sort((a,b)=>(refPending().includes(a)?0:1)-(refPending().includes(b)?0:1)||String(b.verDate||"").localeCompare(String(a.verDate||"")));
   const fmt=ts=>new Date(ts).toLocaleDateString("zh-TW");
-  box.innerHTML=list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has;
+  box.innerHTML=head+(list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has,files=d.files||[];
     return `<div class="rdoc${need?" new":""}"><div class="bd">
-      <div class="tt">${esc(d.title)}${d.cat?` <span class="pill mute" style="vertical-align:2px">${esc(d.cat)}</span>`:""}</div>
-      <div class="vr">最新版本：<b>${esc(d.ver||"—")}</b>${d.verDate?`　（${esc(d.verDate)}）`:""}</div>
+      <div class="tt">${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
+      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}</div>
       ${d.note?`<div class="nt">${esc(d.note)}</div>`:""}
-      <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載":"本船尚未下載"}</span>`:has?`<span class="pill ok">✓ 本船已下載最新版（${fmt(o.ts)}）</span>`:""}</div></div>
-      <div class="ac"><a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載最新版</a>
-      ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}</div></div>`;}).join("")||`<div class="empty">目前沒有參考文件。</div>`;
+      ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
+      <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
+      <div class="ac">${d.url?`<a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
+      ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}
+      ${need&&!files.length&&!d.url?`<button type="button" class="btn sm dark" onclick="refDownloaded('${esc(d.id)}','閱讀')">✓ 已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">目前沒有公司分享的參考文件。</div>`);
 }
 
 /* ════════ 頁籤 ════════ */
@@ -988,15 +1020,28 @@ function inspSub(s){
   if(INSP_SUB==="exec"){renderExec();trackOnce("tab:exec","瀏覽","內部檢查執行情形一覽表",`${D.ship} 瀏覽「內部檢查執行情形一覽表」`);}else renderInsp();
 }
 const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:renderDocs,ntf:renderNtf,ref:renderRef};
+/* 下拉群組：點群組名稱展開／收合，點選項目或點旁邊空白就收起來 */
+function ddClose(except){document.querySelectorAll("#tabs .dd.open").forEach(d=>{if(d!==except){d.classList.remove("open");d.querySelector(".ddb").setAttribute("aria-expanded","false");}});}
+document.querySelectorAll("#tabs .ddb").forEach(b=>b.onclick=e=>{e.stopPropagation();const d=b.parentElement;ddClose(d);const o=d.classList.toggle("open");b.setAttribute("aria-expanded",o?"true":"false");});
+document.addEventListener("click",e=>{if(!e.target.closest||!e.target.closest("#tabs .dd"))ddClose();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")ddClose();});
+document.querySelectorAll("#tabs .ddm a").forEach(a=>a.addEventListener("click",()=>setTimeout(ddClose,0)));
+/* 群組名稱旁的紅色數字：群組裡有 UPDATE（緊急通報名單）／NEW（參考文件）就顯示，收起來也看得到 */
+function groupBadge(){
+  const n={doc:(ntfNeedsPrint()?1:0)+refPending().length};
+  document.querySelectorAll("#tabs .dd").forEach(d=>{const w=d.querySelector(".gbw");if(!w)return;const k=n[d.dataset.g]||0;w.innerHTML=k?` <span class="gb">${k}</span>`:"";});
+}
 function go(p){
-  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+  ddClose();
+  document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+  document.querySelectorAll("#tabs .dd").forEach(d=>d.classList.toggle("on",!!d.querySelector(`button[data-p="${p}"]`)));
   document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="p-"+p));
   RENDER[p]();window.scrollTo(0,0);
   try{sessionStorage.setItem("ship_portal_tab",p);}catch(e){}
-  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",docs:"船隊通報單",ntf:"緊急通報名單",ref:"參考文件下載"};
+  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",docs:"船隊通報單",ntf:"緊急通報名單",ref:"參考文件"};
   if(p!=="home")trackOnce("tab:"+p,"瀏覽",TABN[p]||p,`${D.ship} 瀏覽「${TABN[p]||p}」頁籤`);
 }
-document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>go(b.dataset.p));
+document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
 ["#iYear","#iIo","#iQ"].forEach(s=>$(s).addEventListener("input",renderInsp));
 ["#pYear","#pQ"].forEach(s=>$(s).addEventListener("input",renderPos));
 ["#aYear","#aQ","#aRej"].forEach(s=>$(s).addEventListener("input",renderAir));
