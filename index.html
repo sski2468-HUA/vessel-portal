@@ -1067,6 +1067,7 @@ $("#eYear").addEventListener("input",renderExec);
   fillYear("#iYear",D.insp,"全部年度");fillYear("#pYear",D.pos,"全部年度");fillYear("#eYear",D.insp,"");
   $("#eYear").value=String(new Date().getFullYear());
   let tab="home";try{tab=sessionStorage.getItem("ship_portal_tab")||"home";}catch(e){}
+  const qtab=new URLSearchParams(location.search).get("tab");if(qtab&&RENDER[qtab])tab=qtab; // 主系統「船上畫面預覽」用 ?tab=ref 直接開到參考文件
   if(tab==="exec"){INSP_SUB="exec";tab="insp";} // 舊的「執行情形一覽表」頁籤已併入檢查紀錄
   go(RENDER[tab]?tab:"home");
 })();
