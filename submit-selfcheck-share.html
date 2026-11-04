@@ -429,7 +429,12 @@ function notify(msg,tone){
   el.style.display="block"; clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>el.style.display="none",4200);
 }
+/* 預覽模式 ?preview=1（2026-11-04，從海技「分享自查彙整清單」👁 預覽進來）：
+   看船上填答畫面長怎樣，不選船、不建立填答列、不存本機、不會存檔或送出——所有寫入一律擋掉。 */
+const PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
+const PREVIEW_SHIP="PREVIEW";
 async function api(path,opts){
+  if(PREVIEW&&opts&&opts.method&&opts.method!=="GET")return null;
   const res=await fetch(`${CLOUD.url}/rest/v1/${path}`,Object.assign({headers:{
     "apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json"
   }},opts||{}));
@@ -450,10 +455,11 @@ let retryTimer=null;
 function localKey(){ return "vsm_scshare_local_"+CID+"_"+(draft?draft.ship:""); }
 let dirty=false;
 function saveLocalCache(pendingSubmit){
-  if(!draft)return;
+  if(!draft||PREVIEW)return;
   try{localStorage.setItem(localKey(),JSON.stringify({items:draft.items,dirty:true,pendingSubmit:!!pendingSubmit,savedAt:Date.now()}));}catch(e){}
 }
 function loadLocalCache(){
+  if(PREVIEW)return null;
   try{const s=localStorage.getItem(localKey());return s?JSON.parse(s):null;}catch(e){return null;}
 }
 function clearLocalCache(){
@@ -496,7 +502,7 @@ const isSelfOnlyShip=(c,code)=>{const its=(c&&c.items)||[];return its.length>0&&
 const EXCLUDED_SHIPS=["F25","F26","PH","PI"]; // 不參與分享自查的船舶（預設排除）
 let SHIP_OPTS=[];
 const srcShipList=()=>SHIP_OPTS;
-function shipLabel(code){const s=SHIP_OPTS.find(x=>x.code===code);return s?(s.label||s.name):(code||"");}
+function shipLabel(code){if(code===PREVIEW_SHIP)return "👁 預覽（不會存檔）";const s=SHIP_OPTS.find(x=>x.code===code);return s?(s.label||s.name):(code||"");}
 async function loadShipOpts(){
   try{
     const rows=await api("app_db?select=payload&k=eq.ships");
@@ -551,7 +557,7 @@ async function init(){
       return;
     }
     campaign=rows[0];
-    if(campaign.active===false){
+    if(campaign.active===false&&!PREVIEW){
       showError("這個分享自查活動已經結束，不再開放填答。若有問題請聯絡督導或海技人員。");
       return;
     }
@@ -564,6 +570,17 @@ async function init(){
   document.getElementById("gateTitle").textContent=campaign.title||"";
   document.getElementById("gateDesc").textContent=`共 ${(campaign.items||[]).length} 項查核項目，請先選擇本船船名開始填答。`;
   fillShipSelect();
+  if(PREVIEW){
+    const bar=document.createElement("div");
+    bar.style.cssText="position:sticky;top:0;z-index:999;background:#5b2c83;color:#fff;font-weight:700;text-align:center;padding:8px 12px;font-size:14px";
+    bar.textContent="👁 預覽模式：這是船上看到的填答畫面，可以點點看，但不會存檔、也不會送出。";
+    document.body.prepend(bar);
+    const sel=document.getElementById("gateShip");
+    sel.insertAdjacentHTML("beforeend",`<option value="${PREVIEW_SHIP}">${esc(shipLabel(PREVIEW_SHIP))}</option>`);
+    sel.value=PREVIEW_SHIP;
+    enterAsShip();
+    return;
+  }
   const cn=document.getElementById("gateChecker");
   if(cn)cn.value=getCheckerName();
   const ct=document.getElementById("gateCheckerTitle");
@@ -603,9 +620,11 @@ async function enterAsShip(){
   if(!ship){notify("⚠ 請先選擇本船船名","err");return;}
   const checker=(document.getElementById("gateChecker").value||"").trim();
   const checkerTitle=(document.getElementById("gateCheckerTitle").value||"").trim();
-  onCheckerNameInput(checker);
-  onCheckerTitleInput(checkerTitle);
-  try{localStorage.setItem(LASTSHIP_KEY,ship);localStorage.setItem(GLOBAL_SHIP_KEY,ship);}catch(e){}
+  if(!PREVIEW){
+    onCheckerNameInput(checker);
+    onCheckerTitleInput(checkerTitle);
+    try{localStorage.setItem(LASTSHIP_KEY,ship);localStorage.setItem(GLOBAL_SHIP_KEY,ship);}catch(e){}
+  }
   document.getElementById("hdr-note").textContent="讀取中…";
   try{
     draft=await loadOrCreateResponse(ship);
@@ -725,6 +744,7 @@ function resolveSrcShip(it){
   return m?m.code:first;
 }const srcShipOf=it=>resolveSrcShip(it);
 async function loadOrCreateResponse(ship){
+  if(PREVIEW)return {id:0,campaign_id:+CID,ship,items:(campaign.items||[]).map(it=>({...it,autoSelf:false,status:"pending",note:"",actual:"",naNote:"",closed:false,closeNote:"",closedAt:"",checkedAt:"",checkedBy:""})),submit_count:0,history:[]};
   const rows=await api(`${RESPONSE_TABLE}?campaign_id=eq.${encodeURIComponent(CID)}&ship=eq.${encodeURIComponent(ship)}&limit=1`);
   if(rows&&rows.length)return rows[0];
   // 當事船不用自查自己這幾筆：新建填答時，來源船代碼＝本船的題目直接預填「🚩 當事船」（跟「➖ 不適用」
@@ -1089,6 +1109,7 @@ async function flushAutoSave(){
   clearTimeout(autoSaveTimer);
   clearTimeout(retryTimer);
   if(!draft)return;
+  if(PREVIEW){dirty=false;const n=document.getElementById("saveNote");if(n)n.textContent="👁 預覽模式：不會存檔";return;}
   try{
     await api(`${RESPONSE_TABLE}?id=eq.${draft.id}`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=minimal"},
       body:JSON.stringify({items:draft.items,checker_name:getCheckerName(),checker_title:getCheckerTitle(),updated_at:Date.now()})});
@@ -1241,6 +1262,7 @@ function reviewGoto(i){
   if(viewMode!=="guide")setViewMode("guide");else applyViewMode();
 }
 async function reviewSubmit(){
+  if(PREVIEW){notify("👁 預覽模式：船上按到這裡就會送出，預覽不會送出","ok2");return;}
   const chk=document.getElementById("rvConfirm");
   if(!chk.checked){
     const row=document.getElementById("rvConfirmRow");
@@ -1276,6 +1298,7 @@ function openHelp(){document.getElementById("helpModal").classList.add("show");d
 function closeHelp(){document.getElementById("helpModal").classList.remove("show");}
 
 async function submitAll(){
+  if(PREVIEW){notify("👁 預覽模式：不會送出","ok2");return false;}
   // 姓名／職稱為必填才可送出（不是提醒，是硬性擋下）：讀 body 畫面上目前的值，
   // 而不是只信任本機記住的舊值——萬一這次換了填寫人，畫面上輸入框才是當下真正的來源。
   const nameNow=(document.getElementById("bodyChecker")&&document.getElementById("bodyChecker").value||"").trim();
