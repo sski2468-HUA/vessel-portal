@@ -47,6 +47,10 @@ textarea,input[type=text],select{padding:9px 10px;border:1px solid var(--line-2)
 .nawrap.show{display:block}
 .closewrap{display:none;margin-top:8px}
 .closewrap.show{display:block}
+.ckrow{display:flex;gap:8px;align-items:flex-start;padding:4px 6px;margin:2px 0;border-radius:6px;cursor:pointer;line-height:1.5}
+.ckrow input{width:18px;height:18px;flex:none;margin-top:2px}
+.ckrow.on{background:#eaf5ee}
+.ckrow.on span{color:var(--ok,#2e8b57)}
 /* 2026-11-04 有，需處理：現況照片／改善後照片 */
 .phbox{margin-top:10px}
 .phlab{font-size:13px;font-weight:700;margin-bottom:4px}
@@ -243,7 +247,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px
 <!-- 「有，需處理」說明視窗 -->
 <div class="mbg" id="simModal">
   <div class="mbox" style="max-width:640px">
-    <div class="mh">⚠️ 本船有類似情形，請說明</div>
+    <div class="mh" id="simTitle">⚠️ 本船有類似情形，請說明</div>
     <div class="mb">
       <div class="refbox" id="simItem" style="margin-top:0"></div>
       <label style="font-size:13px">① 本船的實際狀況，及打算怎麼處理／已怎麼改善 <span style="color:var(--bad)">*</span></label>
@@ -788,6 +792,11 @@ function updateProgress(){
 }
 
 const ST_LABEL_DL={ok:"沒有",similar:"有，需處理",self:"當事船（本船缺失來源）",na:"不適用",pending:"未作答"};
+/* 2026-11-04 自訂自查（src＝自訂案例）的題目是「要船上去做的事」，問「有沒有類似情形」不通；改問「是否已完成」，
+   狀態值不變（ok＝已完成、similar＝未完成需處理），統計與彙整清單照舊。 */
+const isCaseItem=it=>!!it&&it.src==="自訂案例";
+const ST_LABEL_CASE={ok:"已完成",similar:"未完成，需處理",self:"當事船",na:"不適用",pending:"未作答"};
+function stLbl(it,st){st=st||(it&&it.status)||"pending";return (isCaseItem(it)?ST_LABEL_CASE:ST_LABEL_DL)[st]||st;}
 /* 下載 Excel／PDF 用的共用資料組裝：基本資料＋逐題明細，兩邊都要用同一份，
    避免各自兜一次資料、以後改欄位要改兩個地方又漏掉一個。 */
 function collectExportData(){
@@ -828,7 +837,7 @@ async function exportExcel(){
   XLSX.utils.book_append_sheet(wb,wsBase,"基本資料");
   const rows=[["編號","CODE","來源檢查","缺失內容","實際情況（來源）","本船查核結果","本船實際狀況","打算怎麼處理","是否結案","已在追蹤（FLOW／內控／物料配件）","改善情形說明","結案日期","追蹤期限","回答人","回答日期"]];
   d.items.forEach((it,i)=>{
-    rows.push([i+1,it.topic||it.code||"",fmtSrc(it.src),it.detail||"",it.actual2||"",ST_LABEL_DL[it.status||"pending"],it.note||it.naNote||"",it.actual||"",it.status==="similar"?(it.closed?"已結案":"未結案"):"",it.status==="similar"&&!it.closed?trackText(it):"",it.closeNote||"",it.closedAt||"",it.trackDue||"",it.checkedBy||"",it.checkedAt||""]);
+    rows.push([i+1,it.topic||it.code||"",fmtSrc(it.src),it.detail||"",it.actual2||"",stLbl(it),it.note||it.naNote||"",it.actual||"",it.status==="similar"?(it.closed?"已結案":"未結案"):"",it.status==="similar"&&!it.closed?trackText(it):"",it.closeNote||"",it.closedAt||"",it.trackDue||"",it.checkedBy||"",it.checkedAt||""]);
   });
   const wsDef=XLSX.utils.aoa_to_sheet(rows);
   wsDef["!cols"]=[{wch:6},{wch:12},{wch:22},{wch:40},{wch:40},{wch:14},{wch:30},{wch:30},{wch:10},{wch:18},{wch:30},{wch:12},{wch:12},{wch:10},{wch:12}];
@@ -848,11 +857,11 @@ function preparePrint(){
     <td class="pnum">${i+1}</td>
     <td>
       <b>${esc(itemHead(it))}</b>${it.src&&!it.topic?"　"+esc(fmtSrc(it.src)):""}
-      <div class="pdet">${esc(it.detail||"")}</div>
+      ${it.topic?`<div class="pdet">${esc(it.key||"")}</div><div class="pdet">${checksHtml(it)}</div>`:`<div class="pdet">${esc(it.detail||"")}</div>`}
       ${it.actual2?`<div class="pdet" style="color:#555">${it.topic?(it.src==="自訂案例"?"案例說明":"船隊實例"):"實際情況"}：${esc(it.actual2)}</div>`:""}
       ${it.supp?`<div class="pdet" style="color:#8a5a00">公司補充說明：${esc(it.supp)}</div>`:""}
     </td>
-    <td class="pst">${ST_LABEL_DL[it.status||"pending"]}${it.status==="similar"?(it.closed?"（已結案）":"（未結案）"+(trackText(it)?`<br><span style="font-weight:400">已在追蹤：${esc(trackText(it))}</span>`:"")):""}</td>
+    <td class="pst">${stLbl(it)}${it.status==="similar"?(it.closed?"（已結案）":"（未結案）"+(trackText(it)?`<br><span style="font-weight:400">已在追蹤：${esc(trackText(it))}</span>`:"")):""}</td>
     <td>${esc(it.note||it.naNote||"")}</td>
     <td>${esc(it.actual||"")}</td>
   </tr>`;
@@ -877,11 +886,28 @@ function fmtSrc(s){
 const srcTag=it=>it.src?`<span style="margin-left:8px;font-size:12px;font-weight:700;color:#1e7f8c;background:#e4f1f2;border-radius:10px;padding:1px 10px;white-space:nowrap">${esc(fmtSrc(it.src))}</span>`:"";
 /* 主題題（船隊缺失分析發佈）：一題＝一個缺失項目，顯示「問題重點＋請確認細目＋船隊實例」，不是單筆缺失 */
 const itemHead=it=>it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"");
-function topicRefHtml(it){
+/* 2026-11-04「請確認」細目可逐條打勾（存在 it.checkDone[j]）：題目卡片裡（有題號 i）才能勾；其他地方（說明視窗、列印）只顯示勾選結果 */
+function checksHtml(it,i){
+  const cs=it.checks||[];if(!cs.length)return "";
+  const done=it.checkDone||[],n=cs.filter((c,j)=>done[j]).length;
+  const row=(c,j)=>i!=null
+    ?`<label class="ckrow${done[j]?" on":""}"><input type="checkbox" ${done[j]?"checked":""} onchange="toggleCheck(${i},${j},this.checked,this)"> <span>${esc(c)}</span></label>`
+    :`<div style="padding-left:1.4em;text-indent:-1.4em">${done[j]?"☑":"□"} ${esc(c)}</div>`;
+  return `<div style="margin-top:6px"><b>請確認：</b>${i!=null?`<span class="hint" id="ckcnt-${i}">（已勾 ${n}／${cs.length}）</span>`:""}<div style="margin-top:2px">${cs.map(row).join("")}</div></div>`;
+}
+function toggleCheck(i,j,on,el){
+  const it=(draft&&draft.items||[])[i];if(!it)return;
+  if(!Array.isArray(it.checkDone))it.checkDone=[];
+  it.checkDone[j]=!!on;if(el&&el.parentElement)el.parentElement.classList.toggle("on",!!on);
+  const cs=it.checks||[],n=cs.filter((c,k)=>it.checkDone[k]).length,cnt=document.getElementById("ckcnt-"+i);if(cnt)cnt.textContent=`（已勾 ${n}／${cs.length}）`;
+  const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
+  scheduleAutoSave();
+}
+function topicRefHtml(it,i){
   return `<div class="refbox">
     ${it.stat?`<div class="hint" style="margin-bottom:4px">近期船隊：${esc(it.stat)}</div>`:""}
     <div style="white-space:pre-wrap"><b>問題重點：</b>${esc(it.key||"")}</div>
-    ${(it.checks||[]).length?`<div style="margin-top:6px"><b>請確認：</b><div style="margin-top:2px">${it.checks.map(c=>`<div style="padding-left:1.4em;text-indent:-1.4em">□ ${esc(c)}</div>`).join("")}</div></div>`:""}
+    ${checksHtml(it,i)}
     ${(it.refs||[]).length?`<div style="margin-top:6px"><b>附件：</b>${it.refs.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener" style="margin-right:10px">📎 ${esc(f.name||"附件")}</a>`).join("")}</div>`:""}
     ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px;white-space:pre-wrap">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
   </div>`;
@@ -896,8 +922,8 @@ function suppHtml(it){
     ${(it.suppRefs||[]).length?`<div style="margin-top:4px">${it.suppRefs.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener" style="margin-right:10px">📎 ${esc(f.name||"附件")}</a>`).join("")}</div>`:""}
   </div>`;
 }
-function renderRef(it){
-  if(it.topic)return topicRefHtml(it);
+function renderRef(it,i){
+  if(it.topic)return topicRefHtml(it,i);
   return `<div class="refbox">
     <div><b>缺失詳情：</b>${esc(it.detail||"")}</div>
     ${it.actual2?`<div><b>實際情況：</b>${esc(it.actual2)}</div>`:""}
@@ -929,12 +955,12 @@ function itemCardHtml(it,i){
   return `
     <div class="itemcard gh" data-idx="${i}" id="item-${i}">
       <div><span class="num">#${i+1}</span><b>${esc(itemHead(it))}</b>${it.topic?"":srcTag(it)}</div>
-      ${renderRef(it)}
+      ${renderRef(it,i)}
       ${it.trackDue?`<div class="hint" style="color:var(--warn)">🗓 督導設定的追蹤期限：${esc(it.trackDue)}</div>`:""}
-      <p style="font-weight:700;margin:10px 0 4px">❓ 本船目前有同樣或類似的情形嗎？</p>
+      <p style="font-weight:700;margin:10px 0 4px">${isCaseItem(it)?"❓ 本船是否已完成本項確認／整改？":"❓ 本船目前有同樣或類似的情形嗎？"}</p>
       <div class="statusrow">
-        <button type="button" data-st="ok" class="statusbtn ${it.status==='ok'?'on ok':''}" onclick="setStatus(${i},'ok')">✅ 沒有</button>
-        <button type="button" data-st="similar" class="statusbtn ${it.status==='similar'?'on similar':''}" onclick="setStatus(${i},'similar')">⚠️ 有，需處理</button>
+        <button type="button" data-st="ok" class="statusbtn ${it.status==='ok'?'on ok':''}" onclick="setStatus(${i},'ok')">${isCaseItem(it)?"✅ 已完成":"✅ 沒有"}</button>
+        <button type="button" data-st="similar" class="statusbtn ${it.status==='similar'?'on similar':''}" onclick="setStatus(${i},'similar')">${isCaseItem(it)?"⚠️ 未完成，需處理":"⚠️ 有，需處理"}</button>
         ${(draft&&srcShipOf(it)===draft.ship)||it.status==='self'?`<button type="button" data-st="self" class="statusbtn ${it.status==='self'?'on self':''}" onclick="setStatus(${i},'self')">🚩 當事船</button>`:""}
         <button type="button" data-st="na" class="statusbtn ${it.status==='na'?'on na':''}" onclick="setStatus(${i},'na')">➖ 不適用</button>
       </div>
@@ -1209,6 +1235,7 @@ function delPhoto(i,k,j){if(!confirm("移除這張照片？"))return;phArr(i,k).
 function openSimModal(i,prev){
   const it=(draft.items||[])[i];if(!it)return;
   simCtx={i,prev};
+  {const tt=document.getElementById("simTitle");if(tt)tt.textContent=isCaseItem(it)?"⚠️ 本項尚未完成，請說明":"⚠️ 本船有類似情形，請說明";}
   document.getElementById("simItem").innerHTML=modalRefHtml(it);
   document.getElementById("simNote").value=mergedNote(it);
   document.getElementById("simCloseNote").value=it.closeNote||"";
@@ -1307,7 +1334,7 @@ function openReview(){
       <div class="rvn">#${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px"><b>${esc(itemHead(it))}</b> ${esc((it.topic?(it.key||""):(it.detail||"")).slice(0,110))}${(it.topic?(it.key||""):(it.detail||"")).length>110?"…":""}</div>
-        <div style="margin-top:4px"><span class="rvst" style="background:${ST_COLOR[st]}">${esc(isAutoSelf(it)?"當事船（系統自動標記，不須作答）":ST_LABEL_DL[st])}</span></div>
+        <div style="margin-top:4px"><span class="rvst" style="background:${ST_COLOR[st]}">${esc(isAutoSelf(it)?"當事船（系統自動標記，不須作答）":stLbl(it,st))}</span></div>
         ${extra}
       </div>
       <div class="hint" style="flex:none">修改 ›</div>

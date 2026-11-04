@@ -690,6 +690,21 @@ loadShipsFromCloud();
 /* 檢查來源清單改為即時抓取系統裡「檢查紀錄」＋「缺失紀錄」曾經出現過的所有 itype 值（跟主系統
    withItypeExtras() 同一套邏輯），永遠反映系統目前實際在用的分類，不會過期也不用手動同步維護。
    離線或抓取失敗時，保留一組常見類型當備援，不會讓表單打不開。 */
+/* 2026-11-04 正面評論 CODE：檢查來源是 SIRE 時，用 SIRE 章節清單（與主系統 SIRE_CHAPTERS 同一份，主系統改了這裡也要跟著改）下拉選；其他檢查自行填寫 */
+const SIRE_CHAPTERS=[
+"1 Vessel, Operator and Inspection Particulars｜船舶、營運人及檢驗基本資料",
+"2.1 Certification｜證書","2.2 Management Oversight｜管理監督","2.3 Structural Assessment｜結構評估","2.4 Defect Management｜缺陷管理","2.5 Management of Change｜變更管理","2.6 Statutory Management Plans｜法定管理計畫","2.7 Safety Management System｜安全管理系統","2.8 General Information｜一般資訊",
+"3.1 Crew Qualification｜船員資格","3.2 Crew Evaluation｜船員評估","3.3 Crew Training｜船員訓練","3.4 Crew Compliance｜船員合規","3.5 Crew Familiarisation｜船員熟悉訓練",
+"4.1 Navigation Equipment｜航行設備","4.2 Navigational Procedures｜航行程序","4.3 Bridge and Machinery Space Team Management｜駕駛台與機艙團隊管理","4.4 Communications Equipment and Procedures｜通訊設備與程序","4.5 DP & Shuttle Tanker Specialist Procedures and Equipment｜動態定位及穿梭油輪專業程序與設備",
+"5.1 Emergency Response Plans and Drills｜緊急應變計畫與演習","5.2 Fixed Fire Protection Systems｜固定式消防系統","5.3 Portable Fire Fighting Appliances｜攜帶式消防設備","5.4 Life Saving Appliances｜救生設備","5.5 Permits to Work｜工作許可","5.6 Fixed and Portable Gas Detecting Systems｜固定式及攜帶式氣體偵測系統","5.7 Safety Management｜安全管理","5.8 Area Safety Inspections｜區域安全檢查","5.9 Lifting and Rigging｜吊裝與索具","5.10 Safe Access｜安全通道","5.11 Sample Management｜樣品管理","5.12 Safety Equipment｜安全設備",
+"6.1 Pollution Prevention – Record Books｜污染防治記錄簿","6.2 Cargo and Bunker Operations｜貨物與燃油作業","6.3 Ballast Operations｜壓艙水作業","6.4 Deck Area Pollution Prevention｜甲板區域污染防治","6.5 Machinery Space Pollution Prevention｜機艙區域污染防治","6.6 Oil Discharge Monitors｜排油監測裝置",
+"7.1 Ship Routing｜船舶航線","7.2 Ship Hardening and Access Control｜船舶強化與人員管制","7.3 Communications and Monitoring｜通訊與監控","7.4 Ship Security Officer｜船舶保全官","7.5 Cyber Security｜網路安全",
+"8.1 Oil｜油輪","8.2 Chemicals｜化學品船","8.3 Oil and Chemical｜油品及化學品（共通）","8.4 LPG｜液化石油氣船","8.5 LNG｜液化天然氣船","8.6 Gas (Common to all vessels under IGC Code)｜氣體（適用所有IGC規範船舶）","8.7 Shuttle Tanker Cargo Operations｜穿梭油輪貨物作業","8.8 OBO / Combination Carriers｜散裝油礦船／多用途船","8.99 All Types｜所有船型共通",
+"9.1 Mooring Equipment Management｜繫泊設備管理","9.2 Emergency Towing Arrangement｜緊急拖帶裝置","9.3 Mooring and Anchoring Procedures｜繫泊與錨泊程序","9.4 Mooring and Anchoring Team Management｜繫泊與錨泊團隊管理","9.5 STS Operation Management｜船對船作業管理","9.6 Single Point Mooring｜單點繫泊","9.7 Shuttle Tanker Mooring Systems｜穿梭油輪繫泊系統",
+"10.1 Engineering Procedures｜工程程序","10.2 Machinery Status｜機械狀態","10.3 Safety Management｜安全管理","10.4 Planned Maintenance Systems｜計畫性維修系統","10.5 Conventional Bunkering Management｜傳統加燃油管理","10.6 LNG Bunkering Management｜LNG 加注管理","10.7 Fire Protection Measures｜防火措施",
+"11.1 General Appearance and Condition – All Vessels｜整體外觀與狀態（所有船型）","11.1 General Appearance and Condition – Crude/Product/Chemical/Shuttle/OBO｜整體外觀與狀態（油輪／化學品船／穿梭油輪／OBO）","11.1 General Appearance and Condition – LPG Pressurised｜整體外觀與狀態（加壓式LPG船）","11.1 General Appearance and Condition – LPG Refrigerated｜整體外觀與狀態（冷凍式LPG船）","11.1 General Appearance and Condition – LNG Membrane Type｜整體外觀與狀態（薄膜式LNG船）","11.1 General Appearance and Condition – LNG Moss Type｜整體外觀與狀態（Moss式LNG船）","11.1 General Appearance and Condition – Specialised Bow Loading Shuttle Tanker｜整體外觀與狀態（船首裝載穿梭油輪）",
+"12.1 Ice Operations Training｜冰區作業訓練","12.2 Sub-zero LSA & FFA Procedures｜低溫救生及消防設備程序","12.3 Sub-zero Machinery Operation Procedures｜低溫機械操作程序","12.4 Sub-zero Cargo and Ballast Operation Procedures｜低溫貨物與壓艙作業程序","12.5 Sub-zero Deck Machinery Operation Procedures｜低溫甲板機械操作程序","12.6 Ice Navigation Procedures｜冰區航行程序"
+];
 const ITYPE_FALLBACK=["SIRE","CDI","RightShip","ASI","onboard visit","Internal audit","PSC","IHM","LRIT","SMC","ISSC","MLC","The MCC Group","Cross ship visit"]; // 寫法跟主系統資料一致
 const OTHER_VAL="__other__";
 let OILCO_LIST=[];
@@ -1296,6 +1311,19 @@ document.getElementById("f-ndef").addEventListener("change", function(){
   scheduleAutoSave();
 });
 
+/* ── 正面評論 CODE（2026-11-04）：檢查來源＝SIRE → 用 SIRE 章節清單下拉（可打數字或關鍵字搜尋）；其他檢查 → 自行填寫 ── */
+(function(){const dl=document.createElement("datalist");dl.id="dl-sire-ch";dl.innerHTML=SIRE_CHAPTERS.map(s=>`<option value="${esc(s)}">`).join("");document.body.appendChild(dl);})();
+function isSireItype(){const el=document.getElementById("f-itype-sel");return !!el&&normItype(el.value)==="SIRE";}
+function refreshPosCodeMode(scope){
+  const sire=isSireItype();
+  (scope?[scope]:[document]).forEach(root=>root.querySelectorAll(".p-code").forEach(inp=>{
+    if(sire){inp.setAttribute("list","dl-sire-ch");inp.placeholder="點一下從 SIRE 章節清單選，或打數字搜尋，例：5.6";}
+    else{inp.removeAttribute("list");inp.placeholder="例：4.1（該題所屬大章節，自行填寫）";}
+    const h=inp.parentElement.querySelector(".p-code-hint");
+    if(h)h.textContent=sire?"📖 SIRE 檢查：請從清單選章節（選不到再自行輸入）":"";
+  }));
+}
+document.getElementById("f-itype-sel").addEventListener("change",()=>refreshPosCodeMode());
 /* ── 正面評論明細：全部顯示在同一個「正面評論明細」分頁裡，不像缺失那樣一筆一個分頁 ── */
 function addPosRow(data){
   data = data || {};
@@ -1310,7 +1338,7 @@ function addPosRow(data){
       <button type="button" class="rm" data-act="rmPos">✕ 刪除此筆</button>
     </div>
     <div class="grid two">
-      <label>CODE（章節）<input type="text" class="p-code" placeholder="例：4.1（該題所屬大章節）" value="${esc(data.code)}"></label>
+      <label>CODE（章節）<input type="text" class="p-code" placeholder="例：4.1（該題所屬大章節）" value="${esc(data.code)}" autocomplete="off"><span class="p-code-hint" style="display:block;font-size:12px;font-weight:400;color:#1e7f8c;margin-top:3px"></span></label>
       <label class="full">評論項目<textarea class="p-item" placeholder="請填寫章節中檢查員提問的問題全文">${esc(data.item)}</textarea></label>
       <label class="full">正向評論內容<textarea class="p-comment" placeholder="請描述值得肯定的具體做法">${esc(data.comment)}</textarea></label>
       <label class="full">相關人員 *（可新增多筆）
@@ -1336,6 +1364,7 @@ function addPosRow(data){
   });
   div.addEventListener("input", scheduleAutoSave);
   div.addEventListener("change", scheduleAutoSave);
+  refreshPosCodeMode(div);
 
   updatePosCount();
 }
@@ -1390,6 +1419,7 @@ function applyDraftToItypeOilco(basicOverride){
   });
   document.getElementById("f-flag-box").innerHTML=flagBoxHtml(b.flagType||"");
   refreshFlagBox();
+  if(typeof refreshPosCodeMode==="function")refreshPosCodeMode(); // 草稿套回檢查來源後，正面評論 CODE 跟著切換 SIRE 清單／自填
 }
 /* 地點自動完成：比照主系統「新增檢查紀錄」的地點欄位行為——打幾個字建議符合的港口，
    永遠提供「At Sea」與「其他（自行輸入）」，選了「其他」清空讓使用者自己打，
