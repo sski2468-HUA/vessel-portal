@@ -604,10 +604,11 @@ function renderMarquee(){
   const todo=[
     D.ia.pending?`🛠 內部檢查改善單：待填寫 ${D.ia.pending} 項`:"",
     D.ia.returned?`↩ 內部檢查改善單：被退回需補充 ${D.ia.returned} 項`:"",
+    campOverdue().length?`⏰ 分享缺失自查：${campOverdue().length} 項發佈超過 1 個月仍未送出，請儘速填寫`:"",
     openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
     trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
     ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":"",
-    refPending().length?`📚 參考文件：${refPending().map(d=>d.title).join("、")}`:""
+    refPending().filter(d=>d.marquee!==false).length?`📚 參考文件：${refPending().filter(d=>d.marquee!==false).map(d=>d.title).join("、")}`:"" /* 「顯示在跑馬燈」沒勾的（例：LISCR 彙整）只靠紅點提醒 */
   ].filter(Boolean);
   const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
   if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
@@ -627,7 +628,8 @@ function renderHome(){
   $("#homeEntries").innerHTML=[
     {c:"int",t:"🛠 內部檢查改善單",d:"1. 督導上船檢查（訪船、內稽等）後發出的改善單，請逐筆填寫改善措施、完成日期，並上傳改善後照片。<br>2. <b style=\"color:#c0392b\">列為 FLOW 的缺失僅供核對，請至 FLOW 系統填報 DMP-FM01</b>，不需在改善單填寫。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
     {c:"share",t:"🔍 分享缺失自查",d:"1. 公司將他船發生的缺失分享給全船隊。<br>2. 請本船自查是否有類似情形並回覆；如有類似情形，改善完成後請回來結案。",href:"#camp",go:"camp",st:(()=>{const trk=campTracks().filter(x=>!x.it.closed).length;
-      return (openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:"")+(trk?`<span class="pill warn">${trk} 項需追蹤未結案</span>`:"")+(!openCamps&&!trk?`<span class="pill ok">目前沒有待填寫的自查</span>`:"");})()}
+      const lateN=campOverdue().length;
+      return (lateN?`<span class="pill bad" style="background:#c0392b;color:#fff">⏰ ${lateN} 項逾 1 個月未送出</span>`:"")+(openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:"")+(trk?`<span class="pill warn">${trk} 項需追蹤未結案</span>`:"")+(!openCamps&&!trk?`<span class="pill ok">目前沒有待填寫的自查</span>`:"");})()}
   ].map(card).join("");
   // 第一排右側：填報（外部檢查線上填單）
   $("#homeFill").innerHTML=[
@@ -670,18 +672,25 @@ function renderCampTracks(){
     ${closed.length?`<details style="margin-top:8px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${closed.map(row).join("")}</details>`:""}
   </div>`;
 }
+/* 2026-11-04 發佈超過 1 個月（30 天）還沒送出的分享自查：列表標「⏰ 已逾期」並排最前面、首頁與跑馬燈另外提醒 */
+const CAMP_OVERDUE_DAYS=30;
+function campAgeDays(c){const t=+new Date(c&&c.created_at);return t?Math.floor((Date.now()-t)/86400000):0;}
+function campOverdue(){return (D.camps||[]).filter(c=>campAgeDays(c)>=CAMP_OVERDUE_DAYS&&!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at));}
 function renderCamp(){
   const base=location.href.replace(/[^/]*$/,"");
-  const rows=D.camps.map(c=>{
+  const od=new Set(campOverdue().map(c=>String(c.id)));
+  const camps=[...D.camps].sort((a,b)=>(od.has(String(b.id))?1:0)-(od.has(String(a.id))?1:0)); // 逾期的排最前面，其餘維持原順序
+  const rows=camps.map(c=>{
     const r=D.resps.find(x=>String(x.campaign_id)===String(c.id));
-    const st=r&&r.submitted_at?`<span class="pill ok">已送出</span>`:r?`<span class="pill warn">填寫中</span>`:`<span class="pill bad">尚未填寫</span>`;
+    const late=od.has(String(c.id));
+    const st=(late?`<span class="pill bad" style="background:#c0392b;color:#fff">⏰ 已逾期 ${campAgeDays(c)} 天未送出</span>`:"")+(r&&r.submitted_at?`<span class="pill ok">已送出</span>`:r?`<span class="pill warn">填寫中</span>`:`<span class="pill bad">尚未填寫</span>`);
     const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(c.id)}&ship=${encodeURIComponent(D.ship)}`;
     // 跟海技的「分享自查彙整清單」一樣：本活動有「有，需處理」還沒結案的，標「⚠ N 項未結案」並把整列標橘底
     const trk=r?(r.items||[]).filter(it=>it&&it.status==="similar"&&!it.closed).length:0;
     const trkPill=trk?`<span class="pill bad">⚠ ${trk} 項未結案</span>`:"";
-    return `<div class="camp${trk?" hastrk":""}"><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${trkPill}${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
+    return `<div class="camp${trk?" hastrk":""}"${late?` style="background:#fdecea;border-left:4px solid #c0392b;padding-left:8px"`:""}><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${trkPill}${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
   }).join("");
-  $("#campList").innerHTML=`<b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b>${rows?`<div style="margin-top:6px">${rows}</div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
+  $("#campList").innerHTML=`<b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div style="margin-top:6px">${rows}</div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
   const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
 }
 

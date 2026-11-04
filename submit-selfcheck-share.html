@@ -814,6 +814,7 @@ function preparePrint(){
       <b>${esc(itemHead(it))}</b>${it.src&&!it.topic?"　"+esc(fmtSrc(it.src)):""}
       <div class="pdet">${esc(it.detail||"")}</div>
       ${it.actual2?`<div class="pdet" style="color:#555">${it.topic?(it.src==="自訂案例"?"案例說明":"船隊實例"):"實際情況"}：${esc(it.actual2)}</div>`:""}
+      ${it.supp?`<div class="pdet" style="color:#8a5a00">公司補充說明：${esc(it.supp)}</div>`:""}
     </td>
     <td class="pst">${ST_LABEL_DL[it.status||"pending"]}${it.status==="similar"?(it.closed?"（已結案）":"（未結案）"+(trackText(it)?`<br><span style="font-weight:400">已在追蹤：${esc(trackText(it))}</span>`:"")):""}</td>
     <td>${esc(it.note||it.naNote||"")}</td>
@@ -848,11 +849,20 @@ function topicRefHtml(it){
     ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
   </div>`;
 }
+/* 公司補充說明（分享時海技針對個別缺失加的說明＋附件；欄位 supp／suppRefs，不是船上作答的 note） */
+function suppHtml(it){
+  if(!it.supp&&!(it.suppRefs||[]).length)return "";
+  return `<div style="margin-top:6px;padding:6px 10px;background:#fff6dc;border-left:4px solid #e0a020;border-radius:4px">
+    <b style="color:#8a5a00">💬 公司補充說明：</b>${it.supp?`<span style="white-space:pre-wrap">${esc(it.supp)}</span>`:""}
+    ${(it.suppRefs||[]).length?`<div style="margin-top:4px">${it.suppRefs.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener" style="margin-right:10px">📎 ${esc(f.name||"附件")}</a>`).join("")}</div>`:""}
+  </div>`;
+}
 function renderRef(it){
   if(it.topic)return topicRefHtml(it);
   return `<div class="refbox">
     <div><b>缺失詳情：</b>${esc(it.detail||"")}</div>
     ${it.actual2?`<div><b>實際情況：</b>${esc(it.actual2)}</div>`:""}
+    ${suppHtml(it)}
   </div>`;
 }
 
@@ -1104,6 +1114,7 @@ function modalRefHtml(it){
     <div style="max-height:34vh;overflow:auto;line-height:1.75">
       <div><b>缺失詳情：</b>${esc(it.detail||"")}</div>
       ${it.actual2?`<div style="margin-top:4px"><b>實際情況：</b>${esc(it.actual2)}</div>`:""}
+      ${suppHtml(it)}
     </div>`;
 }
 let simCtx=null,simClosed=false;
