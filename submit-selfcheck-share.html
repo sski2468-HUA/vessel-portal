@@ -863,10 +863,10 @@ const itemHead=it=>it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"");
 function topicRefHtml(it){
   return `<div class="refbox">
     ${it.stat?`<div class="hint" style="margin-bottom:4px">近期船隊：${esc(it.stat)}</div>`:""}
-    <div><b>問題重點：</b>${esc(it.key||"")}</div>
+    <div style="white-space:pre-wrap"><b>問題重點：</b>${esc(it.key||"")}</div>
     ${(it.checks||[]).length?`<div style="margin-top:6px"><b>請確認：</b><div style="margin-top:2px">${it.checks.map(c=>`<div style="padding-left:1.4em;text-indent:-1.4em">□ ${esc(c)}</div>`).join("")}</div></div>`:""}
     ${(it.refs||[]).length?`<div style="margin-top:6px"><b>附件：</b>${it.refs.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener" style="margin-right:10px">📎 ${esc(f.name||"附件")}</a>`).join("")}</div>`:""}
-    ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
+    ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px;white-space:pre-wrap">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
   </div>`;
 }
 /* 公司補充說明（分享時海技針對個別缺失加的說明＋附件；欄位 supp／suppRefs，不是船上作答的 note） */
