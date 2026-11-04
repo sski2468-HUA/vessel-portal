@@ -51,6 +51,8 @@ textarea,input[type=text],select{padding:9px 10px;border:1px solid var(--line-2)
 .ckrow input{width:18px;height:18px;flex:none;margin-top:2px}
 .ckrow.on{background:#eaf5ee}
 .ckrow.on span{color:var(--ok,#2e8b57)}
+.ckwrap{margin:2px 0 6px}
+.cknote{display:block;width:calc(100% - 32px);margin:2px 0 0 32px;padding:6px 10px;font-size:13px;border:1px solid var(--line,#dde4e8);border-radius:6px}
 /* 2026-11-04 有，需處理：現況照片／改善後照片 */
 .phbox{margin-top:10px}
 .phlab{font-size:13px;font-weight:700;margin-bottom:4px}
@@ -889,11 +891,20 @@ const itemHead=it=>it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"");
 /* 2026-11-04「請確認」細目可逐條打勾（存在 it.checkDone[j]）：題目卡片裡（有題號 i）才能勾；其他地方（說明視窗、列印）只顯示勾選結果 */
 function checksHtml(it,i){
   const cs=it.checks||[];if(!cs.length)return "";
-  const done=it.checkDone||[],n=cs.filter((c,j)=>done[j]).length;
+  const done=it.checkDone||[],notes=it.checkNote||[],n=cs.filter((c,j)=>done[j]).length;
+  // 每條細目後面可補充說明（例：「200BAR 6 支、300BAR 4 支」），存在 it.checkNote[j]
   const row=(c,j)=>i!=null
-    ?`<label class="ckrow${done[j]?" on":""}"><input type="checkbox" ${done[j]?"checked":""} onchange="toggleCheck(${i},${j},this.checked,this)"> <span>${esc(c)}</span></label>`
-    :`<div style="padding-left:1.4em;text-indent:-1.4em">${done[j]?"☑":"□"} ${esc(c)}</div>`;
+    ?`<div class="ckwrap"><label class="ckrow${done[j]?" on":""}"><input type="checkbox" ${done[j]?"checked":""} onchange="toggleCheck(${i},${j},this.checked,this)"> <span>${esc(c)}</span></label>
+       <input type="text" class="cknote" value="${esc(notes[j]||"")}" placeholder="補充說明（選填，例：數量、現況）" oninput="setCheckNote(${i},${j},this.value)"></div>`
+    :`<div style="padding-left:1.4em;text-indent:-1.4em">${done[j]?"☑":"□"} ${esc(c)}${notes[j]?`<span style="color:#1e7f8c">　➜ ${esc(notes[j])}</span>`:""}</div>`;
   return `<div style="margin-top:6px"><b>請確認：</b>${i!=null?`<span class="hint" id="ckcnt-${i}">（已勾 ${n}／${cs.length}）</span>`:""}<div style="margin-top:2px">${cs.map(row).join("")}</div></div>`;
+}
+function setCheckNote(i,j,v){
+  const it=(draft&&draft.items||[])[i];if(!it)return;
+  if(!Array.isArray(it.checkNote))it.checkNote=[];
+  it.checkNote[j]=v;
+  const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
+  scheduleAutoSave();
 }
 function toggleCheck(i,j,on,el){
   const it=(draft&&draft.items||[])[i];if(!it)return;

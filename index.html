@@ -82,11 +82,24 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 /* 首頁卡片同寬：整頁當成 3 欄、欄距都是 12px——上排左邊「待辦事項」佔 2 欄（裡面 2 張卡各 1 欄）、右邊「填報」佔 1 欄；下排「常用功能」3 張各 1 欄 */
 .homeTop{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
 .homeTop>.homeTodo{grid-column:span 2}
-#homeEntries{grid-template-columns:repeat(2,minmax(0,1fr))}
 #homeFill{grid-template-columns:minmax(0,1fr)}
-#homeTools{grid-template-columns:repeat(3,minmax(0,1fr))}
-#homeEntries .entry,#homeFill .entry,#homeTools .entry{min-height:200px}
-@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>.homeTodo{grid-column:auto}#homeEntries,#homeTools{grid-template-columns:1fr}} /* 首頁兩區卡片同寬，待辦只有 2 張也不會被拉滿整列 */
+#homeTools{grid-template-columns:repeat(2,minmax(0,1fr))}
+#homeFill .entry,#homeTools .entry{min-height:180px}
+@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>.homeTodo{grid-column:auto}#homeTools{grid-template-columns:1fr}}
+/* 待辦事項清單：固定 5 列，要做的整列紅色、完成的不加底色 */
+.todolist{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.todolist .trow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.todolist .trow:first-child{border-top:0}
+.todolist .ic{font-size:21px;text-align:center}
+.todolist .tt{font-weight:800;color:var(--navy);min-width:0;font-size:15px}
+.todolist .tt .stx{margin-left:8px;font-size:13px;font-weight:700}
+.todolist .tt small{display:block;font-weight:400;color:var(--ink2);font-size:12.5px;line-height:1.55;margin-top:2px}
+.todolist .trow.has{background:#fdecea;box-shadow:inset 4px 0 0 #c0392b}
+.todolist .trow.has .tt,.todolist .trow.has .stx{color:#c0392b}
+.todolist .trow:not(.has) .stx{color:var(--ink3);font-weight:400}
+.todolist .tgo{font:inherit;font-weight:700;font-size:13px;border-radius:8px;padding:7px 14px;white-space:nowrap;text-decoration:none;background:#fff;color:var(--navy);border:1px solid var(--line)}
+.todolist .trow.has .tgo{background:var(--navy);color:#fff;border-color:var(--navy)}
+@media(max-width:560px){.todolist .trow{grid-template-columns:28px minmax(0,1fr)}.todolist .tgo{grid-column:2;justify-self:start}}
 .entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
 .entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
 .entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
@@ -282,14 +295,15 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <!-- 首頁 -->
   <section class="page on" id="p-home">
     <!-- 第一排：左＝填報（外部檢查線上填單）、右＝待辦事項；第二排：常用功能 -->
+    <!-- 2026-11-04 首頁改版：上排左＝填報（外部檢查線上填單）、右＝外部平台；下方＝待辦事項清單（固定 5 列，要做的紅色、完成的不加底色） -->
     <div class="homeTop">
       <div><h2 class="pt">📝 填報 <span class="hint">每次外部檢查後填寫</span></h2>
         <div class="grid" id="homeFill"></div></div>
-      <div class="homeTodo"><h2 class="pt">📌 待辦事項 <span class="hint">公司發給本船、需要回覆的項目</span></h2>
-        <div class="grid" id="homeEntries"><div class="loading">載入中…</div></div></div>
+      <div class="homeTodo"><h2 class="pt">🔗 外部平台 <span class="hint">另開新視窗</span></h2>
+        <div class="grid" id="homeTools"></div></div>
     </div>
-    <h2 class="pt" style="margin-top:22px">🧰 常用功能 <span class="hint">有需要時點選</span></h2>
-    <div class="grid" id="homeTools"></div>
+    <h2 class="pt" style="margin-top:22px">📌 待辦事項 <span class="hint" id="homeTodoSub">公司發給本船、需要處理的事項</span></h2>
+    <div class="todolist" id="homeEntries"><div class="loading">載入中…</div></div>
     <div class="flownote" style="margin:22px 0 0">
       <b>⚠ 請注意：在本平台填報，不能取代公司 FLOW 系統</b>
       <div>以下項目除了在本平台填報外，<b>一樣要填報公司 FLOW 系統的 DMP-FM01</b>：</div>
@@ -463,6 +477,7 @@ const Auth={
     const c=$("#gShipSel").value;if(!c){$("#gShipErr").textContent="⚠ 請選擇本船船名";return;}
     if(!confirm(`確認本船是「${shipLabel(c)}」嗎？`))return;
     this.save({ok:true,ship:c});
+    try{sessionStorage.removeItem("ship_portal_tab");}catch(e){} // 剛登入一律從首頁開始
     log("登入","系統",`${shipLabel(c)} 登入船舶檢查填報平台`);
     this.next();
   },
@@ -625,12 +640,32 @@ function renderHome(){
   const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
   // 首頁分兩區：📌 待辦事項（公司發給本船、有待回覆數量的）／🧰 填報與常用功能（有需要時才點的填報與外部平台）
   const card=e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`;
-  $("#homeEntries").innerHTML=[
-    {c:"int",t:"🛠 內部檢查改善單",d:"1. 督導上船檢查（訪船、內稽等）後發出的改善單，請逐筆填寫改善措施、完成日期，並上傳改善後照片。<br>2. <b style=\"color:#c0392b\">列為 FLOW 的缺失僅供核對，請至 FLOW 系統填報 DMP-FM01</b>，不需在改善單填寫。",href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,st:iaPills},
-    {c:"share",t:"🔍 分享缺失自查",d:"1. 公司將他船發生的缺失分享給全船隊。<br>2. 請本船自查是否有類似情形並回覆；如有類似情形，改善完成後請回來結案。",href:"#camp",go:"camp",st:(()=>{const trk=campTracks().filter(x=>!x.it.closed).length;
-      const lateN=campOverdue().length;
-      return (lateN?`<span class="pill bad" style="background:#c0392b;color:#fff">⏰ ${lateN} 項逾 1 個月未送出</span>`:"")+(openCamps?`<span class="pill bad">${openCamps} 項尚未送出</span>`:"")+(trk?`<span class="pill warn">${trk} 項需追蹤未結案</span>`:"")+(!openCamps&&!trk?`<span class="pill ok">目前沒有待填寫的自查</span>`:"");})()}
-  ].map(card).join("");
+  /* 2026-11-04 待辦事項改成清單：固定 5 列、固定順序；要做的整列紅色（深藍「前往」），完成的不加底色（白色「查看」） */
+  const trk=campTracks().filter(x=>!x.it.closed).length,lateN=campOverdue().length,refN=refPending().length,ntfUp=ntfNeedsPrint();
+  const iaHas=D.ia.pending||D.ia.returned;
+  const todo=[
+    {ic:"🛠",t:"內部檢查改善單",has:iaHas,
+     st:iaHas?[D.ia.pending?`${D.ia.pending} 項待填寫`:"",D.ia.returned?`${D.ia.returned} 項被退回需補充`:""].filter(Boolean).join("、"):`✓ 目前沒有待填寫${D.ia.waiting?`（${D.ia.waiting} 項待督導審核）`:""}`,
+     d:"督導上船檢查（訪船、內稽等）後發出的改善單，請逐筆填寫改善措施、完成日期並上傳改善後照片；列為 FLOW 的缺失請至 FLOW 系統填報 DMP-FM01。",
+     href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,b:"前往填寫"},
+    {ic:"🔍",t:"分享缺失自查",has:openCamps>0,
+     st:openCamps?`${openCamps} 項未送出${lateN?`（其中 ${lateN} 項已逾 1 個月）`:""}`:"✓ 都已送出",
+     d:"公司將他船（或本船）發生的缺失、或自訂案例分享給全船隊，請逐題回覆本船狀況並送出。",go:"camp",b:"前往填寫"},
+    {ic:"⚠️",t:"分享缺失自查・需追蹤結案",has:trk>0,
+     st:trk?`${trk} 項未結案`:"✓ 沒有未結案項目",
+     d:"答「有，需處理／未完成」的項目，改善完成後請回到該自查勾「已完成改善（結案）」再送出一次。",go:"camp",b:"前往結案"},
+    {ic:"📚",t:"參考文件",has:refN>0,
+     st:refN?`${refN} 份新的／有更新，請下載或閱讀`:(refVisible().length?"✓ 都已下載／閱讀":"目前沒有文件"),
+     d:"公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。",go:"ref",b:"前往查閱"},
+    {ic:"📇",t:"緊急通報名單 Notification List",has:ntfUp,
+     st:ntfUp?"名單已更新，請重新列印":(NTF&&NTF.printed?"✓ 已列印最新版":"✓ 目前為最新版"),
+     d:"DPA、CSO、督導（含代理人）與岸上緊急應變小組電話，可列印或存 PDF；名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。",go:"ntf",b:"前往列印"}
+  ];
+  const nHas=todo.filter(x=>x.has).length;
+  const sub=$("#homeTodoSub");if(sub)sub.innerHTML=nHas?`公司發給本船、需要處理的事項（<b style="color:#c0392b">${nHas} 項待處理</b>，紅色＝要做）`:"公司發給本船、需要處理的事項（目前都已完成 ✓）";
+  $("#homeEntries").innerHTML=todo.map(x=>`<div class="trow${x.has?" has":""}"><div class="ic">${x.ic}</div>
+    <div class="tt">${esc(x.t)}<span class="stx">${esc(x.st)}</span><small>${esc(x.d)}</small></div>
+    <a class="tgo" href="${x.go?"#"+x.go:esc(x.href)}" ${x.go?`onclick="event.preventDefault();go('${x.go}')"`:`target="_blank" rel="noopener"`}>${x.has?x.b+" →":"查看 →"}</a></div>`).join("");
   // 第一排右側：填報（外部檢查線上填單）
   $("#homeFill").innerHTML=[
     {c:"ext",t:"📝 外部檢查線上填單",d:"1. 外部檢查（PSC、SIRE、CDI、FLAG 等）結束後，在這裡線上填寫檢查結果與缺失（即以往的 After Inspection Review 表單）。<br>2. <b>零缺失也要填報</b>；正面評論有才需填寫。<br>3. <b style=\"color:#c0392b\">外部檢查缺失除了在本平台填報，一律還須至 FLOW 系統填報 DMP-FM01，進行核簽流程。</b>",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`}
@@ -638,10 +673,8 @@ function renderHome(){
   // 第二排：常用功能（船端 Itinerary → SQMS → 緊急通報名單）
   $("#homeTools").innerHTML=[
     {c:"itin",t:"🧭 船端 Itinerary",d:"1. 本船航程（Itinerary）。<br>2. 頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。<br>（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
-    {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，請在這裡提出。<br>（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`},
-    {c:"ntf",t:"📇 緊急通報名單 Notification List",d:"1. 本船 Notification List：DPA、CSO、督導（含代理人）與岸上緊急應變小組電話；公司更新後這裡自動為最新版。<br>2. 可直接列印或存成 PDF。<br>3. <b style=\"color:#c0392b\">名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。</b>",href:"#ntf",go:"ntf",st:ntfNeedsPrint()?`<span class="pill bad">🔔 UPDATE：名單已更新，請重新列印</span>`:`<span class="pill mute">列印／PDF</span>${NTF&&NTF.printed?`<span class="pill ok">已列印最新版</span>`:""}`},
-    {c:"ref",t:"📚 參考文件",d:"1. 公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。<br>2. 有新的或更新時這裡會提示，請下載或閱讀。",href:"#ref",go:"ref",st:refVisible().length?(refPending().length?`<span class="pill bad">🔔 ${refPending().length} 份新的／有更新，請查看</span>`:`<span class="pill ok">都已下載／閱讀</span>`):`<span class="pill mute">目前沒有文件</span>`}
-  ].map(card).join("");}
+    {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，請在這裡提出。<br>（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
+  ].map(card).join("");} // 緊急通報名單、參考文件已移到下方待辦事項清單
 /* ════════ 分享缺失自查（本船） ════════ */
 /* 需追蹤：本船在各分享自查活動中答「有，需處理」(status=similar) 的項目。未結案的列出來＋「前往結案」
    （開自查頁 ?focus=題號，直接跳到那一題勾「已完成改善（結案）」再送出）；已結案的收合在下方可展開查看。 */
@@ -1088,7 +1121,10 @@ $("#refMonth").addEventListener("change",renderRef);
   fillYear("#iYear",D.insp,"全部年度");fillYear("#pYear",D.pos,"全部年度");fillYear("#eYear",D.insp,"");
   $("#eYear").value=String(new Date().getFullYear());
   let tab="home";try{tab=sessionStorage.getItem("ship_portal_tab")||"home";}catch(e){}
-  const qtab=new URLSearchParams(location.search).get("tab");if(qtab&&RENDER[qtab])tab=qtab; // 主系統「船上畫面預覽」用 ?tab=ref 直接開到參考文件
+  // 主系統「船上畫面預覽」等連結用 ?tab=ref 直接開到某一頁：只在第一次打開時用，用完就從網址拿掉，
+  // 之後重新整理才會停在「上次開啟的頁面」（2026-11-04：原本網址一直帶著 tab，重新整理永遠回到參考文件）
+  const qs=new URLSearchParams(location.search),qtab=qs.get("tab");
+  if(qtab){if(RENDER[qtab])tab=qtab;qs.delete("tab");try{history.replaceState(null,"",location.pathname+(qs.toString()?"?"+qs:"")+location.hash);}catch(e){}}
   if(tab==="exec"){INSP_SUB="exec";tab="insp";} // 舊的「執行情形一覽表」頁籤已併入檢查紀錄
   go(RENDER[tab]?tab:"home");
 })();
