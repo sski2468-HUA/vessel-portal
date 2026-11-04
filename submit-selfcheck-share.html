@@ -862,14 +862,20 @@ function preparePrint(){
       ${it.supp?`<div class="pdet" style="color:#8a5a00">公司補充說明：${esc(it.supp)}</div>`:""}
     </td>
     <td class="pst">${stLbl(it)}${it.status==="similar"?(it.closed?"（已結案）":"（未結案）"+(trackText(it)?`<br><span style="font-weight:400">已在追蹤：${esc(trackText(it))}</span>`:"")):""}</td>
-    <td>${esc(it.note||it.naNote||"")}</td>
-    <td>${esc(it.actual||"")}</td>
+    <td>${(()=>{ // 2026-11-04 「本船實際狀況」與「打算怎麼處理」早已合併成一欄，列印改成一欄說明＋結案資訊＋照片數
+      const p=[],note=mergedNote(it)||it.naNote||"";
+      if(note)p.push(`<div style="white-space:pre-wrap">${esc(note)}</div>`);
+      if(it.status==="na"&&it.naNote&&note!==it.naNote)p.push(`<div>不適用原因：${esc(it.naNote)}</div>`);
+      if(it.closed)p.push(`<div style="color:#2e7d4f">✓ 結案 ${esc(it.closedAt||"")}${it.closeNote?"：<br>"+esc(it.closeNote):""}</div>`);
+      const nb=(it.photosBefore||[]).length,na=(it.photosAfter||[]).length;
+      if(nb||na)p.push(`<div style="color:#555">📎 ${nb?`現況照片／PDF ${nb} 個`:""}${nb&&na?"、":""}${na?`改善後照片／PDF ${na} 個`:""}</div>`);
+      return p.join("")||'<span style="color:#999">—</span>';})()}</td>
   </tr>`;
   document.getElementById("printArea").innerHTML=`
     <h2>船隊檢查缺失分享及自查　${esc(d.title)}</h2>
     ${campIntro(campaign)?`<div class="pdet" style="margin:4px 0 8px;white-space:pre-wrap"><b>自查說明：</b>${esc(campIntro(campaign))}</div>`:""}
     <div class="pmeta">船舶：${esc(d.shipTxt)}　填寫人：${esc(d.checker)}（${esc(d.checkerTitle)}）　查核項目數：${d.total}　其中需處理：${d.needN}　已送出 ${d.submitCount} 次　最後送出：${esc(d.submittedAt)}　匯出時間：${esc(d.exportedAt)}</div>
-    <table><thead><tr><th class="pnum">#</th><th>查核項目（缺失內容／實際情況）</th><th class="pst">本船查核結果</th><th>本船實際狀況</th><th>打算怎麼處理</th></tr></thead>
+    <table><thead><tr><th class="pnum">#</th><th style="width:52%">${(d.items||[]).some(isCaseItem)?"查核項目（題目／問題重點／請確認細目）":"查核項目（缺失內容／實際情況）"}</th><th class="pst">本船回答</th><th style="width:30%">本船說明（實際狀況／處理方式／結案）</th></tr></thead>
     <tbody>${d.items.map(rowHtml).join("")}</tbody></table>`;
   setTimeout(()=>window.print(),50);
 }

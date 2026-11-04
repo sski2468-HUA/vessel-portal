@@ -272,22 +272,16 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <a class="lk" id="hdLogout" onclick="Auth.logout()">登出 Log out</a>
 </div></header>
 <nav><div class="tabs" id="tabs">
+  <!-- 2026-11-04 選單攤平：原「檢查紀錄」「公司文件」下拉的項目都直接列出來，船上一眼看得到平台有哪些東西；
+       「外部平台」下拉移除（首頁已有 Itinerary、SQMS 卡片） -->
   <button data-p="home" class="on">🏠 首頁</button>
-  <div class="dd" data-g="rec"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">📋 檢查紀錄<span class="gbw"></span> ▾</button><div class="ddm">
-    <button data-p="insp">📋 檢查紀錄</button>
-    <button data-p="air">📝 外部檢查線上填單紀錄</button>
-    <button data-p="pos">👍 正面評價</button>
-  </div></div>
+  <button data-p="insp">📋 檢查紀錄</button>
+  <button data-p="air">📝 線上填單紀錄</button>
+  <button data-p="pos">👍 正面評價</button>
   <button data-p="camp">🔍 分享缺失自查</button>
-  <div class="dd" data-g="doc"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">📚 公司文件<span class="gbw"></span> ▾</button><div class="ddm">
-    <button data-p="docs">📨 船隊通報單</button>
-    <button data-p="ntf">📇 緊急通報名單 <span style="font-weight:400;font-size:12.5px">Notification List</span></button>
-    <button data-p="ref">📚 參考文件</button>
-  </div></div>
-  <div class="dd" data-g="ext"><button type="button" class="ddb" aria-haspopup="true" aria-expanded="false">🔗 外部平台 ▾</button><div class="ddm">
-    <a class="extab" href="https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html" target="_blank" rel="noopener" title="船端 Itinerary（另開新視窗）">🧭 Itinerary ↗</a>
-    <a class="extab" href="https://ttwonder.github.io/sqms-revision-system-ready/" target="_blank" rel="noopener" title="SQMS 程序書修訂需求管理平台（另開新視窗）">📘 SQMS ↗</a>
-  </div></div>
+  <button data-p="docs">📨 船隊通報單</button>
+  <button data-p="ntf">📇 緊急通報名單</button>
+  <button data-p="ref">📚 參考文件</button>
 </div></nav>
 <!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
 <div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
