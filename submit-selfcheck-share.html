@@ -179,6 +179,8 @@ label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px
         <button class="btn sm" onclick="switchShip()">🔁 換一艘船</button>
         <button class="btn primary" id="submitBtn" onclick="submitAll()">✓ 送出</button>
       </div>
+      <!-- 自查說明（自訂案例：為什麼要做這項自查），只顯示一次 -->
+      <div id="taskIntro" style="display:none;margin-top:10px;background:#fff8e6;border:1px solid #f1d58a;border-left:5px solid #e0a020;border-radius:10px;padding:10px 14px"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
         <div style="flex:1;min-width:140px"><label style="margin:0 0 4px">填寫人姓名 *</label><input type="text" id="bodyChecker" placeholder="輸入您的姓名" oninput="onCheckerNameInput(this.value)"></div>
         <div style="flex:1;min-width:140px"><label style="margin:0 0 4px">填寫人職稱 *</label><select id="bodyCheckerTitle" onchange="onCheckerTitleInput(this.value)"></select></div>
@@ -646,6 +648,8 @@ async function enterAsShip(){
   document.getElementById("gateProgressWrap").style.display="none"; // 答題條已移到題目上方（#answerBar），標題列不再放進度條
   document.getElementById("taskTitle").textContent=campaign.title||"";
   document.getElementById("taskMeta").textContent=`船舶：${shipLabel(draft.ship)}　已送出 ${draft.submit_count||0} 次${draft.submitted_at?"　最後送出："+new Date(draft.submitted_at).toLocaleString("zh-TW",{hour12:false}):""}`;
+  const ti=document.getElementById("taskIntro"),intro=campIntro(campaign);
+  if(ti){ti.style.display=intro?"":"none";ti.innerHTML=intro?`<div style="font-weight:800;color:#8a5a00;margin-bottom:4px">📢 自查說明</div><div style="white-space:pre-wrap;line-height:1.75">${esc(intro)}</div>`:"";}
   const bc=document.getElementById("bodyChecker");if(bc)bc.value=getCheckerName();
   const bt=document.getElementById("bodyCheckerTitle");if(bt)bt.value=draft.checker_title||getCheckerTitle();
   (draft.items||[]).forEach(it=>{if(it.actual){it.note=mergedNote(it);it.actual="";window.__mig=true;}}); // 舊資料：實際狀況與處理方式兩欄合併成一欄
@@ -842,6 +846,7 @@ function preparePrint(){
   </tr>`;
   document.getElementById("printArea").innerHTML=`
     <h2>船隊檢查缺失分享及自查　${esc(d.title)}</h2>
+    ${campIntro(campaign)?`<div class="pdet" style="margin:4px 0 8px;white-space:pre-wrap"><b>自查說明：</b>${esc(campIntro(campaign))}</div>`:""}
     <div class="pmeta">船舶：${esc(d.shipTxt)}　填寫人：${esc(d.checker)}（${esc(d.checkerTitle)}）　查核項目數：${d.total}　其中需處理：${d.needN}　已送出 ${d.submitCount} 次　最後送出：${esc(d.submittedAt)}　匯出時間：${esc(d.exportedAt)}</div>
     <table><thead><tr><th class="pnum">#</th><th>查核項目（缺失內容／實際情況）</th><th class="pst">本船查核結果</th><th>本船實際狀況</th><th>打算怎麼處理</th></tr></thead>
     <tbody>${d.items.map(rowHtml).join("")}</tbody></table>`;
@@ -869,6 +874,8 @@ function topicRefHtml(it){
     ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px;white-space:pre-wrap">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
   </div>`;
 }
+/* 自查說明（2026-11-04 自訂案例：整份自查的背景，存在第一題 campIntro；之後若資料表加 intro 欄位也相容） */
+function campIntro(c){return String((c&&(c.intro||((c.items||[])[0]||{}).campIntro))||"").trim();}
 /* 公司補充說明（分享時海技針對個別缺失加的說明＋附件；欄位 supp／suppRefs，不是船上作答的 note） */
 function suppHtml(it){
   if(!it.supp&&!(it.suppRefs||[]).length)return "";
