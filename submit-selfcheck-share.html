@@ -813,7 +813,7 @@ function preparePrint(){
     <td>
       <b>${esc(itemHead(it))}</b>${it.src&&!it.topic?"　"+esc(fmtSrc(it.src)):""}
       <div class="pdet">${esc(it.detail||"")}</div>
-      ${it.actual2?`<div class="pdet" style="color:#555">${it.topic?"船隊實例":"實際情況"}：${esc(it.actual2)}</div>`:""}
+      ${it.actual2?`<div class="pdet" style="color:#555">${it.topic?(it.src==="自訂案例"?"案例說明":"船隊實例"):"實際情況"}：${esc(it.actual2)}</div>`:""}
     </td>
     <td class="pst">${ST_LABEL_DL[it.status||"pending"]}${it.status==="similar"?(it.closed?"（已結案）":"（未結案）"+(trackText(it)?`<br><span style="font-weight:400">已在追蹤：${esc(trackText(it))}</span>`:"")):""}</td>
     <td>${esc(it.note||it.naNote||"")}</td>
@@ -844,7 +844,8 @@ function topicRefHtml(it){
     ${it.stat?`<div class="hint" style="margin-bottom:4px">近期船隊：${esc(it.stat)}</div>`:""}
     <div><b>問題重點：</b>${esc(it.key||"")}</div>
     ${(it.checks||[]).length?`<div style="margin-top:6px"><b>請確認：</b><div style="margin-top:2px">${it.checks.map(c=>`<div style="padding-left:1.4em;text-indent:-1.4em">□ ${esc(c)}</div>`).join("")}</div></div>`:""}
-    ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">船隊實例（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
+    ${(it.refs||[]).length?`<div style="margin-top:6px"><b>附件：</b>${it.refs.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener" style="margin-right:10px">📎 ${esc(f.name||"附件")}</a>`).join("")}</div>`:""}
+    ${(it.examples||[]).length?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--ink-2)">${it.src==="自訂案例"?"案例說明":"船隊實例"}（${it.examples.length}）</summary>${it.examples.map(e=>`<div style="margin-top:4px;font-size:13px">・<b>${esc(e.label||"")}</b>：${esc(e.detail||"")}</div>`).join("")}</details>`:""}
   </div>`;
 }
 function renderRef(it){
