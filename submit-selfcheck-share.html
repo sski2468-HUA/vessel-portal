@@ -914,6 +914,7 @@ function ckType(it,j){const t=(it.checkTypes||[])[j];return (t&&t.type)?t:{type:
 function ckValText(it,j){
   const t=ckType(it,j),v=(it.checkVal||[])[j];
   if(t.type==="tick")return (it.checkDone||[])[j]?"已確認":"";
+  if(Array.isArray(v)){const ps=t.parts||[];return v.map((x,k)=>String(x==null?"":x).trim()===""?"":`${ps[k]||""} ${x}${t.unit?" "+t.unit:""}`.trim()).filter(Boolean).join("、");}
   if(v==null||v==="")return "";
   return t.type==="num"?`${v}${t.unit?" "+t.unit:""}`:String(v);
 }
@@ -936,6 +937,9 @@ function checksHtml(it,i){
     if(t.type==="yn"||t.type==="ynna"){
       const opts=t.type==="yn"?["是","否"]:["是","否","本輪無此情形"];
       ctl=`<div class="ckchips">${opts.map(o=>`<button type="button" class="ckchip${vals[j]===o?" on":""}${o==="否"?" no":""}" onclick="setCheckVal(${i},${j},'${o}')">${o}</button>`).join("")}</div>`;
+    }else if(t.type==="num"&&(t.parts||[]).length){ // 分項數量：例 200bar [ ] 支　300bar [ ] 支
+      const av=Array.isArray(vals[j])?vals[j]:[];
+      ctl=`<div class="ckin" style="display:flex;flex-wrap:wrap;gap:8px 18px">${t.parts.map((p,k)=>`<label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:700">${esc(p)} <input type="number" min="0" step="any" inputmode="decimal" value="${esc(av[k]==null?"":av[k])}" oninput="setCheckPart(${i},${j},${k},this.value)" style="width:90px"> ${esc(t.unit||"")}</label>`).join("")}</div>`;
     }else if(t.type==="num"){
       ctl=`<div class="ckin"><input type="number" min="0" step="any" inputmode="decimal" value="${esc(vals[j]==null?"":vals[j])}" oninput="setCheckVal(${i},${j},this.value,true)" style="width:120px"> <b>${esc(t.unit||"")}</b></div>`;
     }else if(t.type==="date"){
@@ -972,6 +976,17 @@ function setCheckVal(i,j,v,typing){
   if(w){const tmp=document.createElement("div");tmp.innerHTML=checksHtml(it,i);const nw=tmp.querySelector(`#ck-${i}-${j}`);if(nw)w.replaceWith(nw);}
   ckCount(i,it);
   if(ckNeedNote(it,j)){const n=document.getElementById(`cknote-${i}-${j}`);if(n&&!n.value.trim()){n.focus();notify("選「否」請在下方說明原因","err");}}
+}
+function setCheckPart(i,j,k,v){
+  const it=(draft&&draft.items||[])[i];if(!it)return;
+  if(!Array.isArray(it.checkVal))it.checkVal=[];
+  const n=(ckType(it,j).parts||[]).length;
+  const arr=Array.isArray(it.checkVal[j])?it.checkVal[j].slice():Array(n).fill("");
+  arr[k]=v;it.checkVal[j]=arr;
+  if(!Array.isArray(it.checkDone))it.checkDone=[];
+  it.checkDone[j]=arr.some(x=>String(x==null?"":x).trim()!=="");
+  const w=document.getElementById(`ck-${i}-${j}`);if(w){w.classList.toggle("on",it.checkDone[j]);const tt=w.querySelector(".ckic");if(tt)tt.textContent=it.checkDone[j]?"✅":"⬜";}
+  ckCount(i,it);ckTouch(it);scheduleAutoSave();
 }
 function toggleCheck(i,j,on,el){
   const it=(draft&&draft.items||[])[i];if(!it)return;
