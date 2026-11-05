@@ -695,7 +695,7 @@ function renderCampTracks(){
         <div class="hint">${(it.track||[]).length?`追蹤方式：${esc(it.track.join("、"))}　`:""}${it.trackDue?`<span style="${over?"color:#c0392b;font-weight:700":""}">追蹤期限：${esc(it.trackDue)}${over?"（已逾期）":""}</span>`:""}${it.closed?`結案：${esc(it.closedAt||"")}${it.closeNote?"　"+esc(it.closeNote):""}`:""}</div></div>
       ${it.closed?`<span class="pill ok">已結案</span>`:`<a class="btn sm dark" href="${esc(href)}" target="_blank" rel="noopener">前往結案</a>`}</div>`;};
   return `<div class="panel" style="margin-bottom:12px;border-left:4px solid ${open.length?"#e0a020":"#2e8b57"}">
-    <b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目（本船答「有，需處理」）</b>
+    <b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目（本船答「有類似問題，需後續追蹤」）</b>
     <div class="hint" style="margin:2px 0 6px">處理完成後按「前往結案」，在該題勾「✓ 已完成改善（結案）」、填改善情形與日期，再按「送出」，這裡就會變成已結案。</div>
     ${open.length?open.map(row).join(""):`<div class="hint">目前沒有未結案的追蹤項目。</div>`}
     ${closed.length?`<details style="margin-top:8px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${closed.map(row).join("")}</details>`:""}
