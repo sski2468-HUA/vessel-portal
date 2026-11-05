@@ -52,6 +52,16 @@ textarea,input[type=text],select{padding:9px 10px;border:1px solid var(--line-2)
 .ckrow.on{background:#eaf5ee}
 .ckrow.on span{color:var(--ok,#2e8b57)}
 .ckwrap{margin:2px 0 6px}
+.cktyped{border:1px solid var(--line,#dde4e8);border-radius:8px;padding:8px 10px;background:#fff}
+.cktyped.on{border-color:#9cc9ad;background:#f4fbf6}
+.cktitle{font-weight:700;line-height:1.5;margin-bottom:6px}
+.ckchips{display:flex;flex-wrap:wrap;gap:8px}
+.ckchip{border:1.5px solid #cfd8de;background:#fff;border-radius:20px;padding:7px 18px;font-size:14px;font-weight:700;cursor:pointer;color:#33444f}
+.ckchip.on{background:#2e8b57;border-color:#2e8b57;color:#fff}
+.ckchip.no.on{background:#c0392b;border-color:#c0392b}
+.ckin input{padding:7px 10px;font-size:14px;border:1px solid var(--line,#dde4e8);border-radius:6px}
+.cktyped .cknote{width:100%;margin:6px 0 0}
+.cknote.need{border-color:#c0392b;background:#fff5f4}
 .cknote{display:block;width:calc(100% - 32px);margin:2px 0 0 32px;padding:6px 10px;font-size:13px;border:1px solid var(--line,#dde4e8);border-radius:6px}
 /* 2026-11-04 有，需處理：現況照片／改善後照片 */
 .phbox{margin-top:10px}
@@ -897,30 +907,77 @@ const srcTag=it=>it.src?`<span style="margin-left:8px;font-size:12px;font-weight
 /* 主題題（船隊缺失分析發佈）：一題＝一個缺失項目，顯示「問題重點＋請確認細目＋船隊實例」，不是單筆缺失 */
 const itemHead=it=>it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"");
 /* 2026-11-04「請確認」細目可逐條打勾（存在 it.checkDone[j]）：題目卡片裡（有題號 i）才能勾；其他地方（說明視窗、列印）只顯示勾選結果 */
+/* 2026-11-05 細目回答方式（督導出題時每條細目選一種，存在 it.checkTypes[j]={type,unit}；沒設定＝勾選確認）：
+   tick 勾選確認／yn 是・否／ynna 是・否・本輪無此情形／num 填數量／date 填日期／text 填文字。
+   答案存 it.checkVal[j]；有作答就 it.checkDone[j]=true（舊的統計照樣算得到）。選「否」一定要在補充說明寫原因。 */
+function ckType(it,j){const t=(it.checkTypes||[])[j];return (t&&t.type)?t:{type:"tick"};}
+function ckValText(it,j){
+  const t=ckType(it,j),v=(it.checkVal||[])[j];
+  if(t.type==="tick")return (it.checkDone||[])[j]?"已確認":"";
+  if(v==null||v==="")return "";
+  return t.type==="num"?`${v}${t.unit?" "+t.unit:""}`:String(v);
+}
+const ckNeedNote=(it,j)=>{const t=ckType(it,j).type;return (t==="yn"||t==="ynna")&&(it.checkVal||[])[j]==="否";};
+function ckMissingNote(it){return (it.checks||[]).findIndex((c,j)=>ckNeedNote(it,j)&&!String((it.checkNote||[])[j]||"").trim());}
+function ckAnsweredN(it){return (it.checks||[]).filter((c,j)=>(it.checkDone||[])[j]).length;}
 function checksHtml(it,i){
   const cs=it.checks||[];if(!cs.length)return "";
-  const done=it.checkDone||[],notes=it.checkNote||[],n=cs.filter((c,j)=>done[j]).length;
-  // 每條細目後面可補充說明（例：「200BAR 6 支、300BAR 4 支」），存在 it.checkNote[j]
-  const row=(c,j)=>i!=null
-    ?`<div class="ckwrap"><label class="ckrow${done[j]?" on":""}"><input type="checkbox" ${done[j]?"checked":""} onchange="toggleCheck(${i},${j},this.checked,this)"> <span>${esc(c)}</span></label>
-       <input type="text" class="cknote" value="${esc(notes[j]||"")}" placeholder="補充說明（選填，例：數量、現況）" oninput="setCheckNote(${i},${j},this.value)"></div>`
-    :`<div style="padding-left:1.4em;text-indent:-1.4em">${done[j]?"☑":"□"} ${esc(c)}${notes[j]?`<span style="color:#1e7f8c">　➜ ${esc(notes[j])}</span>`:""}</div>`;
-  return `<div style="margin-top:6px"><b>請確認：</b>${i!=null?`<span class="hint" id="ckcnt-${i}">（已勾 ${n}／${cs.length}）</span>`:""}<div style="margin-top:2px">${cs.map(row).join("")}</div></div>`;
+  const done=it.checkDone||[],notes=it.checkNote||[],vals=it.checkVal||[],n=ckAnsweredN(it);
+  const allTick=cs.every((c,j)=>ckType(it,j).type==="tick");
+  const row=(c,j)=>{
+    const t=ckType(it,j);
+    if(i==null){ // 唯讀（說明視窗、列印）
+      const vt=ckValText(it,j);
+      return `<div style="padding-left:1.4em;text-indent:-1.4em">${done[j]?"☑":"□"} ${esc(c)}${t.type!=="tick"&&vt?`<b style="color:#1d4e80">　➜ ${esc(vt)}</b>`:""}${notes[j]?`<span style="color:#1e7f8c">　（${esc(notes[j])}）</span>`:""}</div>`;
+    }
+    if(t.type==="tick")return `<div class="ckwrap"><label class="ckrow${done[j]?" on":""}"><input type="checkbox" ${done[j]?"checked":""} onchange="toggleCheck(${i},${j},this.checked,this)"> <span>${esc(c)}</span></label>
+       <input type="text" class="cknote" value="${esc(notes[j]||"")}" placeholder="補充說明（選填，例：數量、現況）" oninput="setCheckNote(${i},${j},this.value)"></div>`;
+    let ctl="";
+    if(t.type==="yn"||t.type==="ynna"){
+      const opts=t.type==="yn"?["是","否"]:["是","否","本輪無此情形"];
+      ctl=`<div class="ckchips">${opts.map(o=>`<button type="button" class="ckchip${vals[j]===o?" on":""}${o==="否"?" no":""}" onclick="setCheckVal(${i},${j},'${o}')">${o}</button>`).join("")}</div>`;
+    }else if(t.type==="num"){
+      ctl=`<div class="ckin"><input type="number" min="0" step="any" inputmode="decimal" value="${esc(vals[j]==null?"":vals[j])}" oninput="setCheckVal(${i},${j},this.value,true)" style="width:120px"> <b>${esc(t.unit||"")}</b></div>`;
+    }else if(t.type==="date"){
+      ctl=`<div class="ckin"><input type="date" value="${esc(vals[j]||"")}" onchange="setCheckVal(${i},${j},this.value,true)" style="width:170px"></div>`;
+    }else{
+      ctl=`<div class="ckin"><input type="text" value="${esc(vals[j]||"")}" oninput="setCheckVal(${i},${j},this.value,true)" placeholder="請填寫" style="width:100%"></div>`;
+    }
+    const needN=ckNeedNote(it,j),showNote=t.type==="yn"||t.type==="ynna";
+    return `<div class="ckwrap cktyped${done[j]?" on":""}" id="ck-${i}-${j}"><div class="cktitle"><span class="ckic">${done[j]?"✅":"⬜"}</span> ${esc(c)}</div>${ctl}
+      ${showNote?`<input type="text" class="cknote${needN&&!String(notes[j]||"").trim()?" need":""}" id="cknote-${i}-${j}" value="${esc(notes[j]||"")}" placeholder="${needN?"選「否」請說明原因（必填）":"補充說明（選填）"}" oninput="setCheckNote(${i},${j},this.value)">`:""}</div>`;
+  };
+  return `<div style="margin-top:6px"><b>請確認：</b>${i!=null?`<span class="hint" id="ckcnt-${i}">（${allTick?"已勾":"已答"} ${n}／${cs.length}）</span>`:""}<div style="margin-top:2px">${cs.map(row).join("")}</div></div>`;
 }
+function ckTouch(it){const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}}
+function ckCount(i,it){const cs=it.checks||[],cnt=document.getElementById("ckcnt-"+i);if(cnt)cnt.textContent=`（${cs.every((c,j)=>ckType(it,j).type==="tick")?"已勾":"已答"} ${ckAnsweredN(it)}／${cs.length}）`;}
 function setCheckNote(i,j,v){
   const it=(draft&&draft.items||[])[i];if(!it)return;
   if(!Array.isArray(it.checkNote))it.checkNote=[];
   it.checkNote[j]=v;
-  const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
-  scheduleAutoSave();
+  const el=document.getElementById(`cknote-${i}-${j}`);if(el)el.classList.toggle("need",ckNeedNote(it,j)&&!String(v||"").trim());
+  ckTouch(it);scheduleAutoSave();
+}
+function setCheckVal(i,j,v,typing){
+  const it=(draft&&draft.items||[])[i];if(!it)return;
+  if(!Array.isArray(it.checkVal))it.checkVal=[];
+  if(!Array.isArray(it.checkDone))it.checkDone=[];
+  it.checkVal[j]=v;it.checkDone[j]=String(v==null?"":v).trim()!=="";
+  ckTouch(it);scheduleAutoSave();
+  if(typing){ // 輸入框：不重畫（避免游標跳掉），只更新標示
+    const w=document.getElementById(`ck-${i}-${j}`);if(w){w.classList.toggle("on",it.checkDone[j]);const tt=w.querySelector(".ckic");if(tt)tt.textContent=it.checkDone[j]?"✅":"⬜";}
+    ckCount(i,it);return;
+  }
+  const w=document.getElementById(`ck-${i}-${j}`);
+  if(w){const tmp=document.createElement("div");tmp.innerHTML=checksHtml(it,i);const nw=tmp.querySelector(`#ck-${i}-${j}`);if(nw)w.replaceWith(nw);}
+  ckCount(i,it);
+  if(ckNeedNote(it,j)){const n=document.getElementById(`cknote-${i}-${j}`);if(n&&!n.value.trim()){n.focus();notify("選「否」請在下方說明原因","err");}}
 }
 function toggleCheck(i,j,on,el){
   const it=(draft&&draft.items||[])[i];if(!it)return;
   if(!Array.isArray(it.checkDone))it.checkDone=[];
   it.checkDone[j]=!!on;if(el&&el.parentElement)el.parentElement.classList.toggle("on",!!on);
-  const cs=it.checks||[],n=cs.filter((c,k)=>it.checkDone[k]).length,cnt=document.getElementById("ckcnt-"+i);if(cnt)cnt.textContent=`（已勾 ${n}／${cs.length}）`;
-  const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
-  scheduleAutoSave();
+  ckCount(i,it);ckTouch(it);scheduleAutoSave();
 }
 function topicRefHtml(it,i){
   return `<div class="refbox">
@@ -1423,6 +1480,8 @@ async function reviewSubmit(){
   }
   {const fi=(draft.items||[]).findIndex(flowMissing);
    if(fi>=0){notify(`⚠ 第 ${fi+1} 題有選 FLOW 追蹤且已結案，請先補填 FLOW 單號再送出`,"err");reviewGoto(fi);setTimeout(()=>{const inp=document.querySelector(`#flowwrap-${fi} input`);if(inp)inp.focus();},400);return;}}
+  {const qi=(draft.items||[]).findIndex(it=>ckMissingNote(it)>=0);
+   if(qi>=0){const j=ckMissingNote(draft.items[qi]);notify(`⚠ 第 ${qi+1} 題有細目選「否」，請在補充說明寫原因再送出`,"err");reviewGoto(qi);setTimeout(()=>{const n=document.getElementById(`cknote-${qi}-${j}`);if(n){n.scrollIntoView({block:"center"});n.focus();}},400);return;}}
   const nameNow=(document.getElementById("bodyChecker").value||"").trim();
   const titleNow=(document.getElementById("bodyCheckerTitle").value||"").trim();
   if(!nameNow||!titleNow){
@@ -1463,6 +1522,8 @@ async function submitAll(){
   }
   {const fi=(draft.items||[]).findIndex(flowMissing);
    if(fi>=0){notify(`⚠ 第 ${fi+1} 題有選 FLOW 追蹤且已結案，請先補填 FLOW 單號再送出`,"err");return false;}}
+  {const qi=(draft.items||[]).findIndex(it=>ckMissingNote(it)>=0);
+   if(qi>=0){notify(`⚠ 第 ${qi+1} 題有細目選「否」，請在補充說明寫原因再送出`,"err");return false;}}
   onCheckerNameInput(nameNow);
   onCheckerTitleInput(titleNow);
   const btn=document.getElementById("submitBtn");
