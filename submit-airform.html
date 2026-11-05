@@ -103,6 +103,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy-3);outline-
 .photoThumb .pdfTile{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;background:#fdecea;color:#c0392b;font-size:10px;font-weight:700;text-align:center;padding:2px;box-sizing:border-box}
 .photoThumb .pdfTile span{font-weight:400;color:#7a2a20;font-size:9px;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .photoThumb .rmPhoto{position:absolute;top:2px;right:2px;background:rgba(10,20,28,.62);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;text-align:center;cursor:pointer;padding:0}
+.phcell{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
+.phsz{font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.phlimit{display:block;font-size:11.5px;font-weight:400;color:var(--ink-3);margin-top:2px}
 .photoAddBtn{width:72px;height:72px;border:1.5px dashed var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink-3);cursor:pointer;background:#fafbfc;flex:none}
 .photoAddBtn:hover{background:#f0f4f7;border-color:var(--navy-3)}
 .photoCount{font-size:11px;color:var(--ink-3);margin-left:4px}
@@ -374,7 +377,7 @@ async function uploadAllDefectPhotos(payload){
       for(let i=0;i<list.length;i++){
         const p = list[i];
         if(!p || p.url || !p.dataUrl) continue; // 已經是網址、或本來就沒有資料，跳過
-        try{ list[i] = await uploadPhotoToStorage(p, folderBase); }
+        try{ const sz=attSize(p); list[i] = await uploadPhotoToStorage(p, folderBase); if(sz&&list[i]&&!list[i].size)list[i].size=sz; }
         catch(e){ failCount++; if(!firstError)firstError=e.message||String(e); console.warn("photo upload to storage failed, keep base64 fallback", e); }
       }
     }
@@ -515,9 +518,13 @@ function compressImage(file, maxDim, quality){
     reader.readAsDataURL(file);
   });
 }
+/* 2026-11-05 每個附件下方顯示檔案大小（照片＝壓縮後大小；舊資料沒記錄大小就不顯示） */
+function fmtSize(b){if(!b)return "";return b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";}
+function attSize(p){return p.size||(p.dataUrl?Math.round((p.dataUrl.length-(p.dataUrl.indexOf(",")+1))*0.75):0);}
 function photoThumbHtml(kind, idx, p){
-  if(isPdfAtt(p)) return `<div class="photoThumb" data-idx="${idx}"><div class="pdfTile d-photo-view" data-kind="${kind}" data-idx="${idx}" title="${esc(p.name||"")}">📄 PDF<span>${esc(p.name||"")}</span></div><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>`;
-  return `<div class="photoThumb" data-idx="${idx}"><img class="d-photo-view" data-kind="${kind}" data-idx="${idx}" src="${p.dataUrl||p.url}"><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>`;
+  const sz=fmtSize(attSize(p)),cap=sz?`<div class="phsz">${sz}</div>`:"";
+  if(isPdfAtt(p)) return `<div class="phcell"><div class="photoThumb" data-idx="${idx}"><div class="pdfTile d-photo-view" data-kind="${kind}" data-idx="${idx}" title="${esc(p.name||"")}">📄 PDF<span>${esc(p.name||"")}</span></div><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>${cap}</div>`;
+  return `<div class="phcell"><div class="photoThumb" data-idx="${idx}"><img class="d-photo-view" data-kind="${kind}" data-idx="${idx}" src="${p.dataUrl||p.url}"><button type="button" class="rmPhoto" data-kind="${kind}" data-idx="${idx}">✕</button></div>${cap}</div>`;
 }
 function renderPhotoThumbs(div, kind){
   const list=(div._photos&&div._photos[kind])||[];

@@ -67,7 +67,10 @@ textarea,input[type=text],select{padding:9px 10px;border:1px solid var(--line-2)
 /* 2026-11-04 有，需處理：現況照片／改善後照片 */
 .phbox{margin-top:10px}
 .phlab{font-size:13px;font-weight:700;margin-bottom:4px}
-.phrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.phrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.phcell{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+.phsz{font-size:11px;color:var(--ink-3,#7a8b95);font-variant-numeric:tabular-nums}
+.phlimit{display:block;font-size:12px;font-weight:400;color:var(--ink-3,#7a8b95);margin-top:2px}
 .phth{position:relative;display:inline-block}
 .phth img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
 .phth button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:0;background:#c0392b;color:#fff;font-size:12px;cursor:pointer;line-height:22px;padding:0}
@@ -210,7 +213,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px
         <div style="flex:1;min-width:140px"><label style="margin:0 0 4px">填寫人姓名 *</label><input type="text" id="bodyChecker" placeholder="輸入您的姓名" oninput="onCheckerNameInput(this.value)"></div>
         <div style="flex:1;min-width:140px"><label style="margin:0 0 4px">填寫人職稱 *</label><select id="bodyCheckerTitle" onchange="onCheckerTitleInput(this.value)"></select></div>
       </div>
-      <p class="hint warn" style="margin-top:10px">內容會自動即時儲存，不用自己按存檔。答「有，需處理」的項目，等船上處理完成後記得回來勾選「已完成改善（結案）」，再按一次「送出」才算完整。送出後仍可以回來調整、再送出一次覆蓋更新。<b>姓名與職稱為必填，未填寫無法送出。</b></p>
+      <p class="hint warn" style="margin-top:10px">內容會自動即時儲存，不用自己按存檔。答「有類似問題，需後續追蹤」的項目，等船上處理完成後記得回來勾選「已完成改善（結案）」並填結案日期，再按一次「送出」才算完整。送出後仍可以回來調整、再送出一次覆蓋更新。<b>姓名與職稱為必填，未填寫無法送出。</b></p>
       <div class="modebar" style="margin-top:12px">
         <button type="button" class="modebtn on" id="modeBtnGuide" onclick="setViewMode('guide')">▶ 引導作答</button>
         <button type="button" class="modebtn" id="modeBtnList" onclick="setViewMode('list')">☰ 清單模式</button>
@@ -1095,7 +1098,7 @@ function itemCardHtml(it,i){
       <div class="detailwrap ${it.status==='similar'?'show':''}" id="detail-${i}">
         <label>${kind==="fixed"?"本船的實際狀況，及已怎麼解決":"本船的實際狀況，及打算怎麼處理"}</label>
         <textarea data-idx="${i}" data-field="note" oninput="onFieldInput(this)">${esc(mergedNote(it))}</textarea>
-        ${phBoxHtml(i,"b")}
+        ${kind==="fixed"&&!(it.photosBefore||[]).length?"":phBoxHtml(i,"b")}<!-- 已解決：只放改善後照片（以前已上傳的現況照片才保留顯示） -->
         ${kind==="fixed"?`
         <div class="closewrap show" id="closewrap-${i}">
           ${dateLbl}
@@ -1332,9 +1335,11 @@ const PHK={b:"photosBefore",a:"photosAfter"};
 function phArr(i,k){if(i<0)return simPh[k];const it=draft.items[i];if(!it[PHK[k]])it[PHK[k]]=[];return it[PHK[k]];}
 function phRowInner(i,k){
   // PDF 沒有縮圖，顯示成一個「📄 PDF＋檔名」的方塊，點了開新分頁看
-  return phArr(i,k).map((p,j)=>`<span class="phth"><a href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(p.name||"")}">${isPdf(p)?`<span class="phpdf">📄<b>PDF</b><small>${esc(String(p.name||"").slice(0,14))}</small></span>`:`<img src="${esc(p.url)}" alt="${esc(p.name||"照片")}">`}</a><button type="button" title="移除" onclick="delPhoto(${i},'${k}',${j})">✕</button></span>`).join("")
+  return phArr(i,k).map((p,j)=>`<span class="phcell"><span class="phth"><a href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(p.name||"")}">${isPdf(p)?`<span class="phpdf">📄<b>PDF</b><small>${esc(String(p.name||"").slice(0,14))}</small></span>`:`<img src="${esc(p.url)}" alt="${esc(p.name||"照片")}">`}</a><button type="button" title="移除" onclick="delPhoto(${i},'${k}',${j})">✕</button></span>${p.size?`<span class="phsz">${fmtSize(p.size)}</span>`:""}</span>`).join("")
     +`<label class="phadd">＋ 照片<br>或 PDF<input type="file" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="addPhotos(${i},'${k}',this)"></label>`;
 }
+/* 2026-11-05 附件旁顯示檔案大小（照片＝壓縮後實際上傳的大小）；舊附件沒記錄大小就不顯示 */
+function fmtSize(b){if(!b)return "";return b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";}
 function isPdf(p){return /pdf/i.test(p.type||"")||/\.pdf$/i.test(p.name||p.path||"");}
 function phBoxHtml(i,k){return `<div class="phbox"><div class="phlab">${k==="b"?"📷 現況照片／PDF（選填）":"📷 改善後照片／PDF（選填）"}</div><div class="phrow" id="ph-${i}-${k}">${phRowInner(i,k)}</div></div>`;}
 function phRedraw(i,k){const el=document.getElementById(`ph-${i}-${k}`);if(el)el.innerHTML=phRowInner(i,k);}
@@ -1358,7 +1363,7 @@ async function uploadPhoto(file){
   const path=`f/${h.slice(0,2)}/${h}.${ext}`;
   const r=await fetch(`${CLOUD.url}/storage/v1/object/defect-photos/${path}`,{method:"POST",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":type,"x-upsert":"false"},body:blob});
   if(!r.ok){const t=await r.text().catch(()=>"");if(!(r.status===409||/exists|duplicate/i.test(t)))throw new Error("HTTP "+r.status);}
-  return {name:file.name||("photo."+ext),url:`${CLOUD.url}/storage/v1/object/public/defect-photos/${path}`,path,at:new Date().toISOString().slice(0,10)};
+  return {name:file.name||("photo."+ext),url:`${CLOUD.url}/storage/v1/object/public/defect-photos/${path}`,path,size:blob.size,at:new Date().toISOString().slice(0,10)};
 }
 async function addPhotos(i,k,inp){
   const files=[...(inp.files||[])];inp.value="";if(!files.length)return;

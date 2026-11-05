@@ -48,6 +48,12 @@ textarea,input[type=text]{padding:9px 10px;border:1px solid var(--line-2);border
 .statusbtn.on.ok{background:#eaf5ee;border-color:var(--ok);color:var(--ok)}
 .statusbtn.on.similar{background:#fff4e8;border-color:var(--warn);color:var(--warn)}
 .statusbtn.on.na{background:#eef0f4;border-color:var(--ink-3);color:var(--ink-2)}
+.statusbtn.on.fixed{background:#e8f4f6;border-color:#1e7f8c;color:#16656f}
+.trackrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.trackopt{display:inline-flex;align-items:center;gap:6px;border:1.5px solid #cfd8de;border-radius:8px;padding:7px 14px;background:#fff;cursor:pointer;font-weight:700;font-size:14px;margin:0}
+.trackopt input{width:17px;height:17px;margin:0}
+.trackopt.on{border-color:#2c64a0;background:#eaf1f9;color:#1d4e80}
+.closewrap{display:none;margin-top:8px}.closewrap.show{display:block}
 .detailwrap{display:none;margin-top:10px}
 .detailwrap.show{display:block}
 label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px 0 4px}
@@ -133,7 +139,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px
         <button class="btn primary" id="submitBtn" onclick="submitAll()">✓ 送出</button>
       </div>
       <p class="hint" style="margin-top:6px">此分頁通常是從系統「開啟」的，按「返回系統」會自動關閉這個分頁、回到原本那個系統分頁；若您是直接被分享這個連結打開的（不是從系統點開），請直接關閉分頁即可。</p>
-      <p class="hint warn" style="margin-top:10px">內容會自動即時儲存，不用自己按存檔。答「有，需處理」的項目，等船上處理完成後記得回來勾選「已完成改善（結案）」，再按一次「送出」才算完整。送出後仍可以回來調整、再送出一次覆蓋更新。</p>
+      <p class="hint warn" style="margin-top:10px">內容會自動即時儲存，不用自己按存檔。答「有類似問題，需後續追蹤」的項目，等船上處理完成後記得回來勾選「已完成改善（結案）」並填結案日期，再按一次「送出」才算完整。送出後仍可以回來調整、再送出一次覆蓋更新。</p>
       <label style="margin-top:10px">填寫人姓名（會記錄在每一題的作答紀錄上）</label>
       <input type="text" id="checkerName" placeholder="輸入您的姓名" oninput="onCheckerNameInput(this.value)">
       <div class="modebar" style="margin-top:12px">
@@ -306,10 +312,10 @@ function preparePrint(){
         ${it.srcActual?`<div class="pdet" style="color:#555">實際情況：${esc(it.srcActual)}</div>`:""}
         ${refTxt?`<div class="pref">${it.aiChecklist?"原始缺失：":""}${refTxt}</div>`:""}
       </td>
-      <td class="pst">${stLabel[it.status||"pending"]}</td>
+      <td class="pst">${stText(it)}</td>
       <td>${esc(it.note||"")}</td>
-      <td>${esc(it.actual||"")}</td>
-      <td class="pst">${it.closed?"✓":""}</td>
+      <td>${esc(it.actual||"")}${trackText(it)?`<div style="color:#555">追蹤：${esc(trackText(it))}</div>`:""}</td>
+      <td class="pst">${it.closed?"✓"+(it.closedAt?"<br>"+esc(it.closedAt):""):""}</td>
     </tr>`;
   };
   const withIdx=items.map((it,i)=>({it,i}));
@@ -358,26 +364,48 @@ function toggleSrc(btn,i){
   btn.lastChild.textContent=(open?"收起原始缺失":"查看原始缺失")+(n?`（${n[0]} 筆）`:"");
 }
 
+/* 2026-11-05 四個選項（與分享自查一致）：本輪無類似情形／有類似問題，已解決／有類似問題，需後續追蹤／本船型不適用。
+   後兩種都存 status=similar（公司端統計照舊），用 it.simKind="fixed"／"track" 區分；舊資料沒有 simKind＝需後續追蹤。
+   已解決＝直接結案、要填解決日期；需後續追蹤可選追蹤方式（FLOW／內控／物料配件／其他），結案時要填結案日期。 */
+const simKindOf=it=>it&&it.status==="similar"?(it.simKind==="fixed"?"fixed":"track"):"";
+const TRACK_OPTS=["FLOW","內控","物料配件","其他"];
+function todayIsoDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+const closedAtMissing=it=>it&&it.status==="similar"&&it.closed&&!String(it.closedAt||"").trim();
+function stText(it){const st=(it&&it.status)||"pending";if(st==="similar")return simKindOf(it)==="fixed"?"🔧 有類似問題，已解決":"⚠️ 有類似問題，需後續追蹤";return {ok:"✅ 本輪無類似情形",na:"➖ 本船型不適用",pending:"（未作答）"}[st]||st;}
+function trackText(it){return (it.track||[]).map(t=>t==="FLOW"&&it.flowNo?`FLOW（單號 ${it.flowNo}）`:t==="其他"&&it.trackOther?`其他（${it.trackOther}）`:t).join("、");}
 function itemCardHtml(it,i){
+  const kind=simKindOf(it);
+  const sb=(st,cls,txt)=>`<button type="button" data-st="${st}" class="statusbtn ${(st===(it.status==="similar"?kind:it.status))?"on "+cls:""}" onclick="setStatus(${i},'${st}')">${txt}</button>`;
+  const tk=new Set(it.track||[]);
+  const dateRow=`<label>${kind==="fixed"?"解決日期":"結案日期"} <span style="color:var(--bad)">*（必填）</span></label>
+          <input type="date" data-idx="${i}" data-field="closedAt" value="${esc(it.closedAt||"")}" onchange="onFieldInput(this)" style="max-width:200px">`;
   return `
     <div class="itemcard gh" data-idx="${i}" id="item-${i}">
       <div><span class="num">#${i+1}</span><b>${esc(it.detail?(it.grouped?it.detail:("CODE "+(it.code||""))):"")}</b></div>
       ${renderRef(it,i)}
       <p style="font-weight:700;margin:10px 0 4px">❓ 本船目前有同樣或類似的情形嗎？</p>
       <div class="statusrow">
-        <button type="button" class="statusbtn ${it.status==='ok'?'on ok':''}" onclick="setStatus(${i},'ok')">✅ 沒有</button>
-        <button type="button" class="statusbtn ${it.status==='similar'?'on similar':''}" onclick="setStatus(${i},'similar')">⚠️ 有，需處理</button>
-        <button type="button" class="statusbtn ${it.status==='na'?'on na':''}" onclick="setStatus(${i},'na')">➖ 不適用本船</button>
+        ${sb("ok","ok","✅ 本輪無類似情形")}${sb("fixed","fixed","🔧 有類似問題，已解決")}${sb("track","similar","⚠️ 有類似問題，需後續追蹤")}${sb("na","na","➖ 本船型不適用")}
       </div>
       <div class="detailwrap ${it.status==='similar'?'show':''}" id="detail-${i}">
         <label>本船的實際狀況</label>
         <textarea data-idx="${i}" data-field="note" oninput="onFieldInput(this)">${esc(it.note||"")}</textarea>
-        <label>打算怎麼處理／改善措施</label>
+        <label>${kind==="fixed"?"已怎麼解決／改善措施":"打算怎麼處理／改善措施"}</label>
         <textarea data-idx="${i}" data-field="actual" oninput="onFieldInput(this)">${esc(it.actual||"")}</textarea>
+        ${kind==="fixed"?`<div class="closewrap show">${dateRow}</div>`:`
+        <div style="margin-top:10px;${it.closed?"display:none":""}" id="trackwrap-${i}">
+          <label>在哪裡進行後續追蹤（可複選）</label>
+          <div class="trackrow">${TRACK_OPTS.map(o=>`<label class="trackopt${tk.has(o)?" on":""}"><input type="checkbox" value="${o}" ${tk.has(o)?"checked":""} onchange="onTrackChange(${i},this)"> ${o}</label>`).join("")}</div>
+          <div id="flowwrap-${i}" style="display:${tk.has("FLOW")?"":"none"};margin-top:8px"><label>FLOW 單號（選填）</label>
+            <input type="text" data-idx="${i}" data-field="flowNo" value="${esc(it.flowNo||"")}" oninput="onFieldInput(this)" style="max-width:280px"></div>
+          <div id="otherwrap-${i}" style="display:${tk.has("其他")?"":"none"};margin-top:8px"><label>其他追蹤方式說明</label>
+            <input type="text" data-idx="${i}" data-field="trackOther" value="${esc(it.trackOther||"")}" oninput="onFieldInput(this)" placeholder="例：列入下次塢修工程、岸上維修申請…" style="max-width:420px"></div>
+        </div>
         <div class="closedrow">
           <input type="checkbox" id="closed-${i}" ${it.closed?"checked":""} onchange="onClosedChange(${i},this.checked)" style="width:18px;height:18px">
           <label for="closed-${i}" style="margin:0">✓ 已完成改善（結案）</label>
         </div>
+        <div class="closewrap ${it.closed?"show":""}" id="closewrap-${i}">${dateRow}</div>`}
       </div>
       <p class="hint" style="margin-top:8px">${it.checkedBy?`最後回答：${esc(it.checkedBy)}　${esc(it.checkedAt||"")}`:""}</p>
     </div>
@@ -459,7 +487,7 @@ function renderWrapup(){
   if(!sim.length){
     box.style.display="";
     box.classList.remove("has-open");
-    box.innerHTML=`<p class="hint" style="margin:0">✓ 本輪目前沒有任何「有，需處理」的項目。</p>`;
+    box.innerHTML=`<p class="hint" style="margin:0">✓ 本輪目前沒有任何「有類似問題」的項目。</p>`;
     return;
   }
   sim.sort((a,b)=>(a.it.closed?1:0)-(b.it.closed?1:0));
@@ -467,7 +495,7 @@ function renderWrapup(){
   box.style.display="";
   box.classList.toggle("has-open",openN>0);
   box.innerHTML=`
-    <div style="font-weight:700;margin-bottom:6px">📮 送出前彙總 <span class="hint" style="font-weight:400">共 ${sim.length} 項「有，需處理」，其中 ${openN} 項尚未結案</span></div>
+    <div style="font-weight:700;margin-bottom:6px">📮 送出前彙總 <span class="hint" style="font-weight:400">共 ${sim.length} 項「有類似問題」，其中 ${openN} 項尚未結案</span></div>
     ${sim.map(({it,i})=>`<div class="wrapup-row" onclick="jumpToItem(${i})">
       <span class="wnum">${it.closed?"✓":"⚠"}</span>
       <div style="flex:1;min-width:0">
@@ -514,19 +542,23 @@ function guideJumpUnanswered(silent){
   if(!silent && idx<0)notify("全部已作答","ok2");
 }
 
-function setStatus(i,status){
+function setStatus(i,choice){
   const items=draft.items||[];
   const it=items[i];if(!it)return;
+  if(choice==="similar")choice="track";
+  const prevKind=simKindOf(it);
+  const status=(choice==="fixed"||choice==="track")?"similar":choice;
   it.status=status;
-  if(status!=="similar")it.closed=false;
+  if(status==="similar"){
+    it.simKind=choice;
+    if(choice==="fixed"){it.closed=true;if(!it.closedAt)it.closedAt=todayIsoDate();}
+    else if(prevKind==="fixed")it.closed=false;
+  }else{it.closed=false;delete it.simKind;}
   it.checkedAt=new Date().toISOString().slice(0,10);
   it.checkedBy=getCheckerName()||it.checkedBy||"";
-  const dw=document.getElementById("detail-"+i);
-  if(dw)dw.classList.toggle("show",status==="similar");
-  document.querySelectorAll(`.itemcard[data-idx="${i}"] .statusbtn`).forEach(b=>b.classList.remove("on","ok","similar","na"));
-  const btnMap={ok:0,similar:1,na:2};
-  const btns=document.querySelectorAll(`.itemcard[data-idx="${i}"] .statusbtn`);
-  if(btns[btnMap[status]])btns[btnMap[status]].classList.add("on",status);
+  /* 選項不同、下方欄位不同 → 重畫這一張卡片（保留目前是否顯示中） */
+  {const old=document.getElementById("item-"+i);
+   if(old){const shown=old.classList.contains("show");const tmp=document.createElement("div");tmp.innerHTML=itemCardHtml(it,i).trim();const nc=tmp.firstElementChild;nc.classList.toggle("show",shown);old.replaceWith(nc);}}
   updateProgress();
   scheduleAutoSave();
   renderChart();
@@ -551,8 +583,22 @@ function onFieldInput(ta){
 function onClosedChange(i,checked){
   const it=(draft.items||[])[i];if(!it)return;
   it.closed=checked;
+  if(checked&&!it.closedAt)it.closedAt=todayIsoDate();   // 勾結案先帶今天，可自行改
+  const cw=document.getElementById("closewrap-"+i);
+  if(cw){cw.classList.toggle("show",checked);const d=cw.querySelector('input[type="date"]');if(d)d.value=it.closedAt||"";}
+  const tw=document.getElementById("trackwrap-"+i);if(tw)tw.style.display=checked?"none":"";
   scheduleAutoSave();
   renderWrapup();
+}
+function onTrackChange(i,cb){
+  const it=(draft.items||[])[i];if(!it)return;
+  const s=new Set(it.track||[]);cb.checked?s.add(cb.value):s.delete(cb.value);
+  it.track=TRACK_OPTS.filter(o=>s.has(o));
+  cb.parentElement.classList.toggle("on",cb.checked);
+  const fw=document.getElementById("flowwrap-"+i);if(fw)fw.style.display=s.has("FLOW")?"":"none";
+  const ow=document.getElementById("otherwrap-"+i);if(ow){ow.style.display=s.has("其他")?"":"none";if(cb.value==="其他"&&cb.checked){const x=ow.querySelector("input");if(x)setTimeout(()=>x.focus(),50);}}
+  const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
+  scheduleAutoSave();
 }
 
 function scheduleAutoSave(){
@@ -588,6 +634,9 @@ async function flushAutoSave(){
 window.addEventListener("beforeunload",()=>{ if(autoSaveTimer)flushAutoSave(); });
 
 async function submitAll(){
+  {const di=(draft.items||[]).findIndex(closedAtMissing);
+   if(di>=0){notify(`⚠ 第 ${di+1} 題已解決／已結案，請填寫日期再送出`,"err");if(viewMode==="guide"){guideIdx=di;applyViewMode();}else jumpToItem(di);
+     setTimeout(()=>{const inp=document.querySelector(`#item-${di} input[data-field="closedAt"]`);if(inp)inp.focus();},400);return;}}
   if(!getCheckerName()&&!confirm("尚未填寫「填寫人姓名」，公司端會看不出這次是誰填的。確定要送出嗎？")){
     const cn=document.getElementById("checkerName");if(cn)cn.focus();
     return;
