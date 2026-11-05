@@ -172,9 +172,11 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .ftags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .ftag{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:9px;background:#e8eef9;color:#2c4f8a;border:1px solid #c5d4ee}
 .camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
-.trk{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--line)}
-.trk .tt{flex:1;min-width:0}.trk .nt{font-size:13px;margin:3px 0;line-height:1.55}
-.trk.done{opacity:.75}
+/* 2026-11-05 未結案的追蹤項目加底色（淡黃＋橘框），一眼看出還要處理；已結案改淡綠 */
+.trk{display:flex;gap:10px;align-items:center;padding:12px 14px;margin-top:8px;background:#fff6dc;border:1px solid #f0c860;border-left:5px solid #e0a020;border-radius:8px}
+.trk .tt{flex:1;min-width:0}.trk .nt{font-size:13.5px;margin:4px 0;line-height:1.55;font-weight:600;color:#5a3d00}
+.trk.done{background:#eef7f0;border-color:#b9dcc4;border-left-color:#2e8b57;opacity:.85}
+.trk.done .nt{color:inherit;font-weight:400}
 .camp:first-child{border-top:0}
 .camp .tt{flex:1;min-width:0}
 /* 正面評價 */
