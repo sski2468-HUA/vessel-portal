@@ -262,6 +262,10 @@ label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin:8px
         <label style="font-size:13px">此案已有在以下方式進行追蹤（可複選，選填）</label>
         <div class="trackrow" id="simTrack"></div>
       </div>
+      <div id="simFlowBox" style="display:none;margin-top:8px">
+        <label style="font-size:13px" id="simFlowLbl">FLOW 單號（選填；結案時必填）</label>
+        <input type="text" id="simFlowNo" placeholder="例：FLOW 單號" style="max-width:280px">
+      </div>
       <div id="simCloseBox" style="display:none">
         <label style="font-size:13px">改善情形說明（選填）</label>
         <textarea id="simCloseNote" rows="2" placeholder="若上面還沒寫到，可補充已經怎麼改善完成"></textarea>
@@ -837,7 +841,7 @@ async function exportExcel(){
   XLSX.utils.book_append_sheet(wb,wsBase,"基本資料");
   const rows=[["編號","CODE","來源檢查","缺失內容","實際情況（來源）","本船查核結果","本船實際狀況","打算怎麼處理","是否結案","已在追蹤（FLOW／內控／物料配件）","改善情形說明","結案日期","追蹤期限","回答人","回答日期"]];
   d.items.forEach((it,i)=>{
-    rows.push([i+1,it.topic||it.code||"",fmtSrc(it.src),it.detail||"",it.actual2||"",stLbl(it),it.note||it.naNote||"",it.actual||"",it.status==="similar"?(it.closed?"已結案":"未結案"):"",it.status==="similar"&&!it.closed?trackText(it):"",it.closeNote||"",it.closedAt||"",it.trackDue||"",it.checkedBy||"",it.checkedAt||""]);
+    rows.push([i+1,it.topic||it.code||"",fmtSrc(it.src),it.detail||"",it.actual2||"",stLbl(it),it.note||it.naNote||"",it.actual||"",it.status==="similar"?(it.closed?"已結案":"未結案"):"",it.status==="similar"?trackText(it):"",it.closeNote||"",it.closedAt||"",it.trackDue||"",it.checkedBy||"",it.checkedAt||""]);
   });
   const wsDef=XLSX.utils.aoa_to_sheet(rows);
   wsDef["!cols"]=[{wch:6},{wch:12},{wch:22},{wch:40},{wch:40},{wch:14},{wch:30},{wch:30},{wch:10},{wch:18},{wch:30},{wch:12},{wch:12},{wch:10},{wch:12}];
@@ -948,7 +952,22 @@ function renderRef(it,i){
 
 /* 「有，需處理」尚未結案時，可複選此案已在哪些管道追蹤（存在 it.track 陣列） */
 const TRACK_OPTS=["FLOW","內控","物料配件"];
-function trackText(it){return (it.track||[]).filter(Boolean).join("、");}
+function trackText(it){return (it.track||[]).filter(Boolean).map(t=>t==="FLOW"&&it.flowNo?`FLOW（單號 ${it.flowNo}）`:t).join("、");}
+/* 2026-11-05 選 FLOW 可填 FLOW 單號：處理中選填；結案時必填（方便日後查找） */
+const hasFlow=it=>(it.track||[]).includes("FLOW");
+const flowMissing=it=>it&&it.status==="similar"&&it.closed&&hasFlow(it)&&!String(it.flowNo||"").trim();
+function flowLabelHtml(closed){return closed?`FLOW 單號 <span style="color:var(--bad)">*（結案必填）</span>`:`FLOW 單號（選填；結案時必填）`;}
+function flowWrapHtml(it,i){
+  return `<div class="flowwrap" id="flowwrap-${i}" style="display:${hasFlow(it)?"":"none"};margin-top:8px">
+    <label id="flowlbl-${i}">${flowLabelHtml(it.closed)}</label>
+    <input type="text" data-idx="${i}" data-field="flowNo" value="${esc(it.flowNo||"")}" oninput="onFieldInput(this)" placeholder="例：FLOW 單號" style="max-width:280px">
+  </div>`;
+}
+function refreshFlowWrap(i){
+  const it=(draft.items||[])[i];const w=document.getElementById("flowwrap-"+i);if(!it||!w)return;
+  w.style.display=hasFlow(it)?"":"none";
+  const l=document.getElementById("flowlbl-"+i);if(l)l.innerHTML=flowLabelHtml(it.closed);
+}
 function trackBoxesHtml(sel,onchange){
   const s=new Set(sel||[]);
   return TRACK_OPTS.map(o=>`<label class="trackopt${s.has(o)?" on":""}"><input type="checkbox" value="${o}" ${s.has(o)?"checked":""} onchange="${onchange}"> ${o}</label>`).join("");
@@ -958,6 +977,7 @@ function onTrackChange(i,cb){
   const set=new Set(it.track||[]);cb.checked?set.add(cb.value):set.delete(cb.value);
   it.track=TRACK_OPTS.filter(o=>set.has(o));
   cb.parentElement.classList.toggle("on",cb.checked);
+  refreshFlowWrap(i);
   const cn=getCheckerName();if(cn){it.checkedBy=cn;it.checkedAt=new Date().toISOString().slice(0,10);}
   scheduleAutoSave();renderWrapup();
 }
@@ -988,6 +1008,7 @@ function itemCardHtml(it,i){
           <label>此案已有在以下方式進行追蹤（可複選，選填）</label>
           <div class="trackrow">${trackBoxesHtml(it.track,`onTrackChange(${i},this)`)}</div>
         </div>
+        ${flowWrapHtml(it,i)}
         <div class="closedrow">
           <input type="checkbox" id="closed-${i}" ${it.closed?"checked":""} onchange="onClosedChange(${i},this.checked)" style="width:18px;height:18px">
           <label for="closed-${i}" style="margin:0">✓ 已完成改善（結案）</label>
@@ -1154,6 +1175,8 @@ function onClosedChange(i,checked){
   const cw=document.getElementById("closewrap-"+i);
   if(cw){cw.classList.toggle("show",checked);const d=cw.querySelector('input[type="date"]');if(d)d.value=it.closedAt||"";}
   const tw=document.getElementById("trackwrap-"+i);if(tw)tw.classList.toggle("show",!checked);
+  refreshFlowWrap(i);
+  if(flowMissing(it)){notify("⚠ 此項有選 FLOW 追蹤，結案前請補填 FLOW 單號","err");const inp=document.querySelector(`#flowwrap-${i} input`);if(inp)setTimeout(()=>inp.focus(),50);}
   scheduleAutoSave();
   renderWrapup();
 }
@@ -1255,7 +1278,8 @@ function openSimModal(i,prev){
   document.getElementById("simNote").value=mergedNote(it);
   document.getElementById("simCloseNote").value=it.closeNote||"";
   document.getElementById("simClosedAt").value=it.closedAt||todayIsoDate();
-  document.getElementById("simTrack").innerHTML=trackBoxesHtml(it.track,"this.parentElement.classList.toggle('on',this.checked)");
+  document.getElementById("simTrack").innerHTML=trackBoxesHtml(it.track,"this.parentElement.classList.toggle('on',this.checked);simFlowRefresh()");
+  document.getElementById("simFlowNo").value=it.flowNo||"";
   simPh={b:(it.photosBefore||[]).slice(),a:(it.photosAfter||[]).slice()};
   document.getElementById("simPhB").innerHTML=phBoxHtml(-1,"b");document.getElementById("simPhA").innerHTML=phBoxHtml(-1,"a");
   setSimClosed(!!it.closed);
@@ -1268,11 +1292,18 @@ function setSimClosed(c){
   document.getElementById("simOptClosed").classList.toggle("on",simClosed);
   document.getElementById("simCloseBox").style.display=simClosed?"":"none";
   document.getElementById("simTrackBox").style.display=simClosed?"none":"";
+  simFlowRefresh();
   const n=document.getElementById("simHint");
   n.className="simhint "+(simClosed?"ok":"warn");
   n.innerHTML=simClosed
     ?"✓ 已完成改善：填完按「確定」後，<b>直接送出</b>即可，不需要再回來處理。"
     :"⚠ 處理中也<b>請先送出</b>，公司才會知道本船有類似情形。<br><b>處理完畢後，記得回到同一條連結</b>，在這一題勾選「已完成改善（結案）」，再按一次送出。";
+}
+function simFlowChecked(){return [...document.querySelectorAll("#simTrack input:checked")].some(x=>x.value==="FLOW");}
+function simFlowRefresh(){
+  const box=document.getElementById("simFlowBox");if(!box)return;
+  box.style.display=simFlowChecked()?"":"none";
+  document.getElementById("simFlowLbl").innerHTML=flowLabelHtml(simClosed);
 }
 function simConfirm(){
   const it=(draft.items||[])[simCtx.i];if(!it)return;
@@ -1282,6 +1313,13 @@ function simConfirm(){
     document.getElementById("simNote").focus();
     return;
   }
+  const flowNo=document.getElementById("simFlowNo").value.trim();
+  if(simClosed&&simFlowChecked()&&!flowNo){
+    notify("⚠ 此項有選 FLOW 追蹤，結案時請填寫 FLOW 單號","err");
+    document.getElementById("simFlowNo").focus();
+    return;
+  }
+  it.flowNo=simFlowChecked()?flowNo:"";
   if(simPh.up){notify("⚠ 照片還在上傳，請稍候再按確定","err");return;}
   it.note=note;it.actual="";it.closed=simClosed;it.photosBefore=simPh.b;it.photosAfter=simPh.a;
   it.track=[...document.querySelectorAll("#simTrack input:checked")].map(x=>x.value);
@@ -1343,7 +1381,7 @@ function openReview(){
   const rows=items.map((it,i)=>{
     const st=it.status||"pending";
     const extra=st==="similar"
-      ?`<div class="rvx">${esc(mergedNote(it)||"（未填）")}<br>${it.closed?`<b style="color:var(--ok)">✓ 已完成改善（結案）</b>${it.closedAt?"　"+esc(it.closedAt):""}${it.closeNote?"<br>改善情形："+esc(it.closeNote):""}`:`<b style="color:var(--bad)">尚未結案</b>${trackText(it)?"　已在追蹤："+esc(trackText(it)):""}`}</div>`
+      ?`<div class="rvx">${esc(mergedNote(it)||"（未填）")}<br>${it.closed?`<b style="color:var(--ok)">✓ 已完成改善（結案）</b>${it.closedAt?"　"+esc(it.closedAt):""}${it.closeNote?"<br>改善情形："+esc(it.closeNote):""}${flowMissing(it)?'<br><b style="color:var(--bad)">⚠ 有選 FLOW 追蹤，請補填 FLOW 單號</b>':(it.flowNo&&hasFlow(it)?"<br>FLOW 單號："+esc(it.flowNo):"")}`:`<b style="color:var(--bad)">尚未結案</b>${trackText(it)?"　已在追蹤："+esc(trackText(it)):""}`}</div>`
       :(st==="na"&&it.naNote?`<div class="rvx">不適用原因：${esc(it.naNote)}</div>`:"");
     return `<div class="rvrow ${st==="pending"?"un":""}" onclick="reviewGoto(${i})">
       <div class="rvn">#${i+1}</div>
@@ -1383,6 +1421,8 @@ async function reviewSubmit(){
     notify("⚠ 請先勾選「已作答完成」才能送出","err");
     return;
   }
+  {const fi=(draft.items||[]).findIndex(flowMissing);
+   if(fi>=0){notify(`⚠ 第 ${fi+1} 題有選 FLOW 追蹤且已結案，請先補填 FLOW 單號再送出`,"err");reviewGoto(fi);setTimeout(()=>{const inp=document.querySelector(`#flowwrap-${fi} input`);if(inp)inp.focus();},400);return;}}
   const nameNow=(document.getElementById("bodyChecker").value||"").trim();
   const titleNow=(document.getElementById("bodyCheckerTitle").value||"").trim();
   if(!nameNow||!titleNow){
@@ -1421,6 +1461,8 @@ async function submitAll(){
     else if(document.getElementById("bodyCheckerTitle"))document.getElementById("bodyCheckerTitle").focus();
     return false;
   }
+  {const fi=(draft.items||[]).findIndex(flowMissing);
+   if(fi>=0){notify(`⚠ 第 ${fi+1} 題有選 FLOW 追蹤且已結案，請先補填 FLOW 單號再送出`,"err");return false;}}
   onCheckerNameInput(nameNow);
   onCheckerTitleInput(titleNow);
   const btn=document.getElementById("submitBtn");
