@@ -1356,7 +1356,8 @@ async function uploadPhoto(file){
   const pdf=/pdf/i.test(file.type||"")||/\.pdf$/i.test(file.name||"");
   if(!pdf&&!/^image\//.test(file.type||""))throw new Error("只能上傳照片或 PDF");
   const blob=pdf?file:await shrinkImage(file);
-  if(blob.size>15*1024*1024)throw new Error(`檔案太大（${(blob.size/1024/1024).toFixed(1)}MB，上限 15MB）`);
+  {const lim=pdf?5:15; // 2026-11-05 PDF 統一每檔 5MB；照片已先自動縮小，15MB 只是保險
+   if(blob.size>lim*1024*1024)throw new Error(`檔案太大（${(blob.size/1024/1024).toFixed(1)}MB，${pdf?"PDF ":""}上限 ${lim}MB），請壓縮或拆檔`);}
   const buf=await blob.arrayBuffer();
   const h=[...new Uint8Array(await crypto.subtle.digest("SHA-256",buf))].map(b=>b.toString(16).padStart(2,"0")).join("");
   const type=pdf?"application/pdf":(blob.type||"image/jpeg"),ext=pdf?"pdf":type.includes("png")?"png":type.includes("webp")?"webp":"jpg";
