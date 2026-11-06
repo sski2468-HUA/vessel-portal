@@ -528,6 +528,12 @@ function trackAct(action,target,summary){
 document.addEventListener("click",e=>{
   const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
   const h=a.getAttribute("href")||"",s=Auth.sess(),ship=(s&&s.ship)||"";
+  // 2026-11-06 預覽模式按「✎ 修改後重送」：改開「預覽用」修改畫面（?preview=1，所有寫入都擋下），讓海技看得到船上畫面
+  if(isPreview()&&/submit-airform\.html\?[^#]*\brev=\d+/.test(h)){
+    e.preventDefault();e.stopPropagation();
+    window.open(h+(h.includes("?")?"&":"?")+"preview=1","_blank","noopener");
+    return;
+  }
   if(isPreview()&&/submit-airform\.html|intaudit-reply\.html|submit-selfcheck-share\.html/.test(h)){
     e.preventDefault();e.stopPropagation();
     alert("預覽模式不開啟填寫頁面：這些頁面會以船上身分寫入資料（例如打開分享自查就會替該船建立填答紀錄）。\n\n要看內容請到主系統對應功能查看。");
@@ -760,6 +766,18 @@ function renderAir(){
           ${cr.ok?`<a class="btn sm dark" href="${esc(base)}?rev=${r.id}&ship=${encodeURIComponent(D.ship)}" target="_blank" rel="noopener" title="${cr.left!=null?"還剩 "+cr.left+" 天可修改":"審核中，可修改"}">✎ 修改後重送</a>${cr.left!=null?`<div class="hint" style="font-size:11px">還剩 ${cr.left} 天可改</div>`:""}`:(cr.why?`<span class="hint" style="font-size:11.5px">${esc(cr.why)}</span>`:"")}</td></tr>`;}).join("")}</tbody></table></div>`
     :`<div class="empty">${D.air.length?"沒有符合條件的填單紀錄":"本船還沒有送出過外部檢查線上填單"}</div>`;
 }
+/* 照片大圖：疊在「查看」視窗上面，按 ✕、點黑色背景或按 Esc 關閉 */
+function airPhoto(src,name){
+  let o=document.getElementById("airPhotoOv");
+  if(!o){o=document.createElement("div");o.id="airPhotoOv";
+    o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10001;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out";
+    o.onclick=e=>{if(e.target===o||e.target.dataset.close)o.remove();};
+    document.addEventListener("keydown",function k(e){if(e.key==="Escape"){const x=document.getElementById("airPhotoOv");if(x)x.remove();}});
+    document.body.appendChild(o);}
+  o.innerHTML=`<button data-close="1" style="position:absolute;top:14px;right:18px;background:#fff;border:0;border-radius:50%;width:38px;height:38px;font-size:20px;cursor:pointer;line-height:38px">✕</button>
+    <img src="${esc(src)}" style="max-width:94vw;max-height:84vh;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:default">
+    ${name?`<div style="color:#fff;margin-top:10px;font-size:13px">${esc(name)}</div>`:""}`;
+}
 /* 👁 查看：點了才向雲端讀這一份的完整內容（列表本身仍只讀基本資料） */
 async function airView(id){
   let ov=document.getElementById("airViewOv");
@@ -770,7 +788,10 @@ async function airView(id){
     if(!r)throw new Error("找不到這份送出");
     const p=r.payload||{},b=p.basic||{},nl=s=>esc(s||"").replace(/\n/g,"<br>");
     const kv=(k,v)=>v?`<div style="display:grid;grid-template-columns:120px 1fr;gap:8px;padding:5px 0;border-bottom:1px dashed #e3e8ec"><span class="hint" style="font-weight:700">${k}</span><span>${nl(v)}</span></div>`:"";
-    const ph=(lab,arr)=>(arr||[]).length?`<div style="margin-top:6px"><span class="hint" style="font-weight:700">${lab}</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${arr.map(x=>x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">${/pdf/i.test(x.type||x.name||"")?`📄 ${esc(x.name||"PDF")}`:`<img src="${esc(x.url)}" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid #dde3e8">`}</a>`:(x.dataUrl?`<img src="${esc(x.dataUrl)}" style="width:84px;height:84px;object-fit:cover;border-radius:6px">`:"")).join("")}</div></div>`:"";
+    // 2026-11-06 照片點了在本頁彈出大圖（可關閉），不再另開網頁；PDF 仍另開分頁
+    const ph=(lab,arr)=>(arr||[]).length?`<div style="margin-top:6px"><span class="hint" style="font-weight:700">${lab}</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${arr.map(x=>{const src=x.url||x.dataUrl||"";if(!src)return "";
+      if(/pdf/i.test(x.type||x.name||x.path||""))return `<a href="${esc(src)}" target="_blank" rel="noopener">📄 ${esc(x.name||"PDF")}</a>`;
+      return `<img src="${esc(src)}" alt="${esc(x.name||"")}" onclick="airPhoto(this.src,this.alt)" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid #dde3e8;cursor:zoom-in">`;}).join("")}</div></div>`:"";
     const st=AIR_ST[r.status]||AIR_ST.pending;
     ov.firstElementChild.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
         <div><h3 style="margin:0;color:var(--navy)">外部檢查線上填單 #${r.id}</h3><div class="hint">${esc(b.itype||"")} ・ ${esc(b.date||"")} ・ 送出 ${r.created_at?esc(new Date(r.created_at).toLocaleString("zh-TW",{hour12:false})):""}　<span class="pill ${st[0]}">${st[1]}</span></div>

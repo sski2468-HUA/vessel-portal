@@ -611,9 +611,17 @@ document.getElementById("lightbox").addEventListener("click", function(e){ if(e.
    這時改用另一個暫存鍵，不會蓋掉這台電腦上原本沒送出的新填單草稿；送出時另外新增一份「修訂版」，原送出不動，
    一樣先進海技審核佇列，海技比對後只套用有改的欄位。 */
 const REV_ID=(()=>{const v=new URLSearchParams(location.search).get("rev");return v&&/^\d+$/.test(v)?+v:null;})();
+/* 2026-11-06 預覽用（?preview=1）：海技從船舶專區預覽模式按「修改後重送」時開這個，看得到船上的修改畫面，
+   但任何寫入一律擋下（送出、照片上傳、自訂清單、操作紀錄都不會寫進雲端），也不留本機暫存。 */
+const AF_PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
+if(AF_PREVIEW){
+  const _f=window.fetch.bind(window);
+  window.fetch=(u,o)=>{const m=((o&&o.method)||"GET").toUpperCase();if(m!=="GET"&&m!=="HEAD"){console.warn("預覽模式擋下寫入",u);return Promise.reject(new Error("預覽模式不會寫入資料"));}return _f(u,o);};
+}
 const REV_DAYS=30;   // 海技已收錄後 30 天內可修改
 let REV_ORIG=null;   // 原送出那筆（雲端讀回）
-const LS_KEY=REV_ID?("vsm_airform_rev_"+REV_ID):"vsm_airform_draft_v1";
+const LS_KEY=AF_PREVIEW?("vsm_airform_preview_"+(REV_ID||"new")):REV_ID?("vsm_airform_rev_"+REV_ID):"vsm_airform_draft_v1";
+if(AF_PREVIEW){try{localStorage.removeItem(LS_KEY);}catch(e){}}   // 預覽每次都從原送出內容重新開始，不沿用上次的預覽暫存
 // 開頁當下這筆修改有沒有「之前改到一半」的暫存（要在任何自動暫存之前判斷，否則帶入船名時就會先存一份空的）
 const REV_HAD_DRAFT=(()=>{if(!REV_ID)return false;try{const s=localStorage.getItem(LS_KEY);const d=s&&JSON.parse(s);return !!(d&&d.basic&&d.basic.date);}catch(e){return false;}})();
 let _draftSaveFailWarned=false;
@@ -1431,7 +1439,8 @@ function getSelOrOther(selId,otherId){
    如果暫存的值不在目前清單裡（例如清單後來被改過、或原本就是自訂輸入的），就自動走「自訂」
    那條路，把值填回自訂文字框，不會讓使用者發現自己填過的內容不見了。 */
 function applyDraftToItypeOilco(basicOverride){
-  const b=basicOverride||((loadDraft()||{}).basic)||{};
+  // 修改後重送：清單比原送出內容晚載入時，暫存裡的檢查來源可能是空的 → 改用原送出的值（window._revBasic）
+  const b=basicOverride||window._revBasic||((loadDraft()||{}).basic)||{};
   [["f-itype-sel","f-itype-other",b.itype],["f-oilco-sel","f-oilco-other",b.oilco]].forEach(([selId,otherId,val])=>{
     if(!val)return;
     const sel=document.getElementById(selId),other=document.getElementById(otherId);
@@ -1759,10 +1768,20 @@ applyShipParam();
     }
     REV_ORIG=r;
     if(!REV_HAD_DRAFT){applyPayloadToForm(JSON.parse(JSON.stringify(r.payload||{})),{reset:true});saveDraft();}
+    // 檢查來源／油公司下拉清單若已先從雲端載入完，要再套一次，否則會顯示「請選擇」、值跑到自訂框
+    if(!REV_HAD_DRAFT)window._revBasic=(r.payload||{}).basic||null;
+    try{applyDraftToItypeOilco(((REV_HAD_DRAFT?loadDraft():r.payload)||{}).basic);}catch(e){}
+    try{saveDraft();}catch(e){}
+    setTimeout(()=>{window._revBasic=null;},20000);   // 清單通常幾秒內就載入完；之後改回一般行為（以使用者目前的選擇為準）
     const b=(r.payload||{}).basic||{};
     bar.innerHTML=`✎ <b>修改後重送</b>：原送出 #${r.id}（${esc(b.itype||"")} ${esc(b.date||"")}，${r.status==="imported"?"海技已收錄":"海技審核中"}）。改完請到最後一步填寫<b>修改原因</b>再送出；海技審核後只更新您有修改的地方。`;
     const rb=document.getElementById("revReasonBox");if(rb)rb.style.display="";
     const sb=document.getElementById("btnSubmit");if(sb)sb.textContent="✓ 送出修改（送交海技審核）";
+    if(AF_PREVIEW){
+      bar.style.background="#efe7f8";bar.style.borderColor="#7b4fa8";bar.style.color="#3d2160";
+      bar.innerHTML=`👁 <b>預覽模式（海技檢視用）</b>：這是船上按「✎ 修改後重送」看到的畫面，原送出 #${r.id}（${esc(b.itype||"")} ${esc(b.date||"")}）。可以任意點選、修改，<b>不會送出、不會寫入任何資料</b>。`;
+      if(sb){sb.textContent="👁 預覽模式不會送出";}
+    }
   }catch(e){lock("⚠ 讀不到原送出內容（"+esc(e.message||"網路問題")+"），請確認網路後重新整理。");}
 })();
 document.getElementById("formView").addEventListener("input", scheduleAutoSave);
@@ -1807,6 +1826,7 @@ function validatePayload(p){
 
 /* ── 送出：POST 到 Supabase（需先在雲端執行過 supabase_setup.sql 建好資料表）── */
 document.getElementById("btnSubmit").addEventListener("click", async ()=>{
+  if(AF_PREVIEW){ notify("👁 預覽模式：船上按到這裡就會送出修訂版；預覽不會送出", "ok2"); return; }
   const payload = collectPayload();
   const err = validatePayload(payload);
   if(err){ notify(err, "err"); return; }
