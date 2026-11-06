@@ -211,7 +211,13 @@ const H=x=>Object.assign({"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key
 async function api(path,opts){const r=await fetch(`${CLOUD.url}/rest/v1/${path}`,Object.assign({headers:H()},opts||{}));if(!r.ok)throw new Error("HTTP "+r.status+" "+(await r.text()).slice(0,160));const t=await r.text();return t?JSON.parse(t):null;}
 const RANK_OPTIONS=["Master船長","C/O大副","2/O二副","3/O三副","C/E輪機長","2/E大管","3/E二管","4/E三管","BSN水手長","AB幹練水手","OS普通水手","COOK廚師","FTR銅匠","OLR加油匠","PM泵匠","A.Capt.見習船長","A.C/O見習大副","A.2/O見習二副","A.3/O見習三副","A.C/E見習輪機長","A.2/E見習大管","A.3/E見習二管","A.4/E見習三管","其他(請聯繫海技新增)"];
 const QS=new URLSearchParams(location.search),RID=QS.get("rid"),SHIP=QS.get("ship");
-const MAX_PH=3,ID_KEY="vsm_iareply_who_v1",DRAFT_KEY="vsm_iareply_draft_"+RID;
+/* 2026-11-06 預覽模式（?preview=1）：海技從船舶專區預覽模式點進來，看船上實際畫面（含已填內容），
+   可以點點看，但所有寫入雲端（送出、照片上傳）一律擋下，也不沿用／不留下船上的本機草稿。 */
+const PV=QS.get("preview")==="1";
+if(PV){const _f=window.fetch.bind(window);window.fetch=(u,o)=>{const m=((o&&o.method)||"GET").toUpperCase();if(m!=="GET"&&m!=="HEAD"){console.warn("預覽模式擋下寫入",u);return Promise.reject(new Error("預覽模式不會寫入資料"));}return _f(u,o);};}
+const PVQ=PV?"&preview=1":"";
+const MAX_PH=3,ID_KEY="vsm_iareply_who_v1",DRAFT_KEY=(PV?"vsm_iareply_pv_":"vsm_iareply_draft_")+RID;
+if(PV){try{localStorage.removeItem(DRAFT_KEY);}catch(e){}}
 let SHIPS=[],rec=null,replies={},drafts={},flt="all",modeFlt="all",flowTypeFlt="all",sysTypeFlt="all",currentStep=1;
 const todayIso=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const typeLabels=r=>(r.types||[]).map(k=>(typeDef(k)||{label:k}).label).join("、");
@@ -252,7 +258,7 @@ function renderShip(){
     return `<div class="card ocard"><div class="info"><div style="font-weight:700;color:var(--navy);font-size:16px">${esc(shipLabel(r.ship))}　${esc(dateText(r))}　${esc(typeLabels(r))}</div>
       <div class="hint">檢查人：${esc(r.inspector||"")}　地點：${esc(r.psn||"")}　需船上改善 ${n} 項</div>
       <div>${todo?`<span class="cnt" style="background:#fde8e6;color:#c0392b">待填寫 ${todo}</span>`:""}${c.submitted?`<span class="cnt" style="background:#e3ecf1;color:#1c3a5e">已回報待審核 ${c.submitted}</span>`:""}${c.reviewed?`<span class="cnt" style="background:#dff2e6;color:#20703f">已結案 ${c.reviewed}</span>`:""}</div></div>
-      <a class="btn ${closed?"":"primary"}" style="${closed?"":"font-size:15px;padding:10px 18px"}" href="?rid=${r.id}">${closed?"查看":"開啟填寫"}</a>
+      <a class="btn ${closed?"":"primary"}" style="${closed?"":"font-size:15px;padding:10px 18px"}" href="?rid=${r.id}${PVQ}">${closed?"查看":"開啟填寫"}</a>
       <button class="btn" onclick="listWord(${r.id},this)">⬇ Word</button></div>`;}).join(""):`<div class="banner">${shipTab==="open"?"目前沒有進行中的改善單。":"還沒有已結案的改善單。"}</div>`;
 }
 async function listWord(id,btn){
@@ -271,7 +277,7 @@ async function listWord(id,btn){
 function loadDrafts(){try{drafts=JSON.parse(localStorage.getItem(DRAFT_KEY)||"{}");}catch(e){drafts={};}}
 function saveDrafts(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify(drafts));}catch(e){/* 照片太多存不下時只是少了離線備份，不影響送出 */}}
 function who(){try{return JSON.parse(localStorage.getItem(ID_KEY)||"{}");}catch(e){return {};}}
-function saveWho(){try{localStorage.setItem(ID_KEY,JSON.stringify({name:$("#fName").value.trim(),title:$("#fTitle").value}));}catch(e){}}
+function saveWho(){if(PV)return;try{localStorage.setItem(ID_KEY,JSON.stringify({name:$("#fName").value.trim(),title:$("#fTitle").value}));}catch(e){}}
 const rpOf=d=>replies[`${RID}_${d.uid}`];
 const blankV=()=>({action:"",corrected:"",evidence:"",photos:[]});
 /* 目前顯示的內容：有草稿用草稿；沒有草稿就用已送出的回報內容 */
@@ -311,7 +317,7 @@ async function initRec(){
     await reloadReplies();
   }catch(e){$("#hdrSub").textContent="讀取失敗";bad(`讀取失敗：${esc(e.message)}<br>請確認網路後重新整理，或聯絡海技。`);return;}
   if(rec.draft){$("#hdrSub").textContent="這張改善單尚未發出";bad("這張登錄單督導還沒有送出，請稍後再試。");return;}
-  $("#hdrSub").innerHTML=`${esc(shipLabel(rec.ship))}　${esc(dateText(rec))}　${esc(typeLabels(rec))}　檢查人：${esc(rec.inspector||"")}　地點：${esc(rec.psn||"")}　<a href="?ship=${encodeURIComponent(rec.ship)}">← 本船改善單清單</a>（⭐ 建議加入我的最愛）`;
+  $("#hdrSub").innerHTML=`${esc(shipLabel(rec.ship))}　${esc(dateText(rec))}　${esc(typeLabels(rec))}　檢查人：${esc(rec.inspector||"")}　地點：${esc(rec.psn||"")}　<a href="?ship=${encodeURIComponent(rec.ship)}${PVQ}">← 本船改善單清單</a>（⭐ 建議加入我的最愛）`;
   loadDrafts();
   const w=who();$("#fName").value=w.name||"";
   $("#fTitle").innerHTML='<option value="">— 請選擇職稱 —</option>'+RANK_OPTIONS.map(r=>`<option ${w.title===r?"selected":""}>${esc(r)}</option>`).join("");
@@ -594,6 +600,7 @@ async function downloadWord(manual){
   }catch(e){toast("⚠ 產生 Word 失敗："+e.message+"（回報本身已送出，可稍後按「只下載 Word」重試）",true);return false;}
 }
 async function submitAll(){
+  if(PV){toast("👁 預覽模式：船上按這裡就會送出；預覽不會送出");return;}
   document.querySelectorAll(".bad").forEach(e=>e.classList.remove("bad"));
   // 按鈕沒做成原生 disabled，點了一定要有反應——沒勾確認框時跳到第④步、把確認框整圈
   // 閃一下並提示，不要什麼都沒發生讓船上以為按鈕壞了。
@@ -674,6 +681,8 @@ function finishSubmitStatus(msg){
 }
 function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
 (async function init(){
+  if(PV){const bar=document.createElement("div");bar.style.cssText="position:sticky;top:0;z-index:999;background:#5b2c83;color:#fff;font-weight:700;text-align:center;padding:8px 12px;font-size:14px";
+    bar.textContent="👁 預覽模式（海技檢視用）：這是船上看到的改善單畫面，可以點點看，但不會存檔、不會上傳照片、也不會送出。";document.body.prepend(bar);}
   if(SHIP&&!RID){await loadShips();return initShip();}
   if(!RID){$("#hdrSub").textContent="連結不完整";bad("找不到改善單編號，請向督導／海技索取完整連結。");return;}
   await initRec();

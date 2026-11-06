@@ -494,7 +494,7 @@ function showPreviewBar(code){
   const b=$("#pvBar");if(!b)return;
   if(PREVIEW&&PREVIEW.denied){b.style.display="flex";b.style.background="#c0392b";b.innerHTML="⚠ 預覽模式需要先在主系統以岸上人員身分（Owner／管理員／督導／管理層等）登入（同一個瀏覽器），目前改為一般登入。";return;}
   b.style.display="flex";
-  b.innerHTML=`<b>👁 預覽模式</b><span>${esc(PREVIEW.who)} 正以「${esc(shipLabel(code))}」的畫面檢視；不會記錄為船上操作，填寫類頁面不開放。</span><span style="flex:1"></span>
+  b.innerHTML=`<b>👁 預覽模式</b><span>${esc(PREVIEW.who)} 正以「${esc(shipLabel(code))}」的畫面檢視；不會記錄為船上操作；填寫類頁面會以預覽方式開啟（不會存檔或送出）。</span><span style="flex:1"></span>
     <span>換船</span><select style="padding:3px 6px;border-radius:5px;border:0" onchange="location.search='?preview='+encodeURIComponent(this.value)">${SHIPS.map(s=>`<option value="${esc(s.code)}" ${s.code===code?"selected":""}>${esc(s.label)}</option>`).join("")}</select>
     <a style="color:#fff;text-decoration:underline;cursor:pointer" onclick="window.close();setTimeout(()=>location.search='',200)">結束預覽</a>`;
   ["#hdSwitch","#hdLogout"].forEach(s=>{const e=$(s);if(e)e.style.display="none";});
@@ -529,14 +529,11 @@ document.addEventListener("click",e=>{
   const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
   const h=a.getAttribute("href")||"",s=Auth.sess(),ship=(s&&s.ship)||"";
   // 2026-11-06 預覽模式按「✎ 修改後重送」：改開「預覽用」修改畫面（?preview=1，所有寫入都擋下），讓海技看得到船上畫面
-  if(isPreview()&&/submit-airform\.html\?[^#]*\brev=\d+/.test(h)){
-    e.preventDefault();e.stopPropagation();
-    window.open(h+(h.includes("?")?"&":"?")+"preview=1","_blank","noopener");
-    return;
-  }
+  // 2026-11-06 預覽模式點任何填寫頁面（線上填單／修改後重送／改善單／分享自查）：一律改開「預覽用」頁面
+  // （?preview=1，該頁所有寫入都擋下、不替船建立填答紀錄），看得到船上點進去的實際畫面。
   if(isPreview()&&/submit-airform\.html|intaudit-reply\.html|submit-selfcheck-share\.html/.test(h)){
     e.preventDefault();e.stopPropagation();
-    alert("預覽模式不開啟填寫頁面：這些頁面會以船上身分寫入資料（例如打開分享自查就會替該船建立填答紀錄）。\n\n要看內容請到主系統對應功能查看。");
+    window.open(h+(h.includes("?")?"&":"?")+"preview=1","_blank","noopener");
     return;
   }
   const txt=(a.closest(".entry")?a.querySelector(".t"):a)?.textContent?.trim().slice(0,60)||"";

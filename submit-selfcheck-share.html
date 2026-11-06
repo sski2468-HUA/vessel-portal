@@ -469,6 +469,10 @@ function notify(msg,tone){
    看船上填答畫面長怎樣，不選船、不建立填答列、不存本機、不會存檔或送出——所有寫入一律擋掉。 */
 const PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
 const PREVIEW_SHIP="PREVIEW";
+/* 2026-11-06 從船舶專區預覽模式點進來會帶 &ship=船代碼：就用那艘船的實際填答內容（只讀），
+   看到的就是那艘船打開時的畫面；該船還沒開始填，就顯示一份空白（不會替船建立填答列）。 */
+const PREVIEW_REAL=PREVIEW?(new URLSearchParams(location.search).get("ship")||""):"";
+if(PREVIEW){const _f=window.fetch.bind(window);window.fetch=(u,o)=>{const m=((o&&o.method)||"GET").toUpperCase();if(m!=="GET"&&m!=="HEAD"){console.warn("預覽模式擋下寫入",u);return Promise.reject(new Error("預覽模式不會寫入資料"));}return _f(u,o);};}
 async function api(path,opts){
   if(PREVIEW&&opts&&opts.method&&opts.method!=="GET")return null;
   const res=await fetch(`${CLOUD.url}/rest/v1/${path}`,Object.assign({headers:{
@@ -609,9 +613,20 @@ async function init(){
   if(PREVIEW){
     const bar=document.createElement("div");
     bar.style.cssText="position:sticky;top:0;z-index:999;background:#5b2c83;color:#fff;font-weight:700;text-align:center;padding:8px 12px;font-size:14px";
-    bar.textContent="👁 預覽模式：這是船上看到的填答畫面，可以點點看，但不會存檔、也不會送出。";
+    bar.textContent=PREVIEW_REAL?`👁 預覽模式：這是「${shipLabel(PREVIEW_REAL)}」打開時看到的填答畫面（含該船已填內容），可以點點看，但不會存檔、也不會送出。`:"👁 預覽模式：這是船上看到的填答畫面，可以點點看，但不會存檔、也不會送出。";
     document.body.prepend(bar);
     const sel=document.getElementById("gateShip");
+    if(PREVIEW_REAL){
+      if(isSelfOnlyShip(campaign,PREVIEW_REAL)){
+        document.getElementById("gate").style.display="";
+        document.getElementById("gateDesc").innerHTML=`<b style="color:var(--navy)">🚩 ${esc(shipLabel(PREVIEW_REAL))} 是這項缺失的當事船（缺失來源船），不須自查，無需作答。</b>`;
+        return;
+      }
+      if(![...sel.options].some(o=>o.value===PREVIEW_REAL))sel.insertAdjacentHTML("beforeend",`<option value="${esc(PREVIEW_REAL)}">${esc(shipLabel(PREVIEW_REAL))}</option>`);
+      sel.value=PREVIEW_REAL;
+      enterAsShip();
+      return;
+    }
     sel.insertAdjacentHTML("beforeend",`<option value="${PREVIEW_SHIP}">${esc(shipLabel(PREVIEW_SHIP))}</option>`);
     sel.value=PREVIEW_SHIP;
     enterAsShip();
@@ -782,6 +797,11 @@ function resolveSrcShip(it){
   return m?m.code:first;
 }const srcShipOf=it=>resolveSrcShip(it);
 async function loadOrCreateResponse(ship){
+  if(PREVIEW&&ship!==PREVIEW_SHIP){
+    const rows=await api(`${RESPONSE_TABLE}?campaign_id=eq.${encodeURIComponent(CID)}&ship=eq.${encodeURIComponent(ship)}&limit=1`);
+    if(rows&&rows.length)return JSON.parse(JSON.stringify(rows[0]));
+    return {id:0,campaign_id:+CID,ship,items:(campaign.items||[]).map(it=>{const selfSrc=srcShipOf(it)===ship;return {...it,autoSelf:selfSrc,status:selfSrc?"self":"pending",note:"",actual:"",naNote:"",closed:false,closeNote:"",closedAt:"",checkedAt:"",checkedBy:""};}),submit_count:0,history:[]};
+  }
   if(PREVIEW)return {id:0,campaign_id:+CID,ship,items:(campaign.items||[]).map(it=>({...it,autoSelf:false,status:"pending",note:"",actual:"",naNote:"",closed:false,closeNote:"",closedAt:"",checkedAt:"",checkedBy:""})),submit_count:0,history:[]};
   const rows=await api(`${RESPONSE_TABLE}?campaign_id=eq.${encodeURIComponent(CID)}&ship=eq.${encodeURIComponent(ship)}&limit=1`);
   if(rows&&rows.length)return rows[0];

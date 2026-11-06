@@ -617,6 +617,11 @@ const AF_PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
 if(AF_PREVIEW){
   const _f=window.fetch.bind(window);
   window.fetch=(u,o)=>{const m=((o&&o.method)||"GET").toUpperCase();if(m!=="GET"&&m!=="HEAD"){console.warn("預覽模式擋下寫入",u);return Promise.reject(new Error("預覽模式不會寫入資料"));}return _f(u,o);};
+  // 新填單（非修改後重送）的預覽：頁首加一條預覽提示
+  const _pvBar=()=>{if(new URLSearchParams(location.search).get("rev"))return;const bar=document.createElement("div");
+    bar.style.cssText="position:sticky;top:0;z-index:999;background:#5b2c83;color:#fff;font-weight:700;text-align:center;padding:8px 12px;font-size:14px";
+    bar.textContent="👁 預覽模式（海技檢視用）：這是船上「外部檢查線上填單」的畫面，可以點點看、填填看，但不會存檔、不會上傳照片、也不會送出。";document.body.prepend(bar);};
+  if(document.body)_pvBar();else document.addEventListener("DOMContentLoaded",_pvBar);
 }
 const REV_DAYS=30;   // 海技已收錄後 30 天內可修改
 let REV_ORIG=null;   // 原送出那筆（雲端讀回）
