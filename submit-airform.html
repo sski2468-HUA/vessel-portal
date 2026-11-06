@@ -251,6 +251,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy-3);outline-
       <h2>預覽並確認資料・下載與送出</h2>
       <p class="sub">請先核對下方預覽內容，確認無誤後再送出；就算還有項目沒填完，下方「暫時不送出，先匯出草稿存檔」仍然可以隨時按，不受這裡的確認影響。</p>
       <div class="previewbox" id="previewBox"></div>
+      <div id="revReasonBox" style="display:none;margin:12px 0;padding:12px 14px;background:#fff6dc;border:1px solid #f0c860;border-left:5px solid #e0a020;border-radius:8px">
+        <label for="revReason" style="font-weight:700;color:#7a5200;display:block;margin-bottom:6px">修改原因 <span style="color:var(--bad)">*（必填）</span></label>
+        <textarea id="revReason" rows="3" style="width:100%" placeholder="例：第 2 項缺失的改善措施補充說明；檢查地點填錯，更正為 Kaohsiung, Taiwan"></textarea>
+        <div class="hint" style="margin-top:4px">送出後會先到海技審核，海技確認後只更新您有修改的地方，其他內容不變。</div>
+      </div>
       <label class="confirmrow"><input type="checkbox" id="confirmChk" onchange="document.getElementById('btnSubmit').disabled=!this.checked">我已核對以上資料無誤，確認送出</label>
       <div class="actionbar">
         <button class="btn primary block" id="btnSubmit" type="button" disabled>✓ 送出填單</button>
@@ -281,7 +286,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy-3);outline-
 <div id="toast"></div>
 <div id="lightbox"><button class="lbClose" type="button" id="lbClose">✕</button><img id="lbImg" src=""><div class="lbName" id="lbName"></div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- 2026-11-06 改用 xlsx-js-style（SheetJS 同一套 API，另外支援儲存格格式），匯出的 Excel 才能有表頭底色、框線、換行；載入失敗時退回原本的 SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script>if(typeof XLSX==="undefined")document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>');</script>
 <script>
 /* ════════════════════════════════════════════════════════════════
    ⚠ 草稿階段設定：
@@ -600,7 +607,15 @@ document.getElementById("lbClose").addEventListener("click", closeLightbox);
 document.getElementById("lightbox").addEventListener("click", function(e){ if(e.target.id==="lightbox") closeLightbox(); });
 
 /* ── 本機自動暫存（localStorage）：避免船上填到一半訊號斷了整份填單白填 ── */
-const LS_KEY="vsm_airform_draft_v1";
+/* 2026-11-06 修改後重送：從船舶專區「✎ 修改後重送」進來會帶 ?rev=原送出編號。
+   這時改用另一個暫存鍵，不會蓋掉這台電腦上原本沒送出的新填單草稿；送出時另外新增一份「修訂版」，原送出不動，
+   一樣先進海技審核佇列，海技比對後只套用有改的欄位。 */
+const REV_ID=(()=>{const v=new URLSearchParams(location.search).get("rev");return v&&/^\d+$/.test(v)?+v:null;})();
+const REV_DAYS=30;   // 海技已收錄後 30 天內可修改
+let REV_ORIG=null;   // 原送出那筆（雲端讀回）
+const LS_KEY=REV_ID?("vsm_airform_rev_"+REV_ID):"vsm_airform_draft_v1";
+// 開頁當下這筆修改有沒有「之前改到一半」的暫存（要在任何自動暫存之前判斷，否則帶入船名時就會先存一份空的）
+const REV_HAD_DRAFT=(()=>{if(!REV_ID)return false;try{const s=localStorage.getItem(LS_KEY);const d=s&&JSON.parse(s);return !!(d&&d.basic&&d.basic.date);}catch(e){return false;}})();
 let _draftSaveFailWarned=false;
 function saveDraftIndicatorOk(){
   const bar=document.getElementById("savebar");
@@ -1717,6 +1732,39 @@ function applyShipParam(){
   document.getElementById("shipParamFix").onclick=()=>{el.value=SHIP_PARAM;el.dispatchEvent(new Event("change"));bar.remove();};
 }
 applyShipParam();
+/* ── 修改後重送：讀回原送出內容帶入表單（這台電腦已有這筆的修改暫存就沿用暫存，不覆蓋） ── */
+(async function loadRevision(){
+  if(!REV_ID)return;
+  const bar=document.createElement("div");bar.id="revBar";
+  bar.style.cssText="background:#fff6dc;border-bottom:2px solid #e0a020;color:#5c4200;padding:10px 16px;font-size:14.5px;line-height:1.6";
+  bar.innerHTML="✎ 讀取原送出內容中…";
+  document.body.insertBefore(bar,document.body.firstChild);
+  const lock=msg=>{bar.style.background="#fdecea";bar.style.borderColor="#c0392b";bar.style.color="#8a1c12";bar.innerHTML=msg;const b=document.getElementById("btnSubmit");if(b){b.disabled=true;b.textContent="無法修改";}const c=document.getElementById("confirmChk");if(c)c.disabled=true;};
+  try{
+    const res=await fetch(`${CLOUD.url}/rest/v1/${AIR_TABLE}?id=eq.${REV_ID}&select=id,status,created_at,imported_at,submitted_ship,payload`,{headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key}});
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const r=(await res.json())[0];
+    if(!r){lock("⚠ 找不到這份送出（編號 "+REV_ID+"），無法修改。");return;}
+    if(SHIP_PARAM&&r.submitted_ship&&r.submitted_ship!==SHIP_PARAM){lock("⚠ 這份送出不是本船的，無法修改。");return;}
+    if(r.status==="rejected"||r.status==="superseded"){lock("⚠ 這份送出"+(r.status==="rejected"?"未被採用":"已被較新的修訂版取代")+"，無法再修改。");return;}
+    if(r.status==="imported"&&r.imported_at){
+      // 30 天從「第一次收錄」算起：這份若本身是修訂版，往回找最早那一份的收錄日
+      let at=r.imported_at,par=(r.payload||{}).revOf,guard=0;
+      while(par&&guard++<10){
+        const pr=await fetch(`${CLOUD.url}/rest/v1/${AIR_TABLE}?id=eq.${par}&select=id,imported_at,revOf:payload->revOf`,{headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key}}).then(x=>x.json()).catch(()=>[]);
+        if(!pr[0])break;if(pr[0].imported_at)at=pr[0].imported_at;par=pr[0].revOf;
+      }
+      const days=(Date.now()-new Date(at).getTime())/86400000;
+      if(days>REV_DAYS){lock(`⚠ 這份已由海技收錄超過 ${REV_DAYS} 天（收錄於 ${new Date(at).toLocaleDateString("zh-TW")}），不能再線上修改；如需更正請通知海技組。`);return;}
+    }
+    REV_ORIG=r;
+    if(!REV_HAD_DRAFT){applyPayloadToForm(JSON.parse(JSON.stringify(r.payload||{})),{reset:true});saveDraft();}
+    const b=(r.payload||{}).basic||{};
+    bar.innerHTML=`✎ <b>修改後重送</b>：原送出 #${r.id}（${esc(b.itype||"")} ${esc(b.date||"")}，${r.status==="imported"?"海技已收錄":"海技審核中"}）。改完請到最後一步填寫<b>修改原因</b>再送出；海技審核後只更新您有修改的地方。`;
+    const rb=document.getElementById("revReasonBox");if(rb)rb.style.display="";
+    const sb=document.getElementById("btnSubmit");if(sb)sb.textContent="✓ 送出修改（送交海技審核）";
+  }catch(e){lock("⚠ 讀不到原送出內容（"+esc(e.message||"網路問題")+"），請確認網路後重新整理。");}
+})();
 document.getElementById("formView").addEventListener("input", scheduleAutoSave);
 document.getElementById("formView").addEventListener("change", scheduleAutoSave);
 
@@ -1762,6 +1810,13 @@ document.getElementById("btnSubmit").addEventListener("click", async ()=>{
   const payload = collectPayload();
   const err = validatePayload(payload);
   if(err){ notify(err, "err"); return; }
+  if(REV_ID){
+    if(!REV_ORIG){ notify("⚠ 原送出內容還沒讀到，請稍候或重新整理頁面", "err"); return; }
+    const why=(document.getElementById("revReason").value||"").trim();
+    if(!why){ notify("⚠ 請填寫「修改原因」", "err"); const t=document.getElementById("revReason"); t.scrollIntoView({block:"center"}); t.focus(); return; }
+    if(payload.basic.ship!==(REV_ORIG.payload.basic||{}).ship){ notify("⚠ 修改時不能更換船名", "err"); return; }
+    payload.revOf=REV_ORIG.id; payload.revReason=why; payload.revAt=new Date().toISOString();
+  }
   const shipObj = SHIP_OPTS.find(s=>s.code===payload.basic.ship);
   const shipLabel = shipObj ? shipOptLabel(shipObj) : payload.basic.ship;
   const icCount = payload.defects.filter(d=>d.internalControl).length;
@@ -1772,7 +1827,7 @@ document.getElementById("btnSubmit").addEventListener("click", async ()=>{
   if(icCount) alertLines.push(`🔒 需內控（交叉訪船）：${icCount} 條`);
   if(focusCount) alertLines.push(`⚠ 重點關注：${focusCount} 條`);
   if(highRiskCount) alertLines.push(`🔴 高風險（風險3）：${highRiskCount} 條`);
-  const confirmMsg = `請確認以下資料無誤後送出：\n\n`+
+  const confirmMsg = (REV_ID?`【修改後重送】原送出 #${REV_ID}\n修改原因：${payload.revReason}\n\n`:"")+`請確認以下資料無誤後送出：\n\n`+
     `船名：${shipLabel}\n`+
     `檢查日期：${payload.basic.date}\n`+
     `檢查來源：${payload.basic.itype}${payload.basic.flagType?`（${payload.basic.flagType}）`:""}\n`+
@@ -1834,7 +1889,30 @@ function downloadExcelFile(payload, silent){
   // 會讓系統匯入時只認到序號=1 的第一筆缺失，其餘缺失全部被漏掉）。
   const shipRow = { 序號:1, 船名:b.ship, 船型:b.vtype, 檢查來源:b.itype, "FLAG項目":b.flagType||"", 檢查日期:b.date, 檢查地點:b.place,
     "檢查單位/油公司":b.oilco, 檢查員:b.inspector, 缺失數:payload.defects.length, 正面評論數:(payload.posComments||[]).length };
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([shipRow]), "基本資料");
+  /* 2026-11-06 美化：表頭深藍底白字、框線、自動換行、凍結表頭、欄寬依內容。
+     ⚠ 第 1 列一定要是欄位名稱、工作表名稱與欄位名稱不能改——系統「匯入 Excel」靠這些對欄位。 */
+  const prettySheet=(rows,widths,longCols)=>{
+    const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{}]);
+    const ref=ws["!ref"];if(!ref)return ws;
+    const R=XLSX.utils.decode_range(ref);
+    const border={top:{style:"thin",color:{rgb:"B9C6D2"}},bottom:{style:"thin",color:{rgb:"B9C6D2"}},left:{style:"thin",color:{rgb:"B9C6D2"}},right:{style:"thin",color:{rgb:"B9C6D2"}}};
+    const hdrs=[];
+    for(let c=R.s.c;c<=R.e.c;c++){
+      const h=ws[XLSX.utils.encode_cell({r:0,c})];hdrs[c]=h?String(h.v):"";
+      if(h)h.s={font:{bold:true,color:{rgb:"FFFFFF"},name:"Microsoft JhengHei",sz:10},fill:{fgColor:{rgb:"1E3A5F"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border};
+      for(let r=1;r<=R.e.r;r++){
+        const a=XLSX.utils.encode_cell({r,c});if(!ws[a])ws[a]={t:"s",v:""};
+        const long=longCols&&longCols.includes(hdrs[c]);
+        ws[a].s={font:{name:"Microsoft JhengHei",sz:10},alignment:{vertical:"top",horizontal:long?"left":"center",wrapText:true},border,fill:r%2===0?{fgColor:{rgb:"F4F7FA"}}:undefined};
+      }
+    }
+    ws["!cols"]=hdrs.map(h=>({wch:(widths&&widths[h])||Math.max(8,Math.min(30,String(h).length*2+2))}));
+    ws["!rows"]=[{hpt:32}];
+    ws["!freeze"]={xSplit:0,ySplit:1};ws["!views"]=[{state:"frozen",ySplit:1}];
+    ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:0,c:R.s.c},e:{r:Math.max(R.e.r,1),c:R.e.c}})};
+    return ws;
+  };
+  XLSX.utils.book_append_sheet(wb, prettySheet([shipRow],{序號:6,船名:22,船型:9,檢查來源:12,"FLAG項目":14,檢查日期:12,檢查地點:22,"檢查單位/油公司":20,檢查員:16,缺失數:8,正面評論數:10}), "基本資料");
 
   const NC_OPINION_LABEL = Object.fromEntries(NC_OPINION_OPTS);
   const defRows = payload.defects.map((d,i)=>({
@@ -1863,7 +1941,9 @@ function downloadExcelFile(payload, silent){
     矯正前照片張數: (d.photosBefore||[]).length,
     矯正後照片張數: (d.photosAfter||[]).length,
   }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(defRows), "缺失改善明細");
+  XLSX.utils.book_append_sheet(wb, prettySheet(defRows,
+    {序號:6,"PSC Action Taken":12,CODE:10,實際情況:40,缺失詳情:40,"Initial Operator Comment":32,"直接原因 Immediate Cause":30,改善措施:32,根本原因:30,預防措施:30,責任人職位:12,責任人姓名:12,問題別:12,大類:20,具體名稱:20,根因分類:22,三要素:12,重要程度:9,重點關注:9,需內控:8,缺失性質判定:14,風險:6,矯正前照片張數:10,矯正後照片張數:10},
+    ["實際情況","缺失詳情","Initial Operator Comment","直接原因 Immediate Cause","改善措施","根本原因","預防措施","大類","具體名稱","根因分類"]), "缺失改善明細");
 
   const posRows = [];
   (payload.posComments||[]).forEach(pc=>{
@@ -1872,7 +1952,7 @@ function downloadExcelFile(payload, silent){
       posRows.push({ 序號:1, "CODE（章節）":pc.code, 評論項目:pc.item, 正向評論內容:pc.comment, 職稱:p.rank, 姓名:p.person });
     });
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(posRows), "正向評論明細");
+  XLSX.utils.book_append_sheet(wb, posRows.length?prettySheet(posRows,{序號:6,"CODE（章節）":12,評論項目:24,正向評論內容:50,職稱:12,姓名:14},["評論項目","正向評論內容"]):XLSX.utils.json_to_sheet(posRows), "正向評論明細");
 
   const fname = `AfterInspectionReview_${b.ship||"未填船名"}_${b.date||""}.xlsx`;
   XLSX.writeFile(wb, fname);
@@ -1905,6 +1985,8 @@ document.getElementById("btnTestCloud").addEventListener("click", async ()=>{
    讓填單的人不用離開頁面、不用重新選船，直接接著填下一筆。
    跟旁邊「重新開始」的差別：後者是 location.reload() 整份清空，前者只清明細列表。 ── */
 function continueNextEntry(){
+  // 修改後重送完成後，「接著填下一筆」要回到一般新填單（不能再帶著原送出編號，否則又會變成另一份修訂）
+  if(REV_ID){ location.href = location.pathname + (SHIP_PARAM?"?ship="+encodeURIComponent(SHIP_PARAM):""); return; }
   document.getElementById("defList").innerHTML = "";
   document.getElementById("posList").innerHTML = "";
   defCount = 0; posCount = 0;
@@ -1959,17 +2041,32 @@ function exportDraftWordFile(silent){
   const payload = collectPayload();
   const b = payload.basic;
   const nl2br=s=>esc(s||"").replace(/\n/g,"<br/>");
-  const markerTag=t=>`<span style="font-size:8pt;color:#bbb">[${esc(t)}]</span>`;
-  const closeTag=()=>`<span style="font-size:8pt;color:#bbb">[/FIELD]</span>`;
-  const fieldCell=(label,value)=>`<td>${markerTag(label)}<br/>${nl2br(value)}<br/>${closeTag()}</td>`;
-  let html = `<p style="font-size:8pt;color:#bbb;margin:0">===RECORD 1===</p>
-    <h2 style="font-family:Calibri,Arial,sans-serif">線上填單 — ${esc(b.ship)} ${esc(b.date)}</h2>
-    <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:13px;font-family:Calibri,Arial,sans-serif">
+  /* 2026-11-06 美化：左邊深色標籤欄＋右邊內容、標題色帶、每筆缺失一個區塊。
+     ⚠ [標籤]…[/FIELD] 與 ===RECORD／DEFECT／POS=== 這些標記是系統「⬆匯入」讀回用的，只能縮小變淡，不能拿掉或改字。 */
+  const F="font-family:'Microsoft JhengHei',Calibri,Arial,sans-serif";
+  const markerTag=t=>`<span style="font-size:6pt;color:#c8c8c8">[${esc(t)}]</span>`;
+  const closeTag=()=>`<span style="font-size:6pt;color:#c8c8c8">[/FIELD]</span>`;
+  const LB=`style="${F};background:#e6ecf2;color:#1e3a5f;font-size:10pt;font-weight:bold;width:15%;border:1px solid #b9c6d2;vertical-align:top"`;
+  const VC=`style="${F};font-size:10.5pt;border:1px solid #b9c6d2;vertical-align:top"`;
+  const val=(label,value)=>`${markerTag(label)}<br/>${nl2br(value)||"&nbsp;"}<br/>${closeTag()}`;
+  const fieldCell=(label,value,show)=>`<td ${LB}>${esc(show||label)}</td><td ${VC}>${val(label,value)}</td>`;
+  const fieldRow=(label,value,show)=>`<tr>${fieldCell(label,value,show)}</tr>`;
+  const TBL=`border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;border:1px solid #b9c6d2"`;
+  const bar=(txt,color)=>`<table cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;margin-top:14px"><tr><td style="${F};background:${color};color:#ffffff;font-size:12pt;font-weight:bold">${txt}</td></tr></table>`;
+  const now=new Date().toLocaleString("zh-TW",{hour12:false});
+  let html = `<p style="font-size:6pt;color:#c8c8c8;margin:0">===RECORD 1===</p>
+    <table cellspacing="0" cellpadding="10" style="border-collapse:collapse;width:100%"><tr>
+      <td style="${F};background:#1e3a5f;color:#ffffff"><span style="font-size:17pt;font-weight:bold">外部檢查線上填單</span><br/><span style="font-size:10pt">After Inspection Review　｜　${esc(b.ship)}　${esc(b.date)}</span></td>
+      <td style="${F};background:#1e3a5f;color:#dbe4ee;font-size:9pt;text-align:right;vertical-align:bottom">缺失 ${payload.defects.length} 項　正面評論 ${(payload.posComments||[]).length} 則<br/>匯出：${esc(now)}</td>
+    </tr></table>
+    ${bar("一、檢查基本資料","#2c5d8a")}
+    <table ${TBL}>
       <tr>${fieldCell("船名",b.ship)}${fieldCell("船型",b.vtype)}</tr>
       <tr>${fieldCell("檢查來源",b.itype+(b.flagType?"（"+b.flagType+"）":""))}${fieldCell("檢查地點",b.place)}</tr>
       <tr>${fieldCell("檢查日期",b.date)}${fieldCell("檢查員",b.inspector)}</tr>
-      <tr>${fieldCell("檢查單位/油公司",b.oilco)}<td>缺失數／正面評論數<br/>${payload.defects.length} ／ ${(payload.posComments||[]).length}</td></tr>
-    </table><br/>`;
+      <tr>${fieldCell("檢查單位/油公司",b.oilco)}<td ${LB}>缺失數／正面評論數</td><td ${VC}>${payload.defects.length} ／ ${(payload.posComments||[]).length}</td></tr>
+    </table>`;
+  if(payload.defects.length)html+=bar(`二、缺失改善明細（共 ${payload.defects.length} 項）`,"#2c5d8a");
   const DOC_IMG_W = 200; // Word 文件裡照片顯示寬度（像素）
   const photoRow=(label,list)=>{
     const imgs=(list||[]).map(p=>{
@@ -1981,44 +2078,47 @@ function exportDraftWordFile(silent){
       // data-name 保留原始檔名，讓系統匯入時能還原照片名稱（Word 存檔不會保留 alt 屬性）。
       return `<img src="${p.url||p.dataUrl}" width="${w}" height="${h}" style="width:${w}px;height:${h}px;margin:3px" alt="${esc(p.name||"")}" data-name="${esc(p.name||"")}">`;
     }).join("");
-    return `<tr><td colspan="2">${markerTag(label)}<br/>${imgs||"（無照片）"}<br/>${closeTag()}</td></tr>`;
+    return `<tr><td ${LB}>${esc(label)}</td><td ${VC} colspan="3">${markerTag(label)}<br/>${imgs||'<span style="color:#999">（無照片）</span>'}<br/>${closeTag()}</td></tr>`;
   };
+  const wide=(label,value,show)=>`<tr><td ${LB}>${esc(show||label)}</td><td ${VC} colspan="3">${val(label,value)}</td></tr>`;
+  const probTxt=s=>(s||"").split("‖").filter(Boolean).map(p=>p==="设备问题"?"設備問題":p==="作业问题"?"作業問題":p).join("、");
   payload.defects.forEach((d,i)=>{
-    html += `<p style="font-size:8pt;color:#bbb;margin:0">===DEFECT ${i+1}===</p>
-      <h3 style="font-family:Calibri,Arial,sans-serif">缺失 #${i+1}${d.code?`　CODE ${esc(d.code)}`:""}</h3>
-      <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:13px;font-family:Calibri,Arial,sans-serif">
-        <tr><td colspan="2">${markerTag("CODE")}<br/>${esc(d.code||"")}<br/>${closeTag()}</td></tr>
-        ${d.psc?`<tr><td colspan="2">${markerTag("PSC Action Taken")}<br/>${esc(d.psc)}<br/>${closeTag()}</td></tr>`:""}
-        <tr><td colspan="2">${markerTag("缺失詳情")}<br/>${nl2br(d.detail)}<br/>${closeTag()}</td></tr>
-        <tr><td colspan="2">${markerTag("實際情況")}<br/>${nl2br(d.actual)}<br/>${closeTag()}</td></tr>
+    // 分類資訊只供閱讀（不加匯入標記，匯入時不會讀這一列）
+    const cls=[["問題別",probTxt(d.ncProb)],["大類",(d.ncMain||"").split("‖").filter(Boolean).join("、")],["具體名稱",(d.ncLeaf||"").split("‖").filter(Boolean).join("、")],["根因",d.ncRoot],["三要素",d.ncFactor],["重要程度",d.ncImp],["風險",d.risk]].filter(x=>x[1]);
+    html += `<p style="font-size:6pt;color:#c8c8c8;margin:0">===DEFECT ${i+1}===</p>
+      <table cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;margin-top:12px"><tr><td style="${F};background:#e8842c;color:#ffffff;font-size:11.5pt;font-weight:bold">缺失 #${i+1}${d.code?`　CODE ${esc(d.code)}`:""}${d.psc?`　｜　PSC Action ${esc(d.psc)}`:""}</td></tr></table>
+      <table ${TBL}>
+        <tr>${fieldCell("CODE",d.code)}${d.psc?fieldCell("PSC Action Taken",d.psc):`<td ${LB}>PSC Action Taken</td><td ${VC}>—</td>`}</tr>
+        ${wide("缺失詳情",d.detail)}
+        ${wide("實際情況",d.actual)}
         <tr>${fieldCell("責任人職位",d.rank)}${fieldCell("責任人姓名",d.person)}</tr>
-        <tr><td colspan="2">${markerTag("Initial Operator Comment")}<br/>${nl2br(d.opComment)}<br/>${closeTag()}</td></tr>
-        <tr><td colspan="2">${markerTag("直接原因 Immediate Cause")}<br/>${nl2br(d.immediateCause)}<br/>${closeTag()}</td></tr>
-        <tr><td colspan="2">${markerTag("改善措施")}<br/>${nl2br(d.corrective)}<br/>${closeTag()}</td></tr>
-        <tr><td colspan="2">${markerTag("根本原因")}<br/>${nl2br(d.rootCause)}<br/>${closeTag()}</td></tr>
-        <tr><td colspan="2">${markerTag("預防措施")}<br/>${nl2br(d.preventive)}<br/>${closeTag()}</td></tr>
+        ${wide("Initial Operator Comment",d.opComment)}
+        ${wide("直接原因 Immediate Cause",d.immediateCause,"直接原因<br/>Immediate Cause")}
+        ${wide("改善措施",d.corrective)}
+        ${wide("根本原因",d.rootCause)}
+        ${wide("預防措施",d.preventive)}
+        ${cls.length?`<tr><td ${LB}>分類</td><td colspan="3" style="${F};font-size:9.5pt;color:#34495e;border:1px solid #b9c6d2;background:#fafbfc;vertical-align:top">${cls.map(([k,v])=>`<b>${k}</b>：${esc(v)}`).join("　｜　")}</td></tr>`:""}
         ${photoRow("矯正前照片",d.photosBefore)}
         ${photoRow("矯正後照片",d.photosAfter)}
-      </table><br/>`;
+      </table>`;
   });
   if(payload.posComments && payload.posComments.length){
     // 跟缺失一樣加上 ===POSCOMMENTS===／===POS N=== 標記＋[FIELD]包欄位，系統匯入時才抓得回來
-    // （舊版只是純文字印出來給人看，沒有標記，匯入永遠是 0 筆——這裡補上讓 Word 匯入也能無損還原）。
-    html += `<p style="font-size:8pt;color:#bbb;margin:0">===POSCOMMENTS===</p>
-      <h2 style="font-family:Calibri,Arial,sans-serif">正面評論</h2>`;
+    html += `<p style="font-size:6pt;color:#c8c8c8;margin:0">===POSCOMMENTS===</p>
+      ${bar(`三、正面評論（共 ${payload.posComments.length} 則）`,"#2e7d4f")}`;
     payload.posComments.forEach((p,i)=>{
       const first=(p.people&&p.people[0])||{rank:p.rank||"",person:p.person||""};
-      html += `<p style="font-size:8pt;color:#bbb;margin:0">===POS ${i+1}===</p>
-        <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:13px;font-family:Calibri,Arial,sans-serif">
-          <tr><td colspan="2">${markerTag("CODE")}<br/>${esc(p.code||"")}<br/>${closeTag()}</td></tr>
-          <tr><td colspan="2">${markerTag("項目")}<br/>${esc(p.item||"")}<br/>${closeTag()}</td></tr>
-          <tr><td colspan="2">${markerTag("評論內容")}<br/>${nl2br(p.comment)}<br/>${closeTag()}</td></tr>
+      html += `<p style="font-size:6pt;color:#c8c8c8;margin:0">===POS ${i+1}===</p>
+        <table ${TBL.replace('border:1px solid #b9c6d2"','border:1px solid #b9c6d2;margin-top:8px"')}>
+          <tr>${fieldCell("CODE",p.code)}${fieldCell("項目",p.item)}</tr>
+          ${wide("評論內容",p.comment)}
           <tr>${fieldCell("職稱",first.rank)}${fieldCell("姓名",first.person)}</tr>
-        </table><br/>`;
+        </table>`;
     });
   }
-  html += `<p style="font-size:8pt;color:#bbb;margin:0">===RECORD END===</p>`;
-  const blob = new Blob(["﻿",'<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>線上填單</title></head><body>',html,"</body></html>"],{type:"application/msword"});
+  html += `<p style="${F};font-size:8.5pt;color:#7f8c8d;margin-top:14px;border-top:1px solid #d5dde5;padding-top:4px">每格內容上下方的小字灰色方括號記號是系統匯入用的，編輯內容時請保留，不要刪除。</p>
+    <p style="font-size:6pt;color:#c8c8c8;margin:0">===RECORD END===</p>`;
+  const blob = new Blob(["﻿",'<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>線上填單</title><style>@page{size:21cm 29.7cm;margin:1.6cm 1.6cm 1.6cm 1.6cm}body{'+F.replace(/"/g,"")+'}</style></head><body>',html,"</body></html>"],{type:"application/msword"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const ts = new Date().toISOString().slice(0,16).replace(/[-:T]/g,"");
