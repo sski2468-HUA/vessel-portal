@@ -819,8 +819,9 @@ const simKindOf=it=>it&&it.status==="similar"?(it.simKind==="fixed"?"fixed":"tra
 const isCaseItem=it=>!!it&&it.src==="自訂案例";
 const ST_LABEL_CASE={ok:"已完成",similar:"未完成，需處理",self:"當事船",na:"不適用",pending:"未作答"};
 function stLbl(it,st){st=st||(it&&it.status)||"pending";
-  if(st==="similar"&&it&&!isCaseItem(it))return simKindOf(it)==="fixed"?"有類似問題，已解決":"有類似問題，需後續追蹤";
-  return (isCaseItem(it)?ST_LABEL_CASE:ST_LABEL_DL)[st]||st;}
+  // 2026-11-06 自訂自查也統一用四個選項（不再區分「已完成／未完成」）
+  if(st==="similar")return simKindOf(it)==="fixed"?"有類似問題，已解決":"有類似問題，需後續追蹤";
+  return ST_LABEL_DL[st]||st;}
 /* 下載 Excel／PDF 用的共用資料組裝：基本資料＋逐題明細，兩邊都要用同一份，
    避免各自兜一次資料、以後改欄位要改兩個地方又漏掉一個。 */
 function collectExportData(){
@@ -1079,7 +1080,7 @@ function simHintHtml(it){
     :"⚠ 處理中也<b>請先送出</b>，公司才會知道本船有類似情形。<br><b>處理完畢後，記得回到同一條連結</b>，在這一題勾選「已完成改善（結案）」，再按一次送出。";
 }
 function itemCardHtml(it,i){
-  const kind=simKindOf(it),cs=isCaseItem(it);
+  const kind=simKindOf(it),cs=false;   // 2026-11-06 自訂自查也用同樣四個選項
   const sb=(st,cls,txt)=>`<button type="button" data-st="${st}" class="statusbtn ${(st===(it.status==="similar"?kind:it.status))?"on "+cls:""}" onclick="setStatus(${i},'${st}')">${txt}</button>`;
   const dateLbl=`<label>${kind==="fixed"?"解決日期":"結案日期"} <span style="color:var(--bad)">*（必填）</span></label>`;
   return `
@@ -1381,7 +1382,7 @@ function delPhoto(i,k,j){if(!confirm("移除這張照片？"))return;phArr(i,k).
 function openSimModal(i,prev){
   const it=(draft.items||[])[i];if(!it)return;
   simCtx={i,prev};
-  {const tt=document.getElementById("simTitle");if(tt)tt.textContent=isCaseItem(it)?"⚠️ 本項尚未完成，請說明":"⚠️ 本船有類似情形，請說明";}
+  {const tt=document.getElementById("simTitle");if(tt)tt.textContent="⚠️ 本船有類似情形，請說明";}
   document.getElementById("simItem").innerHTML=modalRefHtml(it);
   document.getElementById("simNote").value=mergedNote(it);
   document.getElementById("simCloseNote").value=it.closeNote||"";
