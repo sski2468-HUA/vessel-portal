@@ -997,13 +997,13 @@ let RISK=null; // 主系統「船隊風險清單」app_db ship_risk：{ships:{�
 function riskBannerHtml(code){
   const rk=RISK&&RISK.ships&&RISK.ships[code];
   if(!rk||rk.tmou!=="HRS")return "";
-  const win=rk.winFrom||rk.winTo?`；檢查窗口 ${esc(rk.winFrom||"")} ～ ${esc(rk.winTo||"")}${rk.prio?`（${esc(rk.prio)}）`:""}`:"";
+  const win=rk.winFrom||rk.winTo?`；檢查窗口 ${esc(rk.winFrom||"")} ～ ${esc(rk.winTo||"")}${rk.prio?`（${esc(rk.prio==="無優先級"?"No Priority":rk.prio)}）`:""}`:"";
   return `<div class="riskban" role="alert"><div class="rb-t">⚠ 注意！本輪目前列為 Tokyo MOU 高風險船（HRS, High Risk Ship）</div>
     <div class="rb-d">在 Tokyo MOU 區域港口被 PSC 檢查的機率較高${win}。請各部門落實日常保養，文件、證書與演練紀錄隨時備檢。</div>
     <div class="rb-s">公司依 Tokyo MOU APCIS 查詢結果更新${rk.checked?`，查詢日期：${esc(rk.checked)}`:""}</div>
     <details class="rb-i"><summary title="點一下看說明">ⓘ 什麼是高風險船、檢查窗口？</summary>
       <div>高風險船（HRS）在 Tokyo MOU 區域每 <b>2～4 個月</b>就會排入下一次 PSC 檢查（標準風險 5～8 個月、低風險 9～18 個月），這段期間就是「檢查窗口」。<br>
-      <b>無優先級</b>：還沒到窗口期；<b>Priority II</b>：已進入窗口期，隨時可能被登輪檢查；<b>Priority I</b>：已超過窗口期，下一個港口幾乎一定會被檢查。<br>
+      <b>No Priority</b>：還沒到窗口期；<b>Priority II</b>：已進入窗口期，隨時可能被登輪檢查；<b>Priority I</b>：已超過窗口期，下一個港口幾乎一定會被檢查。<br>
       被檢舉、發生事故等情況，不論優先級都可能直接被檢查。</div></details></div>`;
 }
 const NTF_TARGET="船舶檢查填報平台－緊急通報名單";
