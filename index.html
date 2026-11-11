@@ -242,6 +242,11 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 .more{color:var(--navy2);cursor:pointer;font-size:12.5px}
 @media (max-width:640px){header{padding:12px 14px}.hd h1{font-size:17px}.shipbadge{font-size:15px}main{padding:14px 12px 40px}table.tb td,table.tb th{padding:7px 8px}}
 @media print{header .lk,nav,.flt,.noprint{display:none!important}body{background:#fff}.page{display:none!important}.page.on{display:block!important}.tbwrap{border:0;overflow:visible}}
+/* Tokyo MOU 高風險船提醒（主系統「船隊風險清單」app_db ship_risk） */
+.riskban{background:#fdecea;border:2px solid #c0392b;border-radius:10px;padding:14px 18px;margin:0 0 18px;color:#7a1c14}
+.riskban .rb-t{font-size:20px;font-weight:800;color:#b3261e;line-height:1.35}
+.riskban .rb-d{font-size:15px;margin-top:6px;line-height:1.6}
+.riskban .rb-s{font-size:13px;margin-top:6px;color:#8d4a43}
 </style>
 </head>
 <body>
@@ -290,6 +295,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 <main>
   <!-- 首頁 -->
   <section class="page on" id="p-home">
+    <div id="homeRisk"></div>
     <!-- 第一排：左＝填報（外部檢查線上填單）、右＝待辦事項；第二排：常用功能 -->
     <!-- 2026-11-04 首頁改版：上排左＝填報（外部檢查線上填單）、右＝外部平台；下方＝待辦事項清單（固定 5 列，要做的紅色、完成的不加底色） -->
     <div class="homeTop">
@@ -634,6 +640,7 @@ function renderMarquee(){
 }
 /* ════════ 首頁 ════════ */
 function renderHome(){
+  {const rb=$("#homeRisk");if(rb)rb.innerHTML=riskBannerHtml(D.ship);}
   const base=location.href.replace(/[^/]*$/,"");
   const iaPills=[D.ia.pending?`<span class="pill bad">待填寫 ${D.ia.pending} 項</span>`:"",D.ia.returned?`<span class="pill warn">被退回需補充 ${D.ia.returned} 項</span>`:"",D.ia.waiting?`<span class="pill mute">待督導審核 ${D.ia.waiting} 項</span>`:"",(!D.ia.pending&&!D.ia.returned)?`<span class="pill ok">目前沒有待填寫的項目</span>`:""].join("");
   const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
@@ -982,6 +989,15 @@ ${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pai
   }
 };
 let NTF=null; // {dir, ship, sig（目前版本碼）, printed:{sig,ts}（本船最後一次列印）}
+let RISK=null; // 主系統「船隊風險清單」app_db ship_risk：{ships:{船代碼:{tmou,prio,winFrom,winTo,checked}}}
+function riskBannerHtml(code){
+  const rk=RISK&&RISK.ships&&RISK.ships[code];
+  if(!rk||rk.tmou!=="HRS")return "";
+  const win=rk.winFrom||rk.winTo?`；檢查窗口 ${esc(rk.winFrom||"")} ～ ${esc(rk.winTo||"")}${rk.prio?`（${esc(rk.prio)}）`:""}`:"";
+  return `<div class="riskban" role="alert"><div class="rb-t">⚠ 注意！本輪目前列為 Tokyo MOU 高風險船（HRS, High Risk Ship）</div>
+    <div class="rb-d">在 Tokyo MOU 區域港口被 PSC 檢查的機率較高${win}。請各部門落實日常保養，文件、證書與演練紀錄隨時備檢。</div>
+    <div class="rb-s">公司依 Tokyo MOU APCIS 查詢結果更新${rk.checked?`，查詢日期：${esc(rk.checked)}`:""}</div></div>`;
+}
 const NTF_TARGET="船舶檢查填報平台－緊急通報名單";
 async function loadNtf(){
   if(NTF)return NTF;
@@ -1175,6 +1191,7 @@ $("#refMonth").addEventListener("change",renderRef);
   $("#homeEntries").innerHTML=`<div class="loading">載入本船資料中…</div>`;
   trackOnce("open","開啟","平台",`${code} 開啟船舶檢查填報平台`); // 每船每天一次
   await loadAll(code);
+  try{RISK=await getKey("ship_risk");}catch(e){console.warn("risk",e);}
   try{renderMarquee();}catch(e){console.warn("marquee",e);}  fillPosSrc();
   fillYear("#aYear",D.air.map(r=>r.basic),"全部年度");
   $("#aNew").href=`${location.href.replace(/[^/]*$/,"")}submit-airform.html?ship=${encodeURIComponent(code)}`;
