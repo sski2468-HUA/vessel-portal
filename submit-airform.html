@@ -343,8 +343,16 @@ loadPhotoUploadSetting();
    ⚠ 使用前需先在 Supabase 專案建立名為 defect-photos 的 Storage 儲存桶，並開放 anon 角色
    上傳（INSERT）與公開讀取（SELECT）權限，否則上傳一律失敗（僅照片這部分受影響，不影響送出）。 */
 const PHOTO_BUCKET = "defect-photos";
+/* 2026-11-11：Safari（iPhone／iPad／Mac）對很長的 data: 網址用 fetch 會回「Load failed」，改成自己解 base64 */
+function dataUrlToBlob(dataUrl){
+  const i=String(dataUrl).indexOf(",");const head=dataUrl.slice(0,i),body=dataUrl.slice(i+1);
+  const type=(/^data:([^;,]+)/.exec(head)||[])[1]||"image/jpeg";
+  if(!/;base64/i.test(head))return new Blob([decodeURIComponent(body)],{type});
+  const bin=atob(body),u8=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u8[k]=bin.charCodeAt(k);
+  return new Blob([u8],{type});
+}
 async function uploadPhotoToStorage(photo, folder){
-  const blob = await (await fetch(photo.dataUrl)).blob();
+  const blob = dataUrlToBlob(photo.dataUrl);
   const path = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
   const res = await fetch(`${CLOUD.url}/storage/v1/object/${PHOTO_BUCKET}/${path}`, {
     method: "POST",
