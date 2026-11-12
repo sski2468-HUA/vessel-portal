@@ -156,7 +156,7 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
 .kpi .v{font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
 .kpi .l{font-size:12.5px;color:var(--ink2)}
-.camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+div.camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
 /* 跑馬燈 */
 .mq{background:#fff8e6;border-bottom:1px solid #f0d9a8}
 .mq-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:7px 16px}
@@ -171,14 +171,61 @@ table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
 .flownote ul{margin:2px 0 0;padding-left:20px}
 .ftags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .ftag{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:9px;background:#e8eef9;color:#2c4f8a;border:1px solid #c5d4ee}
-.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
+div.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
 /* 2026-11-05 未結案的追蹤項目加底色（淡黃＋橘框），一眼看出還要處理；已結案改淡綠 */
-.trk{display:flex;gap:10px;align-items:center;padding:12px 14px;margin-top:8px;background:#fff6dc;border:1px solid #f0c860;border-left:5px solid #e0a020;border-radius:8px}
-.trk .tt{flex:1;min-width:0}.trk .nt{font-size:13.5px;margin:4px 0;line-height:1.55;font-weight:600;color:#5a3d00}
-.trk.done{background:#eef7f0;border-color:#b9dcc4;border-left-color:#2e8b57;opacity:.85}
-.trk.done .nt{color:inherit;font-weight:400}
-.camp:first-child{border-top:0}
-.camp .tt{flex:1;min-width:0}
+/* 進行中的分享自查：表格式（2026-11-12） */
+.cpwrap{overflow:hidden;margin-top:6px;border:1px solid var(--line,#e3e8ef);border-radius:8px}
+.cptbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.cptbl th{background:#f3f6fa;text-align:left;font-size:12px;color:#5b6b80;padding:6px 10px;border-bottom:1px solid #e3e8ef;white-space:nowrap;font-weight:600}
+.cptbl td{padding:5px 10px;border-bottom:1px solid #eef1f5;vertical-align:middle}
+.cptbl tr:last-child td{border-bottom:0}
+.cptbl tr:hover td{background:#f7f9fc}
+.cptbl tr.hastrk td{background:#fff7ea}
+.cptbl tr.late td{background:#fdecea}.cptbl tr.late td:first-child{box-shadow:inset 4px 0 0 #c0392b}
+.cptbl .cp-s{white-space:nowrap;font-size:12.5px;color:#7a8696}
+.cptbl .cp-st{white-space:nowrap}.cptbl .cp-st .pill{margin:0 2px 0 0}
+.cptbl .cp-a{white-space:nowrap;text-align:right;width:1%}
+.cptbl td .pill{white-space:nowrap}
+.cptbl tr.camp{cursor:pointer}.cptbl .cp-car{display:inline-block;width:14px;color:#8195a0;font-size:12px}
+.cptbl tr.camp.open td{background:#eaf2fb}.cptbl tr.camp.open td:first-child b{color:var(--navy)}
+.cptbl tr.cpdet td{background:#fbfcfe;padding:4px 14px 10px 28px;border-bottom:2px solid #c9d9ea}
+.cpd-h{font-size:12.5px;color:#5b6a75;padding:6px 0;border-bottom:1px solid #e3e8ef}
+.cpd-i{padding:8px 0;border-bottom:1px dashed #dde3ea;font-size:13px;line-height:1.6}.cpd-i:last-child{border-bottom:0}
+.cpd-t{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.cpd-src{font-size:11.5px;background:#e8f1f8;color:#2f6690;border-radius:9px;padding:0 8px}
+.cpst{font-size:11.5px;border-radius:9px;padding:0 8px;font-weight:700;white-space:nowrap}
+.cpst.ok{background:#e3f4e8;color:#2e7d4f}.cpst.fixed{background:#e6eefb;color:#2c4a8a}.cpst.trk{background:#fdecd8;color:#a8550c}
+.cpst.self{background:#efe8fa;color:#6a3fa0}.cpst.na,.cpst.pend{background:#eef1f4;color:#6b7785}
+.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1c3a5e;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
+/* 需追蹤的項目：表格式（2026-11-12） */
+.tkn{background:#e0a020;color:#fff;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
+.tkwrap{overflow:hidden;margin-top:6px;border:1px solid #f0d9a8;border-radius:8px}
+.tktbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tktbl th{background:#f8f0dc;text-align:left;font-size:12px;color:#6b5a32;padding:6px 8px;border-bottom:1px solid #ecdcb4;white-space:nowrap;font-weight:600}
+.tktbl td{padding:6px 8px;border-bottom:1px solid #f3ead4;vertical-align:middle;background:#fffbf1}
+.tktbl tr:last-child td{border-bottom:0}
+.tktbl tr:hover td{background:#fff4dc}
+.tktbl tr.over td{background:#fdf0ee}
+.tktbl tr.done td{background:#f2f8f3;color:#556}
+.tktbl .tk-c{white-space:nowrap}.tktbl .tk-n{line-height:1.5;color:#4a3500;font-weight:600}.tktbl tr.done .tk-n{color:inherit;font-weight:400}
+.tktbl .tk-s{font-size:12px;color:#7a8696;line-height:1.4}.tktbl .tk-src{max-width:180px}.tktbl .tk-due{white-space:nowrap}.tktbl .tk-a{white-space:nowrap;text-align:right;width:1%}
+/* 不讓船上左右拖動：窄螢幕（手機）時表格自動改成一筆一塊、內容往下排 */
+@media(max-width:720px){
+.cptbl thead,.tktbl thead{display:none}
+.cptbl,.cptbl tbody,.tktbl,.tktbl tbody{display:block}
+.cptbl tr,.tktbl tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:7px 10px;border-bottom:1px solid #eef1f5}
+.cptbl td,.tktbl td{display:block;padding:0;border:0;background:transparent!important}
+.cptbl tr.hastrk{background:#fff7ea}.cptbl tr.late{background:#fdecea;box-shadow:inset 4px 0 0 #c0392b}.cptbl tr.late td:first-child{box-shadow:none}
+.tktbl tr{background:#fffbf1}.tktbl tr.over{background:#fdf0ee}.tktbl tr.done{background:#f2f8f3}
+.cptbl td:first-child{flex-basis:100%}
+.cptbl tr.cpdet{display:block;padding:0}.cptbl tr.cpdet td{display:block;padding:4px 12px 10px!important;background:#fbfcfe!important}.cptbl tr.camp.open{background:#eaf2fb}
+.tktbl .tk-n{flex-basis:100%;order:2}.tktbl .tk-c{order:1}.tktbl td:nth-child(3){order:3}.tktbl .tk-due{order:4}.tktbl .tk-src{order:5;max-width:none}
+.cptbl .cp-a,.tktbl .tk-a{margin-left:auto;order:9;width:auto}
+}
+.tkchip{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:9px;background:#eef2f7;color:#41546b;white-space:nowrap;margin:1px 0}
+.tkchip.ic{background:#fdecea;color:#a33}.tkchip.mat{background:#e8f4ea;color:#2c6b3a}.tkchip.eng{background:#e8eefb;color:#2c4a8a}
+div.camp:first-child{border-top:0}
+div.camp .tt{flex:1;min-width:0}
 /* 正面評價 */
 .pos{background:#fff;border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:12px 14px;margin-bottom:10px}
 .pos .who{font-weight:800;color:var(--navy)}
@@ -600,7 +647,7 @@ async function loadCampaigns(code){
     return true;
   });
   // items：取本船自己的作答，列出「有，需處理」還沒結案的項目（需追蹤），讓船上直接點進去結案
-  if(D.camps.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
+  if(D.camps.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items,checker_name,checker_title&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
 }
 /* 內部檢查改善單：已發單的登錄單裡，內控／系統內結案的缺失，船上回報狀態 */
 async function loadIA(code){
@@ -700,25 +747,65 @@ function renderCampTracks(){
   const base=location.href.replace(/[^/]*$/,""),today=new Date().toISOString().slice(0,10);
   const all=campTracks(),open=all.filter(x=>!x.it.closed),closed=all.filter(x=>x.it.closed);
   open.sort((a,b)=>String(a.it.trackDue||"9999").localeCompare(String(b.it.trackDue||"9999")));
+  /* 2026-11-12 改成表格式（原本每筆一張大卡片，3 筆就佔快 400px）：題目｜本船實際狀況｜追蹤方式｜期限｜來源自查｜動作 */
+  const chip=t=>`<span class="tkchip${/內控/.test(t)?" ic":/物料|配件|備品/.test(t)?" mat":/工程|塢修|修理/.test(t)?" eng":""}">${esc(t)}</span>`;
   const row=x=>{
     const it=x.it,over=!it.closed&&it.trackDue&&it.trackDue<today;
     const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(x.c.id)}&ship=${encodeURIComponent(D.ship)}&focus=${x.i}`;
-    return `<div class="trk${it.closed?" done":""}">
-      <div class="tt"><b>${esc(it.topic||(it.code?"CODE "+it.code:"")||("第 "+(x.i+1)+" 題"))}</b><div class="hint">${esc(x.c.title||"缺失自查")}・第 ${x.i+1} 題</div>
-        ${it.note?`<div class="nt">本船實際狀況：${esc(it.note)}</div>`:""}
-        <div class="hint">${(it.track||[]).length?`追蹤方式：${esc(it.track.join("、"))}　`:""}${it.trackDue?`<span style="${over?"color:#c0392b;font-weight:700":""}">追蹤期限：${esc(it.trackDue)}${over?"（已逾期）":""}</span>`:""}${it.closed?`結案：${esc(it.closedAt||"")}${it.closeNote?"　"+esc(it.closeNote):""}`:""}</div></div>
-      ${it.closed?`<span class="pill ok">已結案</span>`:`<a class="btn sm dark" href="${esc(href)}" target="_blank" rel="noopener">前往結案</a>`}</div>`;};
-  return `<div class="panel" style="margin-bottom:12px;border-left:4px solid ${open.length?"#e0a020":"#2e8b57"}">
-    <b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目（本船答「有類似問題，需後續追蹤」）</b>
-    <div class="hint" style="margin:2px 0 6px">處理完成後按「前往結案」，在該題勾「✓ 已完成改善（結案）」、填改善情形與日期，再按「送出」，這裡就會變成已結案。</div>
-    ${open.length?open.map(row).join(""):`<div class="hint">目前沒有未結案的追蹤項目。</div>`}
-    ${closed.length?`<details style="margin-top:8px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${closed.map(row).join("")}</details>`:""}
+    const due=it.trackDue?`<span style="${over?"color:#c0392b;font-weight:700":""}">${esc(it.trackDue)}${over?"<br>已逾期":""}</span>`:`<span class="hint">—</span>`;
+    return `<tr class="trk${it.closed?" done":""}${over?" over":""}">
+      <td class="tk-c"><b>${esc(it.topic||(it.code?"CODE "+it.code:"")||("第 "+(x.i+1)+" 題"))}</b></td>
+      <td class="tk-n">${it.note?esc(it.note):`<span class="hint">（未填）</span>`}${it.closed&&(it.closedAt||it.closeNote)?`<div class="hint" style="margin-top:2px">✓ 結案 ${esc(it.closedAt||"")}${it.closeNote?"：" +esc(it.closeNote):""}</div>`:""}</td>
+      <td>${(it.track||[]).map(chip).join(" ")||`<span class="hint">—</span>`}</td>
+      <td class="tk-s tk-due">${due}</td>
+      <td class="tk-s tk-src">${esc(String(x.c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}・第 ${x.i+1} 題</td>
+      <td class="tk-a">${it.closed?`<span class="pill ok">已結案</span>`:`<a class="btn sm dark" href="${esc(href)}" target="_blank" rel="noopener">前往結案</a>`}</td></tr>`;};
+  const table=list=>`<div class="tkwrap"><table class="tktbl"><thead><tr><th>題目</th><th>本船實際狀況</th><th>追蹤方式</th><th>追蹤期限</th><th>來源自查</th><th></th></tr></thead><tbody>${list.map(row).join("")}</tbody></table></div>`;
+  return `<div class="panel" style="margin-bottom:12px;border-left:4px solid ${open.length?"#e0a020":"#2e8b57"};padding-top:10px;padding-bottom:10px">
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目</b>${open.length?`<span class="tkn">${open.length}</span>`:""}
+    <span class="hint">本船答「有類似問題，需後續追蹤」；改善完成後按「前往結案」勾 ✓ 已完成改善並送出</span></div>
+    ${open.length?table(open):`<div class="hint" style="margin-top:6px">目前沒有未結案的追蹤項目。</div>`}
+    ${closed.length?`<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${table(closed)}</details>`:""}
   </div>`;
 }
 /* 2026-11-04 發佈超過 1 個月（30 天）還沒送出的分享自查：列表標「⏰ 已逾期」並排最前面、首頁與跑馬燈另外提醒 */
 const CAMP_OVERDUE_DAYS=30;
 function campAgeDays(c){const t=+new Date(c&&c.created_at);return t?Math.floor((Date.now()-t)/86400000):0;}
 function campOverdue(){return (D.camps||[]).filter(c=>campAgeDays(c)>=CAMP_OVERDUE_DAYS&&!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at));}
+/* 2026-11-12 進行中的分享自查：點列展開本船填答結果（唯讀；要修改／結案仍按「查看」進填答頁） */
+const CAMP_OPEN=new Set();
+function toggleCampDet(cid,ev){
+  if(ev&&ev.target&&ev.target.closest("a,button"))return; // 點「查看／前往填寫」照常開新頁
+  CAMP_OPEN.has(cid)?CAMP_OPEN.delete(cid):CAMP_OPEN.add(cid);
+  renderCamp();
+}
+const CP_ST={ok:["本輪無類似情形","ok"],self:["當事船（本船缺失來源）","self"],na:["本船型不適用","na"],pending:["未作答","pend"]};
+function cpStChip(it){
+  if(it.status==="similar"){const fixed=it.simKind==="fixed";return `<span class="cpst ${fixed?"fixed":"trk"}">${fixed?"🔧 有類似問題，已解決":"⚠ 有類似問題，需後續追蹤"}${!fixed?(it.closed?"（已結案）":"（未結案）"):""}</span>`;}
+  const s=CP_ST[it.status]||CP_ST.pending;return `<span class="cpst ${s[1]}">${it.status==="ok"?"✅ ":""}${s[0]}</span>`;
+}
+function campDetHtml(c,r){
+  if(!r)return `<div class="hint" style="padding:4px 0">本船尚未填寫這份自查，請按右側「前往填寫」。</div>`;
+  const items=r.items||[];
+  const who=r.checker_name?`${esc(r.checker_name)}${r.checker_title?" "+esc(r.checker_title):""}`:"";
+  const sent=r.submitted_at?new Date(r.submitted_at).toLocaleString("zh-TW",{hour12:false}):"";
+  const n={ok:0,similar:0,other:0};items.forEach(it=>{if(it.status==="ok")n.ok++;else if(it.status==="similar")n.similar++;else n.other++;});
+  const head=`<div class="cpd-h">${who?`填答人：<b>${who}</b>　`:""}${sent?`送出：${esc(sent)}　`:`<b style="color:#b26a00">尚未送出（填寫中）</b>　`}共 ${items.length} 題・無類似 ${n.ok}・有類似 ${n.similar}${n.other?`・其他 ${n.other}`:""}</div>`;
+  const body=items.map((it,i)=>{
+    const head=it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"第 "+(i+1)+" 題");
+    const note=[(it.note||"").trim(),(it.actual||"").trim()].filter(Boolean).join("\n")||(it.naNote||"");
+    const trk=(it.track||[]).filter(Boolean).map(t=>t==="FLOW"&&it.flowNo?`FLOW（單號 ${it.flowNo}）`:t==="其他"&&it.trackOther?`其他（${it.trackOther}）`:t).join("、");
+    return `<div class="cpd-i">
+      <div class="cpd-t"><b>#${i+1} ${esc(head)}</b>${it.src?`<span class="cpd-src">${esc(it.src)}</span>`:""}${cpStChip(it)}</div>
+      ${it.detail?`<div class="cpd-d">${esc(it.detail)}</div>`:it.key?`<div class="cpd-d">${esc(it.key)}</div>`:""}
+      ${it.actual2?`<div class="cpd-n">實際情況：${esc(it.actual2)}</div>`:""}
+      ${note?`<div class="cpd-me">本船說明：${esc(note)}</div>`:""}
+      ${it.status==="similar"&&(trk||it.trackDue)?`<div class="cpd-m">${trk?"追蹤方式："+esc(trk)+"　":""}${it.trackDue?"追蹤期限："+esc(it.trackDue):""}</div>`:""}
+      ${it.closed&&(it.closedAt||it.closeNote)?`<div class="cpd-m" style="color:#2e7d4f">✓ 結案 ${esc(it.closedAt||"")}${it.closeNote?"："+esc(it.closeNote):""}</div>`:""}
+      ${it.checkedBy||it.checkedAt?`<div class="cpd-m">最後回答：${esc(it.checkedBy||"")}　${esc(String(it.checkedAt||"").slice(0,10))}</div>`:""}
+    </div>`;}).join("");
+  return head+(body||`<div class="hint">（沒有題目）</div>`);
+}
 function renderCamp(){
   const base=location.href.replace(/[^/]*$/,"");
   const od=new Set(campOverdue().map(c=>String(c.id)));
@@ -731,9 +818,17 @@ function renderCamp(){
     // 跟海技的「分享自查彙整清單」一樣：本活動有「有，需處理」還沒結案的，標「⚠ N 項未結案」並把整列標橘底
     const trk=r?(r.items||[]).filter(it=>it&&it.status==="similar"&&!it.closed).length:0;
     const trkPill=trk?`<span class="pill bad">⚠ ${trk} 項未結案</span>`:"";
-    return `<div class="camp${trk?" hastrk":""}"${late?` style="background:#fdecea;border-left:4px solid #c0392b;padding-left:8px"`:""}><div class="tt"><b>${esc(c.title||"缺失自查")}</b><div class="hint">發佈 ${pd(new Date(c.created_at).toISOString())?.txt||""}・${(c.items||[]).length} 題</div></div>${trkPill}${st}<a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></div>`;
+    // 2026-11-12 改成表格式：主題｜發佈日｜題數｜未結案｜狀態｜動作（class camp 保留給點擊紀錄用）
+    // 2026-11-12 點整列（按鈕以外）就在下方展開本船填答結果，不用再點「查看」開新頁
+    const op=CAMP_OPEN.has(String(c.id));
+    return `<tr class="camp${trk?" hastrk":""}${late?" late":""}${op?" open":""}" onclick="toggleCampDet('${String(c.id).replace(/'/g,"")}',event)" title="點一下展開／收合本船填答結果"><td><span class="cp-car">${op?"▾":"▸"}</span><b>${esc(String(c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}</b></td>
+      <td class="cp-s">${pd(new Date(c.created_at).toISOString())?.txt||""}</td><td class="cp-s" style="text-align:center">${(c.items||[]).length}</td>
+      <td>${trkPill}</td><td class="cp-st">${st}</td>
+      <td class="cp-a"><a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></td></tr>`
+      +(op?`<tr class="cpdet"><td colspan="6">${campDetHtml(c,r)}</td></tr>`:"");
   }).join("");
-  $("#campList").innerHTML=`<b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div style="margin-top:6px">${rows}</div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
+  const nTodo=camps.filter(c=>!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  $("#campList").innerHTML=`<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b><span class="hint">共 ${camps.length} 項${nTodo?`，<b style="color:#c0392b">${nTodo} 項尚未送出</b>`:"，全部已送出 ✓"}</span></div>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>追蹤</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
   const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
 }
 

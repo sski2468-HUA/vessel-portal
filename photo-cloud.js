@@ -20,7 +20,15 @@ const PhotoCloud=(()=>{
   const PDF_ICON="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#fdecea"/><path d="M18 8h20l10 10v38H18z" fill="#fff" stroke="#c0392b" stroke-width="3"/><path d="M38 8v10h10" fill="none" stroke="#c0392b" stroke-width="3"/><text x="33" y="46" font-family="Arial" font-size="13" font-weight="700" fill="#c0392b" text-anchor="middle">PDF</text></svg>');
   const isPdf=p=>!!p&&typeof p==="object"&&(p.type==="application/pdf"||/\.pdf$/i.test(p.name||"")||/\.pdf(\?|#|$)/i.test(p.url||""));
   const isPdfFile=f=>!!f&&(f.type==="application/pdf"||/\.pdf$/i.test(f.name||""));
-  function src(p){if(!p)return "";if(isPdf(p))return PDF_ICON+"#pdf="+encodeURIComponent(p.url||"");return p.url||p.dataUrl||"";}
+  /* 照片「待補傳」：上傳失敗時雲端只先存 {name,pending:true}（照片本體留在建檔那台電腦），別人看到的是這張提示圖 */
+  const PENDING_ICON="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><rect width="120" height="90" rx="8" fill="#fff4e0"/><rect x="3" y="3" width="114" height="84" rx="6" fill="none" stroke="#e0a83a" stroke-width="2" stroke-dasharray="6 4"/><text x="60" y="42" font-family="sans-serif" font-size="13" font-weight="700" fill="#a05a10" text-anchor="middle">照片待補傳</text><text x="60" y="62" font-family="sans-serif" font-size="10" fill="#a05a10" text-anchor="middle">建檔人電腦存檔後補上</text></svg>');
+  function src(p){if(!p)return "";if(isPdf(p))return PDF_ICON+"#pdf="+encodeURIComponent(p.url||"");return p.url||p.dataUrl||(p.pending?PENDING_ICON:"");}
+  /* 還沒傳上 Storage 的照片數 */
+  function countEmbedded(obj){const l=[];collect(obj,l);return l.length;}
+  /* 複製一份要寫進雲端的資料：還沒傳上去的照片換成 {name,pending:true}，避免整張單因為照片太大存不進去 */
+  function stripEmbedded(obj){
+    return JSON.parse(JSON.stringify(obj,(k,v)=>isEmbedded(v)?{name:v.name||"照片",pending:true}:v));
+  }
   function pdfUrlFromSrc(s){const m=/#pdf=(.*)$/.exec(String(s||""));return m?decodeURIComponent(m[1]):"";}
   async function uploadPdf(file){
     if(!cfg)throw new Error("PhotoCloud 尚未設定雲端連線");
@@ -43,23 +51,44 @@ const PhotoCloud=(()=>{
     const h=await crypto.subtle.digest("SHA-256",buf);
     return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
   }
+  /* 2026-11-11：dataUrl 轉檔案不再用 fetch(dataUrl)——Mac／iPhone 的 Safari 對很長的 data: 網址會直接回
+     「Load failed」，照片全部傳不上去、整張單也跟著存不進雲端。改成自己解 base64。 */
+  function dataUrlToBlob(dataUrl){
+    const i=dataUrl.indexOf(",");const head=dataUrl.slice(0,i),body=dataUrl.slice(i+1);
+    const type=(/^data:([^;,]+)/.exec(head)||[])[1]||"image/jpeg";
+    if(!/;base64/i.test(head))return new Blob([decodeURIComponent(body)],{type});
+    const bin=atob(body),n=bin.length,u8=new Uint8Array(n);
+    for(let k=0;k<n;k++)u8[k]=bin.charCodeAt(k);
+    return new Blob([u8],{type});
+  }
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   async function upload(dataUrl){
     if(cache.has(dataUrl))return cache.get(dataUrl);
     if(!cfg)throw new Error("PhotoCloud 尚未設定雲端連線");
-    const blob=await (await fetch(dataUrl)).blob();
+    const blob=dataUrlToBlob(dataUrl);
     const hash=await sha256Hex(await blob.arrayBuffer());
     const ext=blob.type==="image/png"?"png":"jpg";
     const path=`p/${hash.slice(0,2)}/${hash}.${ext}`;
-    const r=await fetch(`${cfg.url}/storage/v1/object/${BUCKET}/${path}`,{
-      method:"POST",
-      headers:{"apikey":cfg.key,"Authorization":"Bearer "+cfg.key,"Content-Type":blob.type||"image/jpeg","x-upsert":"false"},
-      body:blob
-    });
-    if(!r.ok){
+    // 網路一時不穩（Safari 顯示 Load failed、Chrome 顯示 Failed to fetch）或伺服器忙碌（5xx）時自動重試，最多 3 次
+    let lastErr=null;
+    for(let tries=0;tries<3;tries++){
+      if(tries)await sleep(tries===1?1200:3500);
+      let r;
+      try{
+        r=await fetch(`${cfg.url}/storage/v1/object/${BUCKET}/${path}`,{
+          method:"POST",
+          headers:{"apikey":cfg.key,"Authorization":"Bearer "+cfg.key,"Content-Type":blob.type||"image/jpeg","x-upsert":"false"},
+          body:blob
+        });
+      }catch(e){lastErr=new Error(`網路連線失敗（${e&&e.message||e}）`);continue;}
+      if(r.ok){lastErr=null;break;}
       const t=await r.text().catch(()=>"");
       // 檔名＝內容雜湊，已經存在就代表同一張照片之前傳過了，直接沿用
-      if(!(r.status===409||/exists|duplicate/i.test(t)))throw new Error(`HTTP ${r.status} ${t.slice(0,120)}`);
+      if(r.status===409||/exists|duplicate/i.test(t)){lastErr=null;break;}
+      lastErr=new Error(`HTTP ${r.status} ${t.slice(0,120)}`);
+      if(r.status<500)break; // 4xx 重試也沒用
     }
+    if(lastErr)throw lastErr;
     const res={url:`${cfg.url}/storage/v1/object/public/${BUCKET}/${path}`,path};
     cache.set(dataUrl,res);
     return res;
@@ -73,10 +102,12 @@ const PhotoCloud=(()=>{
   /* 把 obj 裡所有內嵌照片上傳並換成 {name,url,path}（直接改 obj 本身）。回傳 {total,fail,first} */
   async function externalize(obj){
     const list=[];collect(obj,list);
-    let fail=0,first="";
+    let fail=0,first="",netFail=0;
     for(const p of list){
-      try{const r=await upload(p.dataUrl);p.url=r.url;p.path=r.path;delete p.dataUrl;}
-      catch(e){fail++;if(!first)first=e.message||String(e);console.warn("照片上傳 Storage 失敗，這張先保留在資料裡",e);}
+      // 連續 2 張都是「連不上網路」就不再一張張重試（每張重試要等約 5 秒，10 張就要乾等快 1 分鐘），剩下的直接留到下次補傳
+      if(netFail>=2&&!cache.has(p.dataUrl)){fail++;continue;}
+      try{const r=await upload(p.dataUrl);p.url=r.url;p.path=r.path;delete p.dataUrl;netFail=0;}
+      catch(e){fail++;if(!first)first=e.message||String(e);if(/^網路連線失敗/.test(e.message||""))netFail++;console.warn("照片上傳 Storage 失敗，這張先保留在資料裡",e);}
     }
     return {total:list.length,fail,first};
   }
@@ -95,5 +126,5 @@ const PhotoCloud=(()=>{
       return await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b);});
     }catch(e){console.warn("照片下載失敗",p.url,e);return "";}
   }
-  return {init,src,externalize,applyCache,toDataUrl,BUCKET,isPdf,isPdfFile,uploadPdf,pdfUrlFromSrc,PDF_ICON};
+  return {init,src,externalize,applyCache,toDataUrl,BUCKET,isPdf,isPdfFile,uploadPdf,pdfUrlFromSrc,PDF_ICON,countEmbedded,stripEmbedded,PENDING_ICON};
 })();
