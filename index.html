@@ -605,7 +605,7 @@ document.addEventListener("click",e=>{
 },true);
 
 /* ════════ 資料 ════════ */
-const D={ship:"",air:[],insp:[],pos:[],docs:[],camps:[],resps:[],ia:{pending:0,returned:0,done:0,orders:0}};
+const D={ship:"",air:[],insp:[],pos:[],docs:[],camps:[],campsClosed:[],shareStates:{},resps:[],ia:{pending:0,returned:0,done:0,orders:0}};
 const yearsOf=arr=>[...new Set(arr.map(r=>(pd(r.date)||{}).y).filter(Boolean))].sort((a,b)=>b-a);
 function fillYear(sel,arr,allLabel){const ys=yearsOf(arr),cy=new Date().getFullYear();const el=$(sel),cur=el.value;el.innerHTML=(allLabel?`<option value="">${allLabel}</option>`:"")+[...new Set([cy,...ys])].sort((a,b)=>b-a).map(y=>`<option value="${y}">${y} 年</option>`).join("");if(cur)el.value=cur;}
 
@@ -633,21 +633,25 @@ async function loadAll(code){
 }
 /* 分享缺失自查：進行中的活動，扣掉「本船就是缺失來源船」與不在指定範圍內的 */
 async function loadCampaigns(code){
-  const cs=await api("selfcheck_share_campaigns?select=id,title,items,ship_scope,created_at,active&active=eq.true&order=created_at.desc&limit=200")||[];
+  const csAll=await api("selfcheck_share_campaigns?select=id,title,items,ship_scope,created_at,active&order=created_at.desc&limit=300")||[]; // 2026-11-13 已完成／已結束的也抓，船上看得到自己填過的
+  const cs=csAll.filter(c=>c.active!==false);
+  D.shareStates={};try{(await api("app_db?select=k,payload&k=like.share_state_*")||[]).forEach(r=>{if(r.payload)D.shareStates[String(r.k).replace("share_state_","")]=r.payload;});}catch(e){}
   // 來源船：新活動 src 是「船代碼 來源 日期」，舊活動是「中文船名 英文船名 來源 日期」（如 SIRE-CI），
   // 兩種都要認得，否則當事船會被列成要自查（同 submit-selfcheck-share.html 的 resolveSrcShip）
   const srcShip=it=>{const s=String(it&&it.src||"").trim();if(!s)return "";const first=s.split(/\s+/)[0];
     if(SHIPS.some(o=>o.code===first))return first;
     let best="",bl=0;SHIPS.forEach(o=>[o.label,o.zh,o.en].filter(Boolean).forEach(n=>{if((s===n||s.startsWith(n+" ")||s.includes(" "+n+" ")||s.endsWith(" "+n))&&n.length>bl){best=o.code;bl=n.length;}}));
     return best||first;};
-  D.camps=cs.filter(c=>{
+  const inScope=c=>{
     const scope=(c.ship_scope&&c.ship_scope.length)?c.ship_scope:null;
     if(scope&&!scope.includes(code))return false;
     const its=c.items||[];if(its.length&&its.every(it=>srcShip(it)===code))return false;
     return true;
-  });
+  };
+  D.camps=cs.filter(inScope);
+  D.campsClosed=csAll.filter(c=>c.active===false&&inScope(c)); // 2026-11-13 已完成／已終止：不算待辦，只供查看
   // items：取本船自己的作答，列出「有，需處理」還沒結案的項目（需追蹤），讓船上直接點進去結案
-  if(D.camps.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items,checker_name,checker_title&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
+  if(D.camps.length||D.campsClosed.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items,checker_name,checker_title&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
 }
 /* 內部檢查改善單：已發單的登錄單裡，內控／系統內結案的缺失，船上回報狀態 */
 async function loadIA(code){
@@ -806,6 +810,24 @@ function campDetHtml(c,r){
     </div>`;}).join("");
   return head+(body||`<div class="hint">（沒有題目）</div>`);
 }
+/* 2026-11-13 已完成／已終止的分享自查：船上仍看得到自己填過的內容（唯讀，不算待辦） */
+function campClosedHtml(base){
+  const cs=D.campsClosed||[];if(!cs.length)return "";
+  const gray=`background:#eceff1;color:#455a64`;
+  const rows=cs.map(c=>{
+    const r=(D.resps||[]).find(x=>String(x.campaign_id)===String(c.id));
+    const ss=(D.shareStates||{})[String(c.id)]||{};
+    const st=ss.state==="done"?`<span class="pill ok">✅ 已完成</span>`:ss.state==="stopped"?`<span class="pill" style="${gray}">⏹ 已終止</span>`:`<span class="pill" style="${gray}">已結束</span>`;
+    const why=ss.state==="stopped"&&ss.reason?`<div class="hint" style="margin-top:2px">終止原因：${esc(ss.reason)}</div>`:"";
+    const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(c.id)}&ship=${encodeURIComponent(D.ship)}`;
+    return `<tr><td><b>${esc(String(c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}</b>${why}</td>
+      <td class="cp-s">${pd(new Date(c.created_at).toISOString())?.txt||""}</td><td class="cp-s" style="text-align:center">${(c.items||[]).length}</td>
+      <td class="cp-st">${st}${r&&r.submitted_at?"":` <span class="pill" style="background:#fff3e0;color:#9a5b00">本船未送出</span>`}</td>
+      <td class="cp-a">${r?`<a class="btn sm" href="${esc(href)}" target="_blank" rel="noopener">查看</a>`:""}</td></tr>`;
+  }).join("");
+  return `<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--navy);font-weight:700;font-size:14.5px">已完成／已結束的分享自查（${cs.length} 項，僅供查看）</summary>
+    <div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
 function renderCamp(){
   const base=location.href.replace(/[^/]*$/,"");
   const od=new Set(campOverdue().map(c=>String(c.id)));
@@ -828,7 +850,7 @@ function renderCamp(){
       +(op?`<tr class="cpdet"><td colspan="6">${campDetHtml(c,r)}</td></tr>`:"");
   }).join("");
   const nTodo=camps.filter(c=>!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
-  $("#campList").innerHTML=`<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b><span class="hint">共 ${camps.length} 項${nTodo?`，<b style="color:#c0392b">${nTodo} 項尚未送出</b>`:"，全部已送出 ✓"}</span></div>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>追蹤</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`;
+  $("#campList").innerHTML=`<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b><span class="hint">共 ${camps.length} 項${nTodo?`，<b style="color:#c0392b">${nTodo} 項尚未送出</b>`:"，全部已送出 ✓"}</span></div>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>追蹤</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`+campClosedHtml(base);
   const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
 }
 

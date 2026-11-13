@@ -469,12 +469,14 @@ function notify(msg,tone){
    看船上填答畫面長怎樣，不選船、不建立填答列、不存本機、不會存檔或送出——所有寫入一律擋掉。 */
 const PREVIEW=new URLSearchParams(location.search).get("preview")==="1";
 const PREVIEW_SHIP="PREVIEW";
+/* 2026-11-13 已完成／已終止的活動：船上仍可打開看自己填的內容，但不能修改、不能送出（READONLY） */
+let READONLY=false;
 /* 2026-11-06 從船舶專區預覽模式點進來會帶 &ship=船代碼：就用那艘船的實際填答內容（只讀），
    看到的就是那艘船打開時的畫面；該船還沒開始填，就顯示一份空白（不會替船建立填答列）。 */
 const PREVIEW_REAL=PREVIEW?(new URLSearchParams(location.search).get("ship")||""):"";
 if(PREVIEW){const _f=window.fetch.bind(window);window.fetch=(u,o)=>{const m=((o&&o.method)||"GET").toUpperCase();if(m!=="GET"&&m!=="HEAD"){console.warn("預覽模式擋下寫入",u);return Promise.reject(new Error("預覽模式不會寫入資料"));}return _f(u,o);};}
 async function api(path,opts){
-  if(PREVIEW&&opts&&opts.method&&opts.method!=="GET")return null;
+  if((PREVIEW||READONLY)&&opts&&opts.method&&opts.method!=="GET")return null;
   const res=await fetch(`${CLOUD.url}/rest/v1/${path}`,Object.assign({headers:{
     "apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json"
   }},opts||{}));
@@ -495,11 +497,11 @@ let retryTimer=null;
 function localKey(){ return "vsm_scshare_local_"+CID+"_"+(draft?draft.ship:""); }
 let dirty=false;
 function saveLocalCache(pendingSubmit){
-  if(!draft||PREVIEW)return;
+  if(!draft||PREVIEW||READONLY)return;
   try{localStorage.setItem(localKey(),JSON.stringify({items:draft.items,dirty:true,pendingSubmit:!!pendingSubmit,savedAt:Date.now()}));}catch(e){}
 }
 function loadLocalCache(){
-  if(PREVIEW)return null;
+  if(PREVIEW||READONLY)return null;
   try{const s=localStorage.getItem(localKey());return s?JSON.parse(s):null;}catch(e){return null;}
 }
 function clearLocalCache(){
@@ -598,8 +600,22 @@ async function init(){
     }
     campaign=rows[0];
     if(campaign.active===false&&!PREVIEW){
-      showError("這個分享自查活動已經結束，不再開放填答。若有問題請聯絡督導或海技人員。");
-      return;
+      // 2026-11-13 已完成／已終止：照樣讓船上選船、看自己填過的內容（唯讀），上方說明狀態
+      READONLY=true;
+      let stt=null;try{const s=await api(`app_db?select=payload&k=eq.share_state_${encodeURIComponent(CID)}`);stt=s&&s[0]&&s[0].payload;}catch(e){}
+      const done=stt&&stt.state==="done",stop=stt&&stt.state==="stopped";
+      const bar=document.createElement("div");
+      bar.style.cssText=`position:sticky;top:0;z-index:999;background:${done?"#1f8a4c":"#5b6770"};color:#fff;font-weight:700;text-align:center;padding:9px 12px;font-size:14px;line-height:1.5`;
+      bar.textContent=done?"✅ 本項自查已完成，感謝配合！以下為本船填答內容，僅供查看、無法再修改。 This self-check is completed (read-only)."
+        :stop?`⏹ 本項自查已終止${stt.reason?"："+stt.reason:""}。以下為本船填答內容，僅供查看、無需再填。 This self-check was stopped (read-only).`
+        :"本項自查已結束，以下為本船填答內容，僅供查看、無法再修改。 This self-check is closed (read-only).";
+      document.body.prepend(bar);
+      document.body.classList.add("ro");
+      if(!document.getElementById("roCss")){const st=document.createElement("style");st.id="roCss";st.textContent="body.ro #submitBtn,body.ro #rvSubmitBtn,body.ro .phadd,body.ro label.phadd,body.ro button.del,body.ro .ph button{display:none!important}body.ro #body textarea,body.ro #body input{background:#f4f6f8}";document.head.appendChild(st);}
+      // 填答區的輸入框、按鈕一律停用（畫面重繪時也會再套一次）；只留看題目用的導覽按鈕
+      const KEEP=new Set(["guideNextBtn","rvBackBtn","rvCloseBtn"]);
+      const lock=()=>document.querySelectorAll("#body input,#body textarea,#body select,#body button").forEach(el=>{if(!KEEP.has(el.id)&&!/guide|nav|prev|next/i.test(el.id||"")&&!el.disabled)el.disabled=true;});
+      const tgt=document.getElementById("body");if(tgt)new MutationObserver(lock).observe(tgt,{childList:true,subtree:true});
     }
   }catch(e){
     showError("讀取失敗："+e.message);
@@ -724,6 +740,7 @@ async function enterAsShip(){
    有限定船舶清單的活動，只有本船在清單裡才會出現；沒限定的活動一律都算「本船可以填」。
    每個活動旁邊直接顯示這艘船目前的進度／有沒有送出，點下去等同直接打開
    ?cid=活動id&ship=本船，沿用單一活動那套既有的填答／離線保護邏輯，不重複寫一份。 */
+const SHARE_STATES={}; // 2026-11-13 活動的完成／終止狀態（app_db share_state_活動id）
 async function enterMyList(){
   const ship=document.getElementById("gateShip").value;
   if(!ship){notify("⚠ 請先選擇本船船名","err");return;}
@@ -737,6 +754,7 @@ async function enterMyList(){
   try{
     allCampaigns=await api(`${CAMPAIGN_TABLE}?order=created_at.desc&limit=200`);
     myResponses=await api(`${RESPONSE_TABLE}?ship=eq.${encodeURIComponent(ship)}&select=id,campaign_id,items,submitted_at,submit_count`);
+    try{(await api(`app_db?select=k,payload&k=like.share_state_*`)||[]).forEach(r=>{if(r.payload)SHARE_STATES[String(r.k).replace("share_state_","")]=r.payload;});}catch(e){}
   }catch(e){
     notify("讀取失敗："+e.message,"err");
     return;
@@ -760,7 +778,7 @@ async function enterMyList(){
         ?`進度 ${done} / ${total}　${submitted?`✓ 已送出 ${r.submit_count||0} 次`:"尚未送出"}${track?`　⚠ ${track} 項未結案`:""}`
         :`<span class="hint">尚未開始填答　共 ${total} 項</span>`;
       return `<div class="itemcard" style="cursor:pointer" onclick="location.href='submit-selfcheck-share.html?cid=${c.id}&ship=${encodeURIComponent(ship)}'">
-        <div style="font-weight:700">${esc(c.title||("活動 #"+c.id))}${ended?'　<span class="hint">（已結束，無法再填答）</span>':""}</div>
+        <div style="font-weight:700">${esc(c.title||("活動 #"+c.id))}${ended?(()=>{const s=SHARE_STATES[String(c.id)];return s&&s.state==="done"?'　<span style="color:#1f8a4c;font-weight:700">✅ 已完成</span><span class="hint">（可查看填答內容）</span>':s&&s.state==="stopped"?'　<span class="hint">⏹ 已終止（可查看填答內容）</span>':'　<span class="hint">（已結束，可查看填答內容）</span>';})():""}</div>
         <div class="hint">建立於 ${c.created_at?new Date(c.created_at).toLocaleString("zh-TW",{hour12:false}):""}</div>
         <div style="margin-top:6px">${statusLine}</div>
       </div>`;
@@ -805,6 +823,7 @@ async function loadOrCreateResponse(ship){
   if(PREVIEW)return {id:0,campaign_id:+CID,ship,items:(campaign.items||[]).map(it=>({...it,autoSelf:false,status:"pending",note:"",actual:"",naNote:"",closed:false,closeNote:"",closedAt:"",checkedAt:"",checkedBy:""})),submit_count:0,history:[]};
   const rows=await api(`${RESPONSE_TABLE}?campaign_id=eq.${encodeURIComponent(CID)}&ship=eq.${encodeURIComponent(ship)}&limit=1`);
   if(rows&&rows.length)return rows[0];
+  if(READONLY){notify("本船在這項自查沒有填答紀錄","err");return {id:0,campaign_id:+CID,ship,items:(campaign.items||[]).map(it=>({...it,status:"pending",note:"",actual:"",naNote:"",closed:false,closeNote:"",closedAt:""})),submit_count:0,history:[]};} // 已完成／已終止：不替船建立新的填答列
   // 當事船不用自查自己這幾筆：新建填答時，來源船代碼＝本船的題目直接預填「🚩 當事船」（跟「➖ 不適用」
   // 是兩回事——不適用是船型/配備不同這類客觀不相關，當事船是「這本來就是我被抓到的缺失」）；
   // 其餘題目（含合併分享時「其他船」的題目）正常待答，仍可改選其他答案。
@@ -1320,6 +1339,7 @@ async function flushAutoSave(){
   clearTimeout(autoSaveTimer);
   clearTimeout(retryTimer);
   if(!draft)return;
+  if(READONLY){dirty=false;return;}
   if(PREVIEW){dirty=false;const n=document.getElementById("saveNote");if(n)n.textContent="👁 預覽模式：不會存檔";return;}
   try{
     await api(`${RESPONSE_TABLE}?id=eq.${draft.id}`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=minimal"},
@@ -1541,6 +1561,7 @@ function reviewGoto(i){
   if(viewMode!=="guide")setViewMode("guide");else applyViewMode();
 }
 async function reviewSubmit(){
+  if(READONLY){notify("本項自查已完成／已終止，不能再送出","err");return;}
   if(PREVIEW){notify("👁 預覽模式：船上按到這裡就會送出，預覽不會送出","ok2");return;}
   const chk=document.getElementById("rvConfirm");
   if(!chk.checked){
@@ -1583,6 +1604,7 @@ function openHelp(){document.getElementById("helpModal").classList.add("show");d
 function closeHelp(){document.getElementById("helpModal").classList.remove("show");}
 
 async function submitAll(){
+  if(READONLY)return false;
   if(PREVIEW){notify("👁 預覽模式：不會送出","ok2");return false;}
   // 姓名／職稱為必填才可送出（不是提醒，是硬性擋下）：讀 body 畫面上目前的值，
   // 而不是只信任本機記住的舊值——萬一這次換了填寫人，畫面上輸入框才是當下真正的來源。
