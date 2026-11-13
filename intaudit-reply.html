@@ -128,7 +128,7 @@ label,.fld{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(-
   <!-- ══════ 本船改善單清單（?ship=船code）══════ -->
   <div id="shipPage" style="display:none">
     <div class="banner" style="background:#fff7e6;border-color:#f0c48a">⭐ <b>請將本頁加入「我的最愛」</b>（電腦按 <b>Ctrl + D</b>，或點網址列右側的 ☆；手機請用瀏覽器選單「加入書籤」）。本頁網址固定不變，以後每次的改善單都可以從這裡找到。</div>
-    <div class="banner">這裡列出本船歷次的內部檢查改善單。<b>進行中</b>是還有項目待填寫或待海技審核的單；<b>已結案</b>是全部項目都已由海技審核結案的舊單，可隨時查看並下載 Word 檔。</div>
+    <div class="banner">這裡列出本船歷次的內部檢查改善單。<b>進行中</b>是還有項目待填寫或待督導審核的單；<b>已結案</b>是全部項目都已由督導審核結案的舊單，可隨時查看並下載 Word 檔。</div>
     <div class="tabs" id="shipTabs"></div>
     <div id="shipList"></div>
   </div>
@@ -304,7 +304,7 @@ function badgeText(d,st){
   if(st==="green"){
     if(rp&&rp.status==="reviewed")return sameAsReply(val(d),rp.payload)?"已結案（修改中，內容尚未變動）":"已結案，修改中，尚未重新送出";
     if(rp&&rp.status==="returned")return "被退回，已填妥，請重新送出";
-    if(rp&&rp.status==="submitted")return sameAsReply(val(d),rp.payload)?"已回報，待海技審核":"已修改，尚未重新送出";
+    if(rp&&rp.status==="submitted")return sameAsReply(val(d),rp.payload)?"已回報，待督導審核":"已修改，尚未重新送出";
     return "已填完，尚未送出";
   }
   return rp&&rp.status==="returned"?"被退回，請修正後重送":"未填";
@@ -371,7 +371,7 @@ function rowHtml(d,seq){
   }else{
     right=`<div class="ih"><span class="badge ${st}" id="bd-${d.uid}">${esc(badgeText(d,st))}</span></div>
       ${reopened[d.uid]?`<div style="margin:0 0 10px"><button type="button" class="btn" onclick="cancelReopen('${d.uid}')">↩ 取消變更，恢復成已結案</button></div>`:""}
-      ${rp&&rp.status==="returned"&&rp.payload&&rp.payload.returnNote?`<div class="errors" style="margin:0 0 10px;padding:8px 12px">海技退回原因：${esc(rp.payload.returnNote)}</div>`:""}
+      ${rp&&rp.status==="returned"&&rp.payload&&rp.payload.returnNote?`<div class="errors" style="margin:0 0 10px;padding:8px 12px">督導退回原因：${esc(rp.payload.returnNote)}</div>`:""}
       <label>改善措施簡述 Action Brief <span class="req">*</span><textarea data-f="action" oninput="setF('${d.uid}','action',this.value)">${esc(x.action)}</textarea></label>
       <div class="two"><label>改善完成日期 <span class="req">*</span><input type="date" data-f="corrected" max="${todayIso()}" value="${esc(x.corrected)}" onchange="setF('${d.uid}','corrected',this.value)"></label>
       <label>改善完成證據／備註（選填）<textarea data-f="evidence" style="min-height:42px" oninput="setF('${d.uid}','evidence',this.value)">${esc(x.evidence)}</textarea></label></div>
@@ -441,8 +441,8 @@ function applyFlt(){document.querySelectorAll("#defList .row").forEach(el=>{cons
    內控／系統結案都是同一套回報表單——內控在督導登錄時就已匯出立案，這裡結案後海技還要多一步去內控系統標記結案；
    系統內結案則單純在本系統結案即可，差別放在各自分頁上方的提示文字。 */
 const MODE_TAB_NOTE={
-  "內控":"📋 這項已由督導匯入內控系統（船舶動態與早會待辦系統）立案；請在下方填寫改善回報，海技審核結案後會再至內控系統把該案標記結案。",
-  "系統內結案":"📋 請填寫改善措施並附上證據，海技審核後即可系統內結案，不需要登記到其他系統。"
+  "內控":"📋 這項已由督導匯入內控系統（船舶動態與早會待辦系統）立案；請在下方填寫改善回報，督導審核結案後會再至內控系統把該案標記結案。",
+  "系統內結案":"📋 請填寫改善措施並附上證據，督導審核後即可系統內結案，不需要登記到其他系統。"
 };
 function setModeFlt(k){modeFlt=k;flt="all";renderSysStep();} // 切分頁時把填寫狀態篩選重置為「全部」，避免上一分頁篩到「未填」時，切過來卻誤以為是空的
 function setFlowTypeFlt(k){flowTypeFlt=k;renderFlowStep();}
@@ -655,7 +655,7 @@ async function submitAll(){
     const rows=ready.filter(d=>stOf(d)!=="lock").map(d=>{const x=drafts[d.uid];
       return {id:`${RID}_${d.uid}`,record_id:+RID,def_uid:d.uid,status:"submitted",updated_at:now,
         payload:{action:x.action.trim(),corrected:x.corrected,evidence:(x.evidence||"").trim(),photos:x.photos,by,title,at:now}};});
-    if(!rows.length){closeSubmitStatus();toast("⚠ 這些項目剛剛已被海技結案，請重新整理頁面",true);return;}
+    if(!rows.length){closeSubmitStatus();toast("⚠ 這些項目剛剛已被督導審核結案，請重新整理頁面",true);return;}
     // 改善後照片先改存 Storage，回報裡只留網址；上傳失敗的那張保留在回報裡，不擋送出
     showSubmitStatus("⏳","送單中…","正在上傳改善後照片…");
     const up=await PhotoCloud.externalize(rows);
