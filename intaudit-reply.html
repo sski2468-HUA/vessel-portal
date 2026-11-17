@@ -263,11 +263,13 @@ function renderShip(){
 }
 async function listWord(id,btn){
   const it=shipRows.find(x=>x.r.id===id);if(!it)return;
+  // 2026-11-17：船上下載的 Word 只含 FLOW 缺失（內控、系統內結案不匯出）
+  if(!(it.r.defs||[]).some(d=>d.closeMode==="FLOW")){toast("這次檢查沒有 FLOW 缺失，不需要下載 Word 報告");return;}
   btn.disabled=true;toast("⏳ 正在產生 Word 檔…");
   try{
     const rr=await api(`intaudit_replies?record_id=eq.${id}&select=id,status,payload&limit=5000`),m={};(rr||[]).forEach(x=>{m[x.id]=x;});
     await loadShips();
-    const {blob}=await iaMakeDocx(it.r,d=>{const x=m[`${id}_${d.uid}`];return x?Object.assign({status:x.status},x.payload):null;});
+    const {blob}=await iaMakeDocx(it.r,d=>{const x=m[`${id}_${d.uid}`];return x?Object.assign({status:x.status},x.payload):null;},{ver:"ship"});
     download(blob,fname(it.r,".docx"));toast("✓ 已下載 Word 檔");
   }catch(e){toast("⚠ 產生 Word 失敗："+e.message,true);}
   btn.disabled=false;
@@ -582,6 +584,8 @@ function goStep(n){
 }
 /* Word：內容＝督導登錄單全部內容＋船上已送出的回報（改善措施、完成日期、證據備註、改善後照片） */
 async function downloadWord(manual){
+  // 2026-11-17：船上下載的 Word 只含 FLOW 缺失（內控、系統內結案不匯出）
+  if(!((rec&&rec.defs)||[]).some(d=>d.closeMode==="FLOW")){if(manual)toast("這次檢查沒有 FLOW 缺失，不需要下載 Word 報告");return true;}
   toast("⏳ 正在產生 Word 檔…");
   try{
     await loadShips();
@@ -593,7 +597,7 @@ async function downloadWord(manual){
       const sub=rpOf(d),x=val(d);
       if(isEmpty(x))return null;
       return Object.assign({status:sub?sub.status:undefined},sub?sub.payload:{},x);
-    });
+    },{ver:"ship"});
     download(blob,fname(rec,".docx"));
     toast(`✓ 已存成 Word 檔：${fname(rec,".docx")}（照片 ${photoCount} 張）`);
     return true;
