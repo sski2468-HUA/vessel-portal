@@ -83,6 +83,8 @@ input[type=text]{padding:9px 10px;border:1px solid var(--line-2);border-radius:8
 .tabpill{border:1.5px solid var(--line-2);background:#fff;color:var(--ink-2);padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--sans)}
 .tabpill.on{background:var(--navy);border-color:var(--navy);color:#fff}
 #defTabsWrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+@keyframes mflash{0%{background:#ffe58a}100%{background:#fff8dc}}
+textarea.merged-flash{animation:mflash 1.6s ease-out;background:#fff8dc;border-color:#e8c25a}
 </style>
 </head>
 <body>
@@ -376,6 +378,7 @@ async function loadDraft(){
   try{
     const rows=await api(`${TABLE}?air_record_id=eq.${encodeURIComponent(RID)}&order=defect_idx.asc`);
     allDrafts=rows||[];
+    allDrafts.forEach(r=>{r._base=_clone((r.items&&r.items[0])||{});}); // 2026-11-17 合併存檔用：上次跟雲端同步的內容
   }catch(e){
     document.getElementById("edit-meta").textContent=`⚠ 讀取失敗：${e.message}`;
     notify("讀取失敗，請重新整理再試","err");
@@ -409,6 +412,8 @@ async function switchDefect(idx){
   if(draftRow&&draftRow.defect_idx!==idx)await flushAutoSave();
   const row=allDrafts.find(r=>r.defect_idx===idx);
   if(!row)return;
+  // 2026-11-17 切到另一條缺失時，先抓雲端最新內容（別人可能剛改過），避免拿舊內容當基準
+  if(draftRow&&draftRow!==row){try{const fr=await api(`${TABLE}?id=eq.${row.id}&select=items,history`);if(fr&&fr[0]){row.items=fr[0].items;row.history=fr[0].history;row._base=_clone((row.items&&row.items[0])||{});}}catch(e){}}
   DIDX=idx;
   draftRow=row;
   const it=(row.items&&row.items[0])||{};
@@ -432,31 +437,180 @@ function scheduleAutoSave(){
   clearTimeout(autoSaveTimer);
   autoSaveTimer=setTimeout(flushAutoSave,900);
 }
-async function flushAutoSave(){
-  clearTimeout(autoSaveTimer);
-  if(!draftRow)return;
-  const items=[{ _defectMeta: defectMeta }];
-  REPLY_FIELDS.forEach(f=>{ items[0][f.key+"Cn"]=replyData[f.key].cn; items[0][f.key+"En"]=replyData[f.key].en; });
-  // 每次自動儲存也順便留一份版本快照（跟「全部送出」的確認紀錄共用同一個 history 欄位），
-  // 這樣就算沒有特地按「全部送出」，內容也不會完全沒有備份、萬一被誤蓋掉還能找回來。
-  // 內容跟上一筆快照一樣就不重複存，最多保留最近 30 筆，避免無限長大。
-  const hist=Array.isArray(draftRow.history)?draftRow.history.slice():[];
-  const lastSnap=hist.length?JSON.stringify(hist[hist.length-1].items):null;
-  if(JSON.stringify(items[0])!==lastSnap){
-    hist.push({by:"（自動儲存）",at:new Date().toISOString(),items:items[0]});
-    trimHistory(hist,40);
-  }
-  try{
-    await api(`${TABLE}?id=eq.${draftRow.id}`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({items,history:hist})});
-    draftRow.items=items; draftRow.history=hist;
-    const cached=allDrafts.find(r=>r.id===draftRow.id);if(cached){cached.items=items;cached.history=hist;}
-    const note=document.getElementById("autoSaveNote");
-    if(note)note.textContent="✓ 已自動儲存　"+new Date().toLocaleTimeString("zh-TW",{hour12:false});
-  }catch(e){
-    const note=document.getElementById("autoSaveNote");
-    if(note)note.textContent="⚠ 自動儲存失敗："+e.message;
+/* ════════ 2026-11-17 多人同時編輯：合併存檔，不再整份覆蓋 ════════
+   以前存檔是把「自己畫面上的整份內容」直接寫回雲端，兩個人同時開同一張單時，
+   後存的人會把先存的人改的欄位蓋回舊內容，連版本快照也一起被蓋掉。
+   現在每一條缺失都記住「上次跟雲端同步時的內容」(row._base)，存檔前先讀雲端最新版本，逐欄比對：
+   ・只有我改的欄位 → 用我的；只有別人改的欄位 → 保留別人的，並更新到我的畫面（黃色標示）
+   ・兩個人都改了同一欄、而且內容不同 → 跳視窗讓我選要用哪一個版本
+   ・版本快照接在雲端最新的 history 後面，不會再弄丟別人的快照
+   另外每 15 秒檢查一次雲端，別人存過就把他改的欄位合併到畫面上。 */
+const _clone=o=>JSON.parse(JSON.stringify(o==null?{}:o));
+const _same=(a,b)=>JSON.stringify(a==null?"":a)===JSON.stringify(b==null?"":b);
+const ITEM_SKIP=new Set(["_defectMeta","_editedBy","_editedAt"]);
+function flatItem(it){
+  const o={};it=it||{};
+  Object.keys(it).forEach(k=>{if(!ITEM_SKIP.has(k))o[k]=it[k];});
+  const m=it._defectMeta;if(m&&typeof m==="object")Object.keys(m).forEach(k=>{o["m:"+k]=m[k];});
+  return o;
+}
+function unflatItem(o){
+  const it={},m={};let hasM=false;
+  Object.keys(o).forEach(k=>{if(o[k]===undefined)return;if(k.startsWith("m:")){m[k.slice(2)]=o[k];hasM=true;}else it[k]=o[k];});
+  it._defectMeta=hasM?m:null;
+  return it;
+}
+// 目前畫面上這一條缺失的內容
+function currentItem(){
+  const it=Object.assign({},(draftRow&&draftRow.items&&draftRow.items[0])||{});
+  it._defectMeta=defectMeta?_clone(defectMeta):null;
+  REPLY_FIELDS.forEach(f=>{it[f.key+"Cn"]=replyData[f.key].cn;it[f.key+"En"]=replyData[f.key].en;});
+  return it;
+}
+function myEditorName(){return getConfirmerValue()||"";}
+function fieldLabel(k){
+  if(k.startsWith("m:")){const mk=k.slice(2);const zh={detail:"缺失詳情",actual:"實際情況",corrective:"矯正措施",rootCause:"根本原因",preventive:"預防措施"}[mk];return "🚢 船上版本・"+(zh||mk);}
+  const m=/^(.*)(Cn|En)$/.exec(k);const f=m&&REPLY_FIELDS.find(x=>x.key===m[1]);
+  return f?`🏖 ${f.labelZh}（${m[2]==="Cn"?"中文":"English"}）`:k;
+}
+function whoWhen(it){
+  const by=(it&&it._editedBy)||"另一位同仁";
+  const at=it&&it._editedAt?new Date(it._editedAt).toLocaleTimeString("zh-TW",{hour12:false,hour:"2-digit",minute:"2-digit"}):"";
+  return `「${by}」${at?"在 "+at:"剛剛"}`;
+}
+/* 兩個人都改了同一欄：跳視窗逐欄選版本。回傳 {欄位: "mine"|"theirs"} */
+function askConflict(keys,mine,cloud,cloudIt){
+  return new Promise(resolve=>{
+    let m=document.getElementById("conflictModal");
+    if(!m){m=document.createElement("div");m.id="conflictModal";document.body.appendChild(m);}
+    m.style.cssText="position:fixed;inset:0;background:rgba(15,30,45,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px";
+    const box=s=>`<div style="white-space:pre-wrap;font-size:13px;max-height:140px;overflow:auto;background:#fff;border:1px solid #d5dde5;border-radius:6px;padding:6px 8px;margin-top:4px">${esc(s==null?"":String(s))||'<span style="color:#999">（空白）</span>'}</div>`;
+    m.innerHTML=`<div style="background:#fff;border-radius:10px;max-width:860px;width:100%;max-height:90vh;overflow:auto;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+      <div style="font-size:16px;font-weight:800;color:#a0441b">⚠ 這張單有人同時在改同一個欄位</div>
+      <div style="font-size:13px;color:#52606d;margin:4px 0 10px">${esc(whoWhen(cloudIt))} 也修改了下面 ${keys.length} 個欄位，跟你改的內容不一樣。請選每一欄要留哪個版本（其他欄位已自動合併，不用處理）。</div>
+      ${keys.map((k,i)=>`<div style="border:1px solid #e3e7eb;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+        <b style="font-size:13.5px">${esc(fieldLabel(k))}</b>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+          <label style="cursor:pointer;background:#eef6fb;border-radius:6px;padding:6px 8px"><input type="radio" name="cf${i}" value="theirs"> <b>用對方的</b>（${esc((cloudIt&&cloudIt._editedBy)||"另一位同仁")}）${box(cloud[k])}</label>
+          <label style="cursor:pointer;background:#fdf3e7;border-radius:6px;padding:6px 8px"><input type="radio" name="cf${i}" value="mine" checked> <b>用我的</b>${box(mine[k])}</label>
+        </div></div>`).join("")}
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px">
+        <button class="btn" id="cfAllTheirs">全部用對方的</button>
+        <button class="btn" id="cfAllMine">全部用我的</button>
+        <button class="btn primary" id="cfOk">確定</button>
+      </div></div>`;
+    const done=()=>{const r={};keys.forEach((k,i)=>{const c=m.querySelector(`input[name="cf${i}"]:checked`);r[k]=c?c.value:"mine";});m.style.display="none";resolve(r);};
+    m.querySelector("#cfOk").onclick=done;
+    m.querySelector("#cfAllMine").onclick=()=>{m.querySelectorAll('input[value="mine"]').forEach(x=>x.checked=true);done();};
+    m.querySelector("#cfAllTheirs").onclick=()=>{m.querySelectorAll('input[value="theirs"]').forEach(x=>x.checked=true);done();};
+  });
+}
+/* 合併存檔一條缺失：mineItem＝我要存的內容；row._base＝我上次同步時的內容。回傳合併結果與「別人改的欄位」 */
+async function mergeSaveRow(row,mineItem,tag){
+  // 兩個人在同一瞬間存檔時，可能都讀到同一個舊版本；所以寫入時加條件「雲端還是我剛讀到的那一版」，
+  // 不是的話（別人搶先存了）就重新讀、重新合併，最多試 4 次。
+  for(let attempt=0;;attempt++){
+    const r=await mergeSaveOnce(row,mineItem,tag);
+    if(r!=="retry")return r;
+    if(attempt>=3)throw new Error("同時有多人在存檔，請稍後再試");
+    await new Promise(res=>setTimeout(res,200+Math.random()*300));
   }
 }
+async function mergeSaveOnce(row,mineItem,tag){
+  const rows=await api(`${TABLE}?id=eq.${row.id}&select=items,history`);
+  const latest=rows&&rows[0];if(!latest)throw new Error("雲端找不到這條缺失（可能已被刪除）");
+  const cloudIt=(latest.items&&latest.items[0])||{};
+  const base=flatItem(row._base),mine=flatItem(mineItem),cloud=flatItem(cloudIt);
+  const keys=new Set([...Object.keys(base),...Object.keys(mine),...Object.keys(cloud)]);
+  const merged={},conflicts=[],theirs=[];
+  keys.forEach(k=>{
+    const mc=!_same(mine[k],base[k]),cc=!_same(cloud[k],base[k]);
+    if(mc&&cc&&!_same(mine[k],cloud[k]))conflicts.push(k);
+    else if(cc&&!mc)theirs.push(k);
+    merged[k]=mc?mine[k]:cloud[k];
+  });
+  if(conflicts.length){
+    const pick=await askConflict(conflicts,mine,cloud,cloudIt);
+    conflicts.forEach(k=>{if(pick[k]==="theirs"){merged[k]=cloud[k];theirs.push(k);}});
+  }
+  const out=unflatItem(merged);
+  const iChanged=[...keys].some(k=>!_same(merged[k],cloud[k]));
+  const hist=Array.isArray(latest.history)?latest.history.slice():[];
+  if(iChanged){
+    out._editedBy=myEditorName()||"（未選確認人）";out._editedAt=new Date().toISOString();
+    const snap=Object.assign({},out);delete snap._editedBy;delete snap._editedAt;
+    const lastSnap=hist.length?JSON.stringify(hist[hist.length-1].items):null;
+    if(JSON.stringify(snap)!==lastSnap){hist.push({by:tag+(myEditorName()?"・"+myEditorName():""),at:out._editedAt,items:snap});trimHistory(hist,40);}
+    const ver=cloudIt._editedAt?`eq.${encodeURIComponent(cloudIt._editedAt)}`:"is.null";
+    const res=await api(`${TABLE}?id=eq.${row.id}&items->0->>_editedAt=${ver}&select=id`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify({items:[out],history:hist})});
+    if(!Array.isArray(res)||!res.length)return "retry"; // 雲端版本已經變了（別人剛存），重來
+  }else{out._editedBy=cloudIt._editedBy;out._editedAt=cloudIt._editedAt;}
+  row.items=[out];row.history=hist;row._base=_clone(out);
+  return {out,theirs,conflicts,cloudIt,saved:iChanged};
+}
+/* 把別人改的欄位套到目前畫面：只更新那幾格（不重畫整頁、不搶游標），黃色閃一下 */
+function applyKeysToScreen(it,keys,snapshotMine){
+  const flatNow=flatItem(currentItem()),flatIt=flatItem(it),flatSnap=snapshotMine?flatItem(snapshotMine):null;
+  let n=0;
+  keys.forEach(k=>{
+    if(flatSnap&&!_same(flatNow[k],flatSnap[k]))return; // 存檔途中我又動了這一格，以我正在打的為準
+    const v=flatIt[k]==null?"":flatIt[k];let ta=null;
+    if(k.startsWith("m:")){if(!defectMeta)defectMeta={};defectMeta[k.slice(2)]=v;ta=document.querySelector(`#fieldsWrap textarea[data-meta-k="${k.slice(2)}"]`);}
+    else{const m=/^(.*)(Cn|En)$/.exec(k);if(m&&replyData[m[1]]){replyData[m[1]][m[2]==="Cn"?"cn":"en"]=v;ta=document.querySelector(`#fieldsWrap textarea[data-k="${m[1]}"][data-lang="${m[2]==="Cn"?"cn":"en"}"]`);}}
+    if(ta){ta.value=v;ta.classList.remove("merged-flash");void ta.offsetWidth;ta.classList.add("merged-flash");n++;}
+  });
+  return n;
+}
+function showMergeBanner(msg){
+  let b=document.getElementById("mergeBanner");
+  if(!b){b=document.createElement("div");b.id="mergeBanner";b.style.cssText="position:sticky;top:0;z-index:40;background:#fff4d6;border:1px solid #e8c25a;color:#6b4e00;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:13.5px;font-weight:600;display:flex;gap:10px;align-items:center";
+    const w=document.getElementById("fieldsWrap");w.parentNode.insertBefore(b,w);}
+  b.innerHTML=`<span style="flex:1">${msg}</span><button class="btn sm" onclick="this.parentNode.style.display='none'">知道了</button>`;
+  b.style.display="flex";
+}
+let saving=false,saveAgain=false;
+async function flushAutoSave(){
+  clearTimeout(autoSaveTimer);autoSaveTimer=null;
+  if(!draftRow)return;
+  if(saving){saveAgain=true;return;}
+  const row=draftRow,mine=currentItem();
+  if(_same(flatItem(mine),flatItem(row._base))){const note=document.getElementById("autoSaveNote");if(note&&/未儲存/.test(note.textContent))note.textContent="✓ 沒有變更";return;}
+  saving=true;
+  const note=document.getElementById("autoSaveNote");
+  try{
+    const r=await mergeSaveRow(row,mine,"（自動儲存）");
+    if(row===draftRow&&r.theirs.length){
+      const n=applyKeysToScreen(r.out,r.theirs,mine);
+      if(n)showMergeBanner(`⚠ ${esc(whoWhen(r.cloudIt))} 也修改了這張單，已把對方改的 ${n} 個欄位合併到你的畫面（黃色標示），你改的內容也都保留了。`);
+    }
+    if(note)note.textContent="✓ 已自動儲存　"+new Date().toLocaleTimeString("zh-TW",{hour12:false});
+  }catch(e){
+    if(note)note.textContent="⚠ 自動儲存失敗："+e.message;
+  }finally{
+    saving=false;
+    if(saveAgain){saveAgain=false;scheduleAutoSave();}
+  }
+}
+/* 每 15 秒看一下雲端：別人存過、而我沒有未存的變更 → 直接把他改的欄位帶到畫面；我也有改 → 走合併存檔 */
+async function pollRemote(){
+  if(!draftRow||saving||autoSaveTimer||document.hidden)return;
+  if(document.getElementById("conflictModal")&&document.getElementById("conflictModal").style.display!=="none")return;
+  const row=draftRow;
+  try{
+    const rows=await api(`${TABLE}?id=eq.${row.id}&select=items`);
+    const cloudIt=rows&&rows[0]&&rows[0].items&&rows[0].items[0];if(!cloudIt||row!==draftRow||saving||autoSaveTimer)return;
+    const base=flatItem(row._base),cloud=flatItem(cloudIt);
+    const changed=[...new Set([...Object.keys(base),...Object.keys(cloud)])].filter(k=>!_same(base[k],cloud[k]));
+    if(!changed.length)return;
+    if(!_same(flatItem(currentItem()),base)){flushAutoSave();return;}
+    const h=await api(`${TABLE}?id=eq.${row.id}&select=history`);
+    row.items=[cloudIt];row._base=_clone(cloudIt);if(h&&h[0])row.history=h[0].history;
+    const n=applyKeysToScreen(cloudIt,changed,null);
+    if(n)showMergeBanner(`⚠ ${esc(whoWhen(cloudIt))} 修改了這張單，已更新到你的畫面（黃色標示 ${n} 個欄位）。`);
+    renderChangeLog();
+  }catch(e){}
+}
+setInterval(pollRemote,15000);
 window.addEventListener("beforeunload",()=>{ if(autoSaveTimer)flushAutoSave(); });
 function renderDefMeta(){
   const box=document.getElementById("defMetaBox");
@@ -585,6 +739,7 @@ function applyPaste(){
   document.getElementById("pasteText").value="";
   togglePaste();
   renderStage();
+  if(filled)scheduleAutoSave(); // 2026-11-17 以前貼上後要再動一下才會存，這裡直接存
   notify(filled?`✓ 已自動填入 ${filled}／${REPLY_FIELDS.length} 個英文欄位`:"⚠ 找不到符合格式的英文內容","ok2");
 }
 
@@ -646,12 +801,13 @@ async function applyPasteAll(){
   const btn=document.getElementById("applyPasteAllBtn");
   if(btn){ btn.disabled=true; btn.textContent="套用中…"; }
   let filledFields=0, touchedDefs=0, failedDefs=[];
+  await flushAutoSave(); // 先把目前分頁還沒存的內容存掉，再用合併存檔套用翻譯
   for(const idxStr of Object.keys(blocks)){
     const idx=parseInt(idxStr,10);
     const row=allDrafts.find(r=>r.defect_idx===idx);
     if(!row)continue; // 貼上的內容裡有這個編號，但這筆記錄底下沒有這條缺失，略過
     const block=blocks[idx];
-    const it=(row.items&&row.items[0])||{};
+    const it=_clone(row._base||(row.items&&row.items[0])||{}); // 2026-11-17 以同步基準為底，只改英文欄位，合併存檔
     let rowFilled=0;
     REPLY_FIELDS.forEach(f=>{
       const v=grabEn(block,f.labelEN);
@@ -659,16 +815,12 @@ async function applyPasteAll(){
     });
     if(!rowFilled)continue; // 這條缺失找到區塊，但沒有任何一個英文欄位有內容，不用存檔
     touchedDefs++;
-    const items=[it];
-    const hist=Array.isArray(row.history)?row.history.slice():[];
-    hist.push({by:"（批次貼上翻譯）",at:new Date().toISOString(),items:it});
-    trimHistory(hist,40);
     try{
-      await api(`${TABLE}?id=eq.${row.id}`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({items,history:hist})});
-      row.items=items; row.history=hist;
+      const r=await mergeSaveRow(row,it,"（批次貼上翻譯）");
       if(row.defect_idx===DIDX){
         // 剛好正在畫面上顯示的就是這一條，順便同步一下畫面，不用整頁重新讀取
-        REPLY_FIELDS.forEach(f=>{ replyData[f.key].en=it[f.key+"En"]||replyData[f.key].en; });
+        const o=r.out;REPLY_FIELDS.forEach(f=>{ replyData[f.key].cn=o[f.key+"Cn"]||""; replyData[f.key].en=o[f.key+"En"]||""; });
+        defectMeta=o._defectMeta||defectMeta;
         draftRow=row;
       }
     }catch(e){
@@ -845,6 +997,8 @@ async function submitAll(){
   const now=new Date().toISOString();
   let ok=0, fail=0;
   for(const row of allDrafts){
+    // 2026-11-17 送出前讀雲端最新的內容與版本紀錄，接在最新的後面，不會蓋掉別人剛留下的紀錄
+    try{const fr=await api(`${TABLE}?id=eq.${row.id}&select=items,history,confirm_count`);if(fr&&fr[0]){row.items=fr[0].items;row.history=fr[0].history;row.confirm_count=fr[0].confirm_count;}}catch(e){}
     const items=row.items&&row.items.length?row.items:[{}];
     const hist=Array.isArray(row.history)?row.history.slice():[];
     // 找出「上一次確認送出」時的內容（跳過自動儲存），拿來跟這次送出的內容比對差異；
@@ -1057,11 +1211,12 @@ async function applyDocxImport(text){
   const ok=confirm(`在檔案中找到 ${foundCount} 筆缺失區塊（本筆填單目前有 ${allDrafts.length} 筆缺失），共可回填 ${filled} 個欄位（中文＋英文合計）。\n\n這會覆蓋目前頁面上、且檔案裡有內容的對應欄位；檔案裡是空的欄位不會清空原本已填的內容。缺失區塊是依「第幾筆」對應，若檔案裡的順序被調整過請先確認過再回填。\n\n確定要回填嗎？`);
   if(!ok)return;
   let patchCount=0;
+  await flushAutoSave();
   for(let i=0;i<allDrafts.length;i++){
     const block=blocks[i];
     if(!block)continue;
     const row=allDrafts[i];
-    const it=Object.assign({},(row.items&&row.items[0])||{});
+    const it=_clone(row._base||(row.items&&row.items[0])||{}); // 2026-11-17 以同步基準為底，合併存檔
     it._defectMeta=Object.assign({},it._defectMeta||{});
     let changed=false;
     FIELDS.forEach(([label,cnKey,enKey])=>{
@@ -1074,9 +1229,8 @@ async function applyDocxImport(text){
       if(v){it._defectMeta[metaKey]=v;changed=true;}
     });
     if(!changed)continue;
-    row.items=[it];
     try{
-      await api(`${TABLE}?id=eq.${row.id}`,{method:"PATCH",headers:{"apikey":CLOUD.key,"Authorization":"Bearer "+CLOUD.key,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({items:[it]})});
+      await mergeSaveRow(row,it,"（匯入 Word）");
       patchCount++;
     }catch(e){console.warn("匯入回填寫入失敗 defect_idx="+row.defect_idx,e);}
   }
