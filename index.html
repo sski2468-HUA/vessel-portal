@@ -337,9 +337,8 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   <button data-p="air">📝 線上填單紀錄</button>
   <button data-p="pos">👍 正面評價</button>
   <button data-p="camp">🔍 分享缺失自查</button>
-  <button data-p="docs">📨 船隊通報單</button>
   <button data-p="ntf">📇 緊急通報名單</button>
-  <button data-p="ref">📚 參考文件</button>
+  <button data-p="ref">📚 通報單／其他資訊</button>
 </div></nav>
 <!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
 <div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
@@ -433,11 +432,6 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
   </section>
 
 
-  <!-- 船隊通報單 -->
-  <section class="page" id="p-docs">
-    <h2 class="pt">📨 船隊通報單 <span class="hint">公司通報、通告清單與回簽資料夾，點擊開啟</span></h2>
-    <div id="docList"><div class="loading">載入中…</div></div>
-  </section>
 
   <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；只提供列印／存成 PDF -->
   <section class="page" id="p-ntf">
@@ -454,9 +448,21 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
 
   <!-- 參考文件（主系統「20 海技參考資料 → 📤 分享船隊」維護，app_db ref_downloads）：公司分享給船隊的文件／訊息，船上下載或閱讀會記錄版本 -->
   <section class="page" id="p-ref">
-    <h2 class="pt">📚 參考文件 Reference Documents <span class="hint">公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求），有新版時請下載並更換船上留存版本</span></h2>
+    <!-- 2026-11-20：「船隊通報單」「參考文件」合併成一個頁籤，用子標籤分：📨 Circular／Bulletin（app_db refDocs）、📋 其他資訊（app_db ref_downloads） -->
+    <h2 class="pt">📚 通報單／其他資訊 Circulars &amp; Other Info <span class="hint">公司的 Circular／Bulletin，以及分享給船隊的文件、連結與訊息（有新版時請下載並更換船上留存版本）</span></h2>
+    <div id="refTodo"></div>
+    <div class="subtabs noprint" id="refSubtabs">
+      <button type="button" data-s="cb" onclick="refSub('cb')">📨 Circular／Bulletin</button>
+      <button type="button" data-s="ref" onclick="refSub('ref')">📋 其他資訊</button>
+    </div>
+    <div id="ref-sub-cb">
+      <div class="flt"><input id="docQ" placeholder="🔍 搜尋標題" style="flex:1;max-width:320px" oninput="renderDocs()"></div>
+      <div id="docList"><div class="loading">載入中…</div></div>
+    </div>
+    <div id="ref-sub-ref" style="display:none">
     <div class="flt"><input id="refQ" placeholder="🔍 搜尋標題／說明／附件名稱／分類" style="flex:1;max-width:420px"><select id="refMonth"><option value="">全部月份</option></select></div>
     <div id="refList"><div class="loading">載入中…</div></div>
+    </div>
   </section>
 </main>
 
@@ -600,7 +606,7 @@ document.addEventListener("click",e=>{
   else if(/ship-guide\.pdf/.test(h))trackAct("開啟","操作說明",`${ship} 開啟操作說明`);
   else if(/ship-itinerary/.test(h))trackAct("開啟","船端 Itinerary",`${ship} 開啟船端 Itinerary`);
   else if(/sqms/i.test(h))trackAct("開啟","SQMS",`${ship} 開啟 SQMS 程序書修訂需求管理平台`);
-  else if(a.closest("#p-docs"))trackAct("開啟","船隊通報單",`${ship} 開啟：${txt}`);
+  else if(a.closest("#ref-sub-cb"))trackAct("開啟","船隊通報單",`${ship} 開啟：${txt}`);
   else if(a.dataset.rd)refDownloaded(a.dataset.rd);
 },true);
 
@@ -683,7 +689,7 @@ function renderMarquee(){
     openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
     trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
     ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":"",
-    refPending().filter(d=>d.marquee!==false).length?`📚 參考文件：${refPending().filter(d=>d.marquee!==false).map(d=>d.title).join("、")}`:"" /* 「顯示在跑馬燈」沒勾的（例：LISCR 彙整）只靠紅點提醒 */
+    refPending().filter(d=>d.marquee!==false).length?`📋 其他資訊：${refPending().filter(d=>d.marquee!==false).map(d=>d.title).join("、")}`:"" /* 「顯示在跑馬燈」沒勾的（例：LISCR 彙整）只靠紅點提醒 */
   ].filter(Boolean);
   const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
   if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
@@ -715,9 +721,9 @@ function renderHome(){
     {ic:"⚠️",t:"分享缺失自查・需追蹤結案",has:trk>0,
      st:trk?`${trk} 項未結案`:"✓ 沒有未結案項目",
      d:"答「有，需處理／未完成」的項目，改善完成後請回到該自查勾「已完成改善（結案）」再送出一次。",go:"camp",b:"前往結案"},
-    {ic:"📚",t:"參考文件",has:refN>0,
+    {ic:"📋",t:"其他資訊",has:refN>0,
      st:refN?`${refN} 份新的／有更新，請下載或閱讀`:(refVisible().length?"✓ 都已下載／閱讀":"目前沒有文件"),
-     d:"公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。",go:"ref",b:"前往查閱"},
+     d:"公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。",go:"refinfo",b:"前往查閱"},
     {ic:"📇",t:"緊急通報名單 Notification List",has:ntfUp,
      st:ntfUp?"名單已更新，請重新列印":(NTF&&NTF.printed?"✓ 已列印最新版":"✓ 目前為最新版"),
      d:"DPA、CSO、督導（含代理人）與岸上緊急應變小組電話，可列印或存 PDF；名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。",go:"ntf",b:"前往列印"}
@@ -1011,8 +1017,10 @@ function renderExec(){
 }
 
 /* ════════ 船隊通報單 ════════ */
+/* 2026-11-20：主系統可把某筆通報單設成「🔒 只有岸上」（vis:"in"），船上不顯示 */
 function renderDocs(){
-  const list=D.docs.slice().sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.createdAt||0)-(a.createdAt||0));
+  const q=String(($("#docQ")||{}).value||"").trim().toLowerCase();
+  const list=D.docs.filter(d=>d&&d.vis!=="in"&&(!q||String(d.title||"").toLowerCase().includes(q))).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.createdAt||0)-(a.createdAt||0));
   $("#docList").innerHTML=list.map(d=>`<a class="doc" href="${esc(d.url)}" target="_blank" rel="noopener">${d.pinned?"📌":"📄"}<span class="t">${esc(d.title)}</span><span class="hint">${d.createdAt?new Date(d.createdAt).toLocaleDateString("zh-TW"):""}</span><span class="btn sm">開啟 ↗</span></a>`).join("")||`<div class="empty">目前沒有通報單連結。</div>`;
 }
 
@@ -1218,7 +1226,7 @@ function refHas(d){const o=REF.dl[d.id];return !!(o&&o.vids.has(d.vid));}
 function refPending(){return refVisible().filter(d=>d.track!==false&&!refHas(d));}
 function refBadge(){
   const b=document.querySelector('#tabs button[data-p="ref"]');if(!b)return;const n=refPending().length;
-  b.innerHTML=`📚 參考文件${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
+  b.innerHTML=`📚 通報單／其他資訊${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
   try{groupBadge();}catch(e){}
 }
 /* 點附件／連結＝下載；沒有附件的訊息按「已閱讀」 */
@@ -1228,7 +1236,7 @@ function refDownloaded(id,act){
   log(a,"參考文件下載",`${D.ship} ${a==="閱讀"?"已閱讀":"下載"}：［${d.cat||""}］${d.title}（${d.verDate||""}${d.ver?" "+d.ver:""}）[文件 ${d.id}] [版本 ${d.vid}]`);
   if(isPreview())return; // 預覽不記錄，也不清提示
   const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:0};o.vids.add(d.vid);o.ts=Date.now();
-  setTimeout(()=>{refBadge();renderRef();try{renderMarquee();}catch(e){}},300);
+  setTimeout(()=>{refBadge();refSub(REF_SUB);try{renderMarquee();}catch(e){}},300);
 }
 function refSize(n){n=+n||0;return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";}
 function refHref(f){return /pdf|image/i.test(f.type||"")?f.url:`${f.url}?download=${encodeURIComponent(f.name||"")}`;}
@@ -1272,7 +1280,20 @@ function inspSub(s){
   $("#insp-sub-exec").style.display=INSP_SUB==="exec"?"":"none";
   if(INSP_SUB==="exec"){renderExec();trackOnce("tab:exec","瀏覽","內部檢查執行情形一覽表",`${D.ship} 瀏覽「內部檢查執行情形一覽表」`);}else renderInsp();
 }
-const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:renderDocs,ntf:renderNtf,ref:renderRef};
+/* 「📚 通報單／其他資訊」頁的子標籤（2026-11-20 合併）：cb＝Circular／Bulletin、ref＝其他資訊。
+   預設看 Circular／Bulletin；有新的其他資訊待下載／閱讀時，上方黃條提示可以直接切過去。 */
+let REF_SUB="cb";
+function refSub(s){
+  REF_SUB=s==="ref"?"ref":"cb";
+  document.querySelectorAll("#refSubtabs button").forEach(b=>b.classList.toggle("on",b.dataset.s===REF_SUB));
+  $("#ref-sub-cb").style.display=REF_SUB==="cb"?"":"none";
+  $("#ref-sub-ref").style.display=REF_SUB==="ref"?"":"none";
+  const n=refPending().length,rb=document.querySelector('#refSubtabs button[data-s="ref"]');
+  if(rb)rb.innerHTML=`📋 其他資訊${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
+  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #e8842c;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub('ref')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
+  if(REF_SUB==="cb")renderDocs();else renderRef();
+}
+const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:()=>refSub("cb"),ntf:renderNtf,ref:()=>refSub(REF_SUB)};
 /* 下拉群組：點群組名稱展開／收合，點選項目或點旁邊空白就收起來 */
 function ddClose(except){document.querySelectorAll("#tabs .dd.open").forEach(d=>{if(d!==except){d.classList.remove("open");d.querySelector(".ddb").setAttribute("aria-expanded","false");}});}
 document.querySelectorAll("#tabs .ddb").forEach(b=>b.onclick=e=>{e.stopPropagation();const d=b.parentElement;ddClose(d);const o=d.classList.toggle("open");b.setAttribute("aria-expanded",o?"true":"false");});
@@ -1285,13 +1306,15 @@ function groupBadge(){
   document.querySelectorAll("#tabs .dd").forEach(d=>{const w=d.querySelector(".gbw");if(!w)return;const k=n[d.dataset.g]||0;w.innerHTML=k?` <span class="gb">${k}</span>`:"";});
 }
 function go(p){
+  if(p==="docs"){REF_SUB="cb";p="ref";} // 舊的「船隊通報單」頁籤已併入「通報單／其他資訊」
+  if(p==="refinfo"){REF_SUB="ref";p="ref";} // 首頁「其他資訊」卡片直接開到子標籤
   ddClose();
   document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
   document.querySelectorAll("#tabs .dd").forEach(d=>d.classList.toggle("on",!!d.querySelector(`button[data-p="${p}"]`)));
   document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="p-"+p));
   RENDER[p]();window.scrollTo(0,0);
   try{sessionStorage.setItem("ship_portal_tab",p);}catch(e){}
-  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",docs:"船隊通報單",ntf:"緊急通報名單",ref:"參考文件"};
+  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",docs:"船隊通報單",ntf:"緊急通報名單",ref:"通報單／其他資訊"};
   if(p!=="home")trackOnce("tab:"+p,"瀏覽",TABN[p]||p,`${D.ship} 瀏覽「${TABN[p]||p}」頁籤`);
 }
 document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
