@@ -452,8 +452,10 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
     <h2 class="pt">📚 通報單／其他資訊 Circulars &amp; Other Info <span class="hint">公司的 Circular／Bulletin，以及分享給船隊的文件、連結與訊息（有新版時請下載並更換船上留存版本）</span></h2>
     <div id="refTodo"></div>
     <div class="subtabs noprint" id="refSubtabs">
-      <button type="button" data-s="cb" onclick="refSub('cb')">📨 Circular／Bulletin</button>
-      <button type="button" data-s="ref" onclick="refSub('ref')">📋 其他資訊</button>
+      <!-- 2026-11-24 三分類：船隊通報（固定）｜參考文件（固定）｜其他資訊（有時效，過期自動收起） -->
+      <button type="button" data-s="cb" onclick="refSub('cb')">📄 船隊通報</button>
+      <button type="button" data-s="ref" onclick="refSub('ref')">📚 參考文件</button>
+      <button type="button" data-s="oth" onclick="refSub('oth')">📢 其他資訊</button>
     </div>
     <div id="ref-sub-cb">
       <div class="flt"><input id="docQ" placeholder="🔍 搜尋標題" style="flex:1;max-width:320px" oninput="renderDocs()"></div>
@@ -1002,7 +1004,7 @@ function renderPos(){
   const people=new Set(rows.map(r=>r.person).filter(Boolean)).size;
   $("#pSum").innerHTML=`<span class="pchip ${!PICK.pos?"on":""}" onclick="PICK.pos=null;renderPos()">全部　${base.length}</span>`+srcs.map(t=>`<span class="pchip ${PICK.pos===t?"on":""}" onclick="PICK.pos=PICK.pos===${esc(JSON.stringify(t)).replace(/"/g,"&quot;")}?null:${esc(JSON.stringify(t)).replace(/"/g,"&quot;")};renderPos()">${isInt(t)?"內":"外"} ${esc(t)}　${base.filter(r=>r.itype===t).length}</span>`).join("")+`<span class="hint" style="margin-left:auto">共 <b>${rows.length}</b> 則・獲評人員 <b>${people}</b> 位</span>`;
   POSROWS=rows;
-  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr" onclick="posOpen(${i},this)"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn"><b>${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</b><span>${esc(r.rank||"")}</span></td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
+  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn"><b>${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</b><span>${esc(r.rank||"")}</span></td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
   return;
   $("#pList").innerHTML=rows.map(r=>`<div class="pos"><div><span class="who">${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</span>　<span class="src">${esc(r.rank||"")}</span>${r.item?`　<span class="pill ok">${esc(r.item)}</span>`:""}</div><div class="meta">${esc((pd(r.date)||{}).txt||r.date||"")}　${r.itype&&r.itype!=="—"?`${ioTag(r.itype)}<b style="color:var(--ink)">${esc(r.itype)}</b>`:"—"}</div><div class="c">${esc(r.comment||r.content||"")}</div></div>`).join("")||`<div class="empty">沒有符合條件的正面評價</div>`;
 }
@@ -1232,7 +1234,10 @@ async function loadRef(code){
     const s=String(r.summary||""),id=(s.match(/\[文件 ([^\]]+)\]/)||[])[1],v=(s.match(/\[版本 ([^\]]+)\]/)||[])[1];if(!id)return;
     const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:r.ts};if(v)o.vids.add(v);});}catch(e){}
 }
-function refVisible(){return REF.docs.filter(d=>d&&!d.paused&&(!(d.ships||[]).length||d.ships.includes(D.ship)));}
+/* 2026-11-24 參考文件／其他資訊分開（跟主系統同一個判斷）；其他資訊過了「有效到」就不顯示 */
+function refKind(d){return (d&&d.kind)||(/須知|提醒|訓練|訊息|活動/.test(String(d&&d.cat||""))?"oth":"ref");}
+function refToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function refVisible(){const t=refToday();return REF.docs.filter(d=>d&&!d.paused&&!(d.exp&&String(d.exp)<t)&&(!(d.ships||[]).length||d.ships.includes(D.ship)));}
 function refHas(d){const o=REF.dl[d.id];return !!(o&&o.vids.has(d.vid));}
 function refPending(){return refVisible().filter(d=>d.track!==false&&!refHas(d));}
 function refBadge(){
@@ -1260,25 +1265,26 @@ function renderRef(){
   const ms=$("#refMonth");if(ms){const cur=ms.value,mm=[...new Set(refVisible().map(d=>String(d.verDate||"").slice(0,7)).filter(Boolean))].sort().reverse();
     ms.innerHTML=`<option value="">全部月份</option>`+mm.map(m=>`<option value="${m}">${m.replace("-"," 年 ")} 月</option>`).join("");if(mm.includes(cur))ms.value=cur;}
   const mo=ms?ms.value:"";
-  const vis=refVisible().filter(d=>hit(d)&&(!mo||String(d.verDate||"").startsWith(mo))),cats=[...new Set(refVisible().map(d=>d.cat||"其他"))].sort();
+  const K=REF_SUB==="oth"?"oth":"ref",VIS=refVisible().filter(d=>refKind(d)===K);
+  const vis=VIS.filter(d=>hit(d)&&(!mo||String(d.verDate||"").startsWith(mo))),cats=[...new Set(VIS.map(d=>d.cat||"其他"))].sort();
   if(REF.cat&&!cats.includes(REF.cat))REF.cat="";
   const chip=(c,label,n,p)=>`<button type="button" class="btn sm${REF.cat===c?" dark":""}" onclick="REF.cat='${esc(c)}';renderRef()">${esc(label)}（${n}）${p?` <span style="color:#c0392b;font-weight:800">●</span>`:""}</button>`;
-  const pend=refPending();
-  const head=refVisible().length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
+  const pend=refPending().filter(d=>refKind(d)===K);
+  const head=VIS.length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
   const list=vis.filter(d=>!REF.cat||(d.cat||"其他")===REF.cat).slice()
     .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(refPending().includes(a)?0:1)-(refPending().includes(b)?0:1)||String(b.verDate||"").localeCompare(String(a.verDate||""))); // 📌 置頂 → 未下載 → 日期新到舊
   const fmt=ts=>new Date(ts).toLocaleDateString("zh-TW");
   box.innerHTML=head+(list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has,files=d.files||[];
     return `<div class="rdoc${need?" new":""}"><div class="bd">
       <div class="tt">${d.pinned?`<span title="置頂">📌</span> `:""}${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
-      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${(d.sharer||d.createdBy)?`　<span class="hint">分享人：${esc(String(d.sharer||d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
+      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.exp?`　<span style="color:#9a5a00">有效到 <b>${esc(d.exp)}</b></span>`:""}${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${(d.sharer||d.createdBy)?`　<span class="hint">分享人：${esc(String(d.sharer||d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
       ${d.note?(()=>{const s=String(d.note),long=s.length>150||(s.match(/\n/g)||[]).length>2; /* 太長只顯示前 3 行，按「詳全文」展開 */
         return `<div class="nt${long?" clamp3":""}">${esc(s)}</div>`+(long?`<a href="#" class="more" onclick="event.preventDefault();const o=this.previousElementSibling.classList.toggle('open');this.textContent=o?'收合 ▲':'詳全文 ▼'">詳全文 ▼</a>`:"");})():""}
       ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
       <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
       <div class="ac">${d.url?`<a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
       ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}
-      ${need?`<button type="button" class="btn dark" onclick="refDownloaded('${esc(d.id)}','閱讀')" title="看完內容後按這裡確認（點開附件或連結也會自動算已下載）">✓ 確認已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">${q?`沒有符合「${esc(q)}」的文件，請換個關鍵字。`:"目前沒有公司分享的參考文件。"}</div>`);
+      ${need?`<button type="button" class="btn dark" onclick="refDownloaded('${esc(d.id)}','閱讀')" title="看完內容後按這裡確認（點開附件或連結也會自動算已下載）">✓ 確認已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">${q?`沒有符合「${esc(q)}」的文件，請換個關鍵字。`:(K==="oth"?"目前沒有進行中的其他資訊。":"目前沒有公司分享的參考文件。")}</div>`);
 }
 
 /* ════════ 頁籤 ════════ */
@@ -1295,13 +1301,13 @@ function inspSub(s){
    預設看 Circular／Bulletin；有新的其他資訊待下載／閱讀時，上方黃條提示可以直接切過去。 */
 let REF_SUB="cb";
 function refSub(s){
-  REF_SUB=s==="ref"?"ref":"cb";
+  REF_SUB=s==="ref"||s==="oth"?s:"cb";
   document.querySelectorAll("#refSubtabs button").forEach(b=>b.classList.toggle("on",b.dataset.s===REF_SUB));
   $("#ref-sub-cb").style.display=REF_SUB==="cb"?"":"none";
-  $("#ref-sub-ref").style.display=REF_SUB==="ref"?"":"none";
-  const n=refPending().length,rb=document.querySelector('#refSubtabs button[data-s="ref"]');
-  if(rb)rb.innerHTML=`📋 其他資訊${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
-  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #e8842c;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub('ref')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
+  $("#ref-sub-ref").style.display=REF_SUB!=="cb"?"":"none";
+  const n=refPending().length,nb=k=>{const c=refPending().filter(d=>refKind(d)===k).length;return c?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${c}</span>`:"";};
+  {const rb=document.querySelector('#refSubtabs button[data-s="ref"]');if(rb)rb.innerHTML="📚 參考文件"+nb("ref");const ob=document.querySelector('#refSubtabs button[data-s="oth"]');if(ob)ob.innerHTML="📢 其他資訊"+nb("oth");}
+  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #e8842c;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則新的參考文件／其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub(refPending().some(d=>refKind(d)==='ref')?'ref':'oth')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
   if(REF_SUB==="cb")renderDocs();else renderRef();
 }
 const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:()=>refSub("cb"),ntf:renderNtf,ref:()=>refSub(REF_SUB)};
@@ -1389,9 +1395,10 @@ $("#refMonth").addEventListener("change",renderRef);
   .pchip{display:inline-flex;border:1px solid var(--line,#dde4ea);background:#fff;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#3d4f5c;margin:0 6px 6px 0}
   .pchip.on{background:var(--navy,#1c3a5e);color:#fff;border-color:var(--navy,#1c3a5e)}
   #pSum{display:flex;flex-wrap:wrap;align-items:center}
-  table.poslist tr.pr{cursor:pointer}table.poslist tr.pr:hover td{background:#f6faf7}
+  table.poslist tr.pr:hover td{background:#f9fbfa}
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
-  table.poslist .pq,table.poslist .pc{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.55;max-width:420px}
+  table.poslist .pq,table.poslist .pc{line-height:1.6;white-space:pre-line;overflow-wrap:anywhere} /* 2026-11-24 完整顯示，不截斷、不點開右邊 */
+  table.poslist .pq{min-width:220px}table.poslist .pc{min-width:260px}
   table.poslist .pq{color:#1f6b4a;font-size:13px}
   body.ps-on table.poslist .pw{display:none}
   /* 右邊打開時，左邊線上填單紀錄只留：日期、來源、狀態、內容 */

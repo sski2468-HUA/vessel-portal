@@ -1653,5 +1653,39 @@ async function submitAll(){
 
 init();
 </script>
+
+<script>
+/* ════════ 2026-11-24 清單模式改成「列表」：一題一列（題目｜缺失內容｜本船情形），不再一張張卡片
+   ・需要補填的內容（實際狀況、追蹤方式、結案、照片、不適用原因）在該列下方展開，跟原本一樣
+   ・只改清單模式的排版；引導作答、資料欄位、存檔都不動；手機（窄螢幕）維持原本卡片 */
+(function(){
+  const css=document.createElement("style");css.textContent=`
+  @media(min-width:800px){
+  body.lm #itemsWrap{margin:0 14px 14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.lm .lm-head{display:grid!important}
+  .lm-head{display:none;grid-template-columns:200px minmax(0,1fr) 230px;column-gap:16px;padding:9px 14px;background:#f3f6f9;color:var(--ink-3,#6b7c88);font-size:12.5px;font-weight:800;border-bottom:1px solid var(--line)}
+  body.lm .itemcard.gh.show{display:grid;grid-template-columns:200px minmax(0,1fr) 230px;column-gap:16px;align-items:start;border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;padding:12px 14px}
+  body.lm .itemcard.gh.show:last-child{border-bottom:0}
+  body.lm .itemcard.gh.show:nth-child(even){background:#fbfcfd}
+  body.lm .itemcard>*{grid-column:1/-1}
+  body.lm .itemcard>div:first-child{grid-column:1;grid-row:1;font-size:13.5px;line-height:1.5}
+  body.lm .itemcard>div:first-child>b{display:block;margin:4px 0 2px}
+  body.lm .itemcard>.refbox,body.lm .itemcard>.topicref{grid-column:2;grid-row:1;margin:0;background:transparent;border:0;padding:0;font-size:13px;line-height:1.65}
+  body.lm .itemcard>p:not(.hint):not(.selfnote){display:none}
+  body.lm .itemcard>.statusrow{grid-column:3;grid-row:1;flex-direction:column;gap:5px;margin:0}
+  body.lm .itemcard .statusbtn{min-width:0;flex:none;padding:6px 10px;font-size:12.5px;text-align:left;border-radius:7px}
+  body.lm .itemcard .detailwrap.show,body.lm .itemcard .nawrap.show{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+  body.lm .itemcard>p.hint{margin:6px 0 0!important;font-size:11.5px}
+  body.lm .itemcard>p.hint:empty{display:none}
+  }`;
+  document.head.appendChild(css);
+  function head(){const w=document.getElementById("itemsWrap");if(!w)return;
+    if(!w.querySelector(".lm-head")){const h=document.createElement("div");h.className="lm-head";h.innerHTML="<span>題目</span><span>缺失內容</span><span>本船目前有同樣或類似的情形嗎？</span>";w.insertBefore(h,w.firstChild);}}
+  const _ri=renderItems;
+  renderItems=function(){const r=_ri.apply(this,arguments);head();return r;};
+  const _av=applyViewMode;
+  applyViewMode=function(){document.body.classList.toggle("lm",viewMode==="list");head();return _av.apply(this,arguments);};
+})();
+</script>
 </body>
 </html>
