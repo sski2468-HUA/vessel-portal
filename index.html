@@ -1354,5 +1354,102 @@ $("#refMonth").addEventListener("change",renderRef);
   go(RENDER[tab]?tab:"home");
 })();
 </script>
+<script>
+/* ════════ 2026-11-24 船舶平台左右分割 PSplit ════════
+   線上填單（新填單、✎ 修改後重送）、分享缺失自查（填答／查看）不再另開網頁，改在本頁右邊打開（iframe，頁面本身完全沒改）：
+   ・新填單、修改後重送：預設全螢幕（打字、上傳照片需要空間），「⇲ 回左右分割」可縮回。
+   ・分享缺失自查：左右分割，左邊清單保留。
+   ・首頁「外部檢查線上填單」→ 先到「外部檢查線上填單紀錄」再打開；首頁的分享自查待辦 → 先到「分享缺失自查」再打開。
+   ・👁 查看（線上填單）：原本蓋滿畫面的視窗改成貼在右邊。
+   ・填到一半要換別的或關閉，先提醒一次（內容本來就會自動暫存）。寬度不到 1100 一律全螢幕。
+   ・預覽模式（海技從主系統看船上畫面）維持原本另開分頁，不受影響。 */
+(function(){
+  const css=document.createElement("style");css.textContent=`
+  body.ps-on main{max-width:none;margin:0 calc(min(56%,100% - 420px) + 8px) 0 0}
+  body.ps-full main{display:none}
+  #psPanel,body.ps-on #airViewOv{position:fixed!important;right:0!important;left:auto!important;bottom:0!important;width:min(56%,calc(100% - 420px))!important;background:#fff!important;border-left:1px solid var(--line,#dde4ea);box-shadow:-8px 0 22px rgba(20,40,60,.12);z-index:30!important;display:flex;flex-direction:column;padding:0!important;overflow:hidden}
+  body.ps-full #psPanel,body.ps-full #airViewOv{width:100%!important}
+  body.ps-on #airViewOv{overflow:auto;display:block!important}
+  body.ps-on #airViewOv>div{max-width:none!important;border-radius:0!important;min-height:100%}
+  #psPanel .ps-h{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line,#dde4ea);background:#f7f9fb;flex-wrap:wrap}
+  #psPanel .ps-h b{color:var(--navy,#1c3a5e);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
+  #psPanel iframe{flex:1;width:100%;border:0;background:#fff}
+  .ps-cur>td,tr.ps-cur>td{background:#fff3e2!important}
+  /* 右邊打開時，左邊線上填單紀錄只留：日期、來源、狀態、內容 */
+  body.ps-on #p-air table.tb tr>:nth-child(3){display:none}
+  @media(max-width:1099px){body.ps-on main{display:none}#psPanel,body.ps-on #airViewOv{width:100%!important}}`;
+  document.head.appendChild(css);
+  const $=s=>document.querySelector(s);
+  const PSplit={
+    url:"",kind:"",dirty:false,
+    top(){const n=$("nav"),m=$("main");return Math.max(n?n.getBoundingClientRect().bottom:0,m?m.getBoundingClientRect().top:0,0);},
+    fit(){const t=this.top()+"px";const p=$("#psPanel");if(p)p.style.top=t;const v=$("#airViewOv");if(v&&document.body.classList.contains("ps-on"))v.style.top=t;},
+    sync(){const on=!!$("#psPanel")||!!$("#airViewOv");document.body.classList.toggle("ps-on",on);if(!on){document.body.classList.remove("ps-full");document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));}this.fit();
+      document.querySelectorAll("[data-psfull]").forEach(b=>b.textContent=document.body.classList.contains("ps-full")?"⇲ 回左右分割":"⛶ 全螢幕");},
+    leaveOk(){
+      if(!$("#psPanel")||!this.editing)return true;
+      return confirm("右邊還在填寫中（內容會自動暫存在這台電腦，之後打開同一份會接續）。\n確定要離開嗎？");
+    },
+    open(url,o){
+      o=o||{};
+      if($("#psPanel")&&this.url===url){if(o.full)document.body.classList.add("ps-full");this.sync();return;}
+      if(!this.leaveOk())return;
+      const v=$("#airViewOv");if(v)v.remove();
+      let p=$("#psPanel");
+      if(!p){p=document.createElement("div");p.id="psPanel";document.body.appendChild(p);}
+      this.url=url;this.editing=!!o.editing;
+      p.innerHTML=`<div class="ps-h"><b>${o.title||""}</b><span class="x"><button class="btn sm" data-psfull onclick="PSplit.full()">⛶ 全螢幕</button><button class="btn sm" onclick="window.open(PSplit.url,'_blank','noopener')" title="另開一個瀏覽器分頁">↗ 另開視窗</button><button class="btn sm" onclick="PSplit.close()">✕ 關閉</button></span></div><iframe title="${o.title||""}"></iframe>`;
+      p.querySelector("iframe").src=url;
+      document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(o.mark)o.mark.classList.add("ps-cur");
+      document.body.classList.toggle("ps-full",!!o.full||innerWidth<1100);
+      this.sync();
+    },
+    full(){document.body.classList.toggle("ps-full");this.sync();},
+    close(force){
+      if(!force&&!this.leaveOk())return;
+      const p=$("#psPanel");if(p)p.remove();const v=$("#airViewOv");if(v)v.remove();
+      this.url="";this.editing=false;this.sync();
+      // 右邊填完／看完回來，清單重新讀一次（剛送出的才會出現）
+      try{if(typeof loadAll==="function"&&D&&D.ship)loadAll(D.ship).then(()=>{const on=document.querySelector(".page.on");const k=on&&on.id.replace("p-","");if(k&&RENDER[k])RENDER[k]();});}catch(e){}
+    }
+  };
+  window.PSplit=PSplit;
+  addEventListener("resize",()=>PSplit.fit());addEventListener("scroll",()=>PSplit.fit(),{passive:true});
+  /* 點到線上填單／分享自查的連結 → 本頁右邊打開 */
+  document.addEventListener("click",e=>{
+    const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
+    const h=a.getAttribute("href")||"";
+    if(typeof isPreview==="function"&&isPreview())return; // 預覽模式維持原本另開分頁
+    const air=/submit-airform\.html/.test(h),share=/submit-selfcheck-share\.html/.test(h);
+    if(!air&&!share)return;
+    e.preventDefault();
+    const cur=(document.querySelector(".page.on")||{}).id;
+    if(air){
+      const rev=/[?&]rev=/.test(h);
+      if(cur!=="p-air"&&typeof go==="function")go("air");
+      PSplit.open(a.href,{title:rev?"✎ 修改後重送":"＋ 外部檢查線上填單（新）",full:true,editing:true,mark:a.closest("tr")});
+    }else{
+      const cid=(h.match(/[?&]cid=([^&#]+)/)||[])[1];
+      if(cur!=="p-camp"&&typeof go==="function")go("camp");
+      // 換到分享自查頁之後，標出清單上的那一列
+      let mark=a.closest("tr");if(cur!=="p-camp"&&cid){const m=[...document.querySelectorAll('#p-camp a[href*="cid='+cid+'"]')][0];mark=m&&m.closest("tr");}
+      const t=(mark&&mark.querySelector("b")&&mark.querySelector("b").textContent)||"分享缺失自查";
+      PSplit.open(a.href,{title:"🔍 "+t,editing:true,mark});
+    }
+  });
+  /* 👁 查看（線上填單）：原本的視窗改成貼在右邊 */
+  new MutationObserver(()=>{
+    const v=$("#airViewOv");
+    if(v&&!v.dataset.ps){
+      if($("#psPanel")){if(!PSplit.leaveOk()){v.remove();return;}$("#psPanel").remove();PSplit.url="";PSplit.editing=false;}
+      v.dataset.ps="1";v.onclick=null;document.body.classList.remove("ps-full");
+    }
+    PSplit.sync();
+  }).observe(document.body,{childList:true});
+  if(typeof airView==="function"){const o=airView;window.airView=function(id){const b=document.querySelector(`#aList button[onclick="airView(${id})"]`);const r=o.apply(this,arguments);setTimeout(()=>{document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(b&&b.closest("tr"))b.closest("tr").classList.add("ps-cur");},0);return r;};}
+  /* 換頁籤時，右邊收起來 */
+  if(typeof go==="function"){const g=go;window.go=function(p){const cur=(document.querySelector(".page.on")||{}).id;if(("p-"+p)!==cur&&document.body.classList.contains("ps-on")){if(!PSplit.leaveOk())return;const pp=$("#psPanel");if(pp)pp.remove();const v=$("#airViewOv");if(v)v.remove();PSplit.url="";PSplit.editing=false;PSplit.sync();}return g.apply(this,arguments);};}
+})();
+</script>
 </body>
 </html>
