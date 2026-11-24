@@ -1670,6 +1670,7 @@ init();
   body.lm .itemcard>*{grid-column:1/-1}
   body.lm .itemcard>div:first-child{grid-column:1;grid-row:1;font-size:13.5px;line-height:1.5}
   body.lm .itemcard>div:first-child>b{display:block;margin:4px 0 2px}
+  body.lm .itemcard>div:first-child>span:not(.num){white-space:normal!important;margin:4px 0 0!important;display:inline-block;line-height:1.45;max-width:100%;overflow-wrap:anywhere} /* 來源標籤（船名・PSC・日期）在窄欄裡換行，不要跑出去蓋到缺失內容 */
   body.lm .itemcard>.refbox,body.lm .itemcard>.topicref{grid-column:2;grid-row:1;margin:0;background:transparent;border:0;padding:0;font-size:13px;line-height:1.65}
   body.lm .itemcard>p:not(.hint):not(.selfnote){display:none}
   body.lm .itemcard>.statusrow{grid-column:3;grid-row:1;flex-direction:column;gap:5px;margin:0}
