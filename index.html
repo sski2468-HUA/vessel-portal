@@ -989,6 +989,10 @@ function fillPosSrc(){
 }
 /* 2026-11-24 正面評價清單：點一列在右邊看完整內容 */
 let POSROWS=[];
+/* 2026-11-25 正面評價的人員：一人一行（姓名＋職位），多人時依「、」拆開一一對應 */
+function posPpl(r){const sp=v=>String(v||"").split(/[、,，;；]+/).map(s=>s.trim()).filter(Boolean);const P=sp(r.person),R=sp(r.rank);
+  if(!P.length)return `<div class="pp"><b>${esc(r.rank==="公司"?"公司":"本船")}</b></div>`;
+  return P.map((p,i)=>`<div class="pp"><b>${esc(p)}</b>${R[i]||(P.length===1&&R.length)?` <span>${esc(R[i]||R.join("、"))}</span>`:""}</div>`).join("")+(R.length>P.length&&P.length>1?`<div class="pp"><span>${esc(R.slice(P.length).join("、"))}</span></div>`:"");}
 function posOpen(i,tr){const r=POSROWS[i];if(!r||typeof PSplit==="undefined")return;
   PSplit.openHtml(`👍 ${esc(r.person||"")}（${esc(r.rank||"")}）　${esc((pd(r.date)||{}).txt||r.date||"")}　${esc(r.itype||"")}`,
     `<div style="padding:14px 18px;line-height:1.8">${r.item?`<div class="hint" style="font-weight:700;margin-bottom:4px">檢查項目</div><div style="background:#e8f4ec;border-radius:10px;padding:10px 14px;color:#1f6b4a;white-space:pre-line">${esc(r.item)}</div>`:""}
@@ -1004,7 +1008,7 @@ function renderPos(){
   const people=new Set(rows.map(r=>r.person).filter(Boolean)).size;
   $("#pSum").innerHTML=`<span class="pchip ${!PICK.pos?"on":""}" onclick="PICK.pos=null;renderPos()">全部　${base.length}</span>`+srcs.map(t=>`<span class="pchip ${PICK.pos===t?"on":""}" onclick="PICK.pos=PICK.pos===${esc(JSON.stringify(t)).replace(/"/g,"&quot;")}?null:${esc(JSON.stringify(t)).replace(/"/g,"&quot;")};renderPos()">${isInt(t)?"內":"外"} ${esc(t)}　${base.filter(r=>r.itype===t).length}</span>`).join("")+`<span class="hint" style="margin-left:auto">共 <b>${rows.length}</b> 則・獲評人員 <b>${people}</b> 位</span>`;
   POSROWS=rows;
-  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn"><b>${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</b><span>${esc(r.rank||"")}</span></td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
+  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn">${posPpl(r)}</td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
   return;
   $("#pList").innerHTML=rows.map(r=>`<div class="pos"><div><span class="who">${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</span>　<span class="src">${esc(r.rank||"")}</span>${r.item?`　<span class="pill ok">${esc(r.item)}</span>`:""}</div><div class="meta">${esc((pd(r.date)||{}).txt||r.date||"")}　${r.itype&&r.itype!=="—"?`${ioTag(r.itype)}<b style="color:var(--ink)">${esc(r.itype)}</b>`:"—"}</div><div class="c">${esc(r.comment||r.content||"")}</div></div>`).join("")||`<div class="empty">沒有符合條件的正面評價</div>`;
 }
@@ -1398,7 +1402,8 @@ $("#refMonth").addEventListener("change",renderRef);
   table.poslist tr.pr:hover td{background:#f9fbfa}
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
   table.poslist .pq,table.poslist .pc{line-height:1.6;white-space:pre-line;overflow-wrap:anywhere} /* 2026-11-24 完整顯示，不截斷、不點開右邊 */
-  table.poslist .pq{min-width:220px}table.poslist .pc{min-width:260px}
+  table.poslist .pq{min-width:90px;max-width:150px;width:150px}table.poslist .pc{min-width:320px}
+  table.poslist td.pn{min-width:170px;white-space:nowrap}table.poslist .pp{line-height:1.5;margin-bottom:3px}table.poslist .pp b{display:inline!important}table.poslist .pp span{font-size:12.5px;color:#6b7c88;margin-left:4px}
   table.poslist .pq{color:#1f6b4a;font-size:13px}
   body.ps-on table.poslist .pw{display:none}
   /* 右邊打開時，左邊線上填單紀錄只留：日期、來源、狀態、內容 */
