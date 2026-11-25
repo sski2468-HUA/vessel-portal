@@ -1402,7 +1402,8 @@ $("#refMonth").addEventListener("change",renderRef);
   table.poslist tr.pr:hover td{background:#f9fbfa}
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
   table.poslist .pq,table.poslist .pc{line-height:1.6;white-space:pre-line;overflow-wrap:anywhere} /* 2026-11-24 完整顯示，不截斷、不點開右邊 */
-  table.poslist .pq{min-width:90px;max-width:150px;width:150px}table.poslist .pc{min-width:320px}
+  table.poslist .pq,table.poslist .pc{min-width:0;max-width:none;width:auto}
+  table.poslist tr>:nth-child(4),table.poslist tr>:nth-child(5){width:34%} /* 2026-11-25 項目、評語平均分配欄寬 */
   table.poslist td.pn{min-width:170px;white-space:nowrap}table.poslist .pp{line-height:1.5;margin-bottom:3px}table.poslist .pp b{display:inline!important}table.poslist .pp span{font-size:12.5px;color:#6b7c88;margin-left:4px}
   table.poslist .pq{color:#1f6b4a;font-size:13px}
   body.ps-on table.poslist .pw{display:none}
