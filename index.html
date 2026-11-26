@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>船舶檢查填報平台 — FPMC</title>
 <style>
-:root{--navy:#1f5f8f;--navy2:#2f6690;--signal:#e8862a;--ink:#1d2a33;--ink2:#5b6a75;--ink3:#8195a0;--line:#dfe6eb;--bg:#f4f7f9;--card:#fff;--ok:#20703f;--bad:#c0392b;--warn:#b5610f;--int:#5b3290;--ext:#176670;
+:root{--navy:#1a4c75;--navy2:#2f6690;--signal:#d97a2b;--ink:#1d2a33;--ink2:#5b6a75;--ink3:#8195a0;--line:#dfe6eb;--bg:#f4f7f9;--card:#fff;--ok:#20703f;--bad:#c0392b;--warn:#b5610f;--int:#5b3290;--ext:#176670;
   --sans:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;--mono:Consolas,"Courier New",monospace}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.55}
@@ -196,7 +196,7 @@ div.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius
 .cpst{font-size:11.5px;border-radius:9px;padding:0 8px;font-weight:700;white-space:nowrap}
 .cpst.ok{background:#e3f4e8;color:#2e7d4f}.cpst.fixed{background:#e6eefb;color:#2c4a8a}.cpst.trk{background:#fdecd8;color:#a8550c}
 .cpst.self{background:#efe8fa;color:#6a3fa0}.cpst.na,.cpst.pend{background:#eef1f4;color:#6b7785}
-.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1f5f8f;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
+.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1a4c75;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
 /* 需追蹤的項目：表格式（2026-11-12） */
 .tkn{background:#e0a020;color:#fff;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
 .tkwrap{overflow:hidden;margin-top:6px;border:1px solid #f0d9a8;border-radius:8px}
@@ -438,7 +438,7 @@ table.eo td.cur,table.eo th.cur{background:#fff8ec}
     <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
     <div style="background:#eaf2fb;border:1px solid #b9d0ea;border-left:5px solid var(--navy);color:var(--navy);border-radius:8px;padding:6px 12px;margin:0 0 12px;font-size:11.5px;font-weight:600;line-height:1.6">📌 此份為 SOPEP／SMPEP 中的 NOTIFICATION LIST，請務必下載最新版本檢附於 SOPEP／SMPEP 計畫中。<br><span style="font-weight:400">🔖 名單右下角印有版本碼（Ver.），人員或電話（含手機）有任何異動，版本碼就會改變。請核對船上留存紙本的版本碼與本頁顯示的版本是否一致；不一致時請重新列印，並更換 SOPEP／SMPEP 內的名單。</span></div>
     <div class="flt">
-      <button class="btn noprint" onclick="ntfPrint()" style="background:#e8842c;border-color:#e8842c;color:#fff;font-size:17px;font-weight:800;padding:11px 26px;border-radius:10px;box-shadow:0 3px 10px rgba(232,132,44,.35)">🖨 列印／存成 PDF</button>
+      <button class="btn noprint" onclick="ntfPrint()" style="background:#d97a2b;border-color:#d97a2b;color:#fff;font-size:17px;font-weight:800;padding:11px 26px;border-radius:10px;box-shadow:0 3px 10px rgba(232,132,44,.35)">🖨 列印／存成 PDF</button>
       <span class="hint" id="ntfInfo"></span>
     </div>
     <div id="ntfView"><div class="loading">載入中…</div></div>
@@ -932,7 +932,7 @@ async function airView(id){
         <button class="btn" onclick="document.getElementById('airViewOv').remove()">關閉</button></div>
       <div style="margin-top:12px;padding:10px 12px;background:#f5f8fb;border-radius:8px">${kv("檢查來源",(b.itype||"")+(b.flagType?"（"+b.flagType+"）":""))}${kv("檢查日期",b.date)}${kv("檢查地點",b.place)}${kv("單位／油公司",b.oilco)}${kv("檢查員",b.inspector)}</div>
       <h4 style="margin:14px 0 6px">缺失（${(p.defects||[]).length} 項）</h4>
-      ${(p.defects||[]).map((d,i)=>`<div style="border:1px solid #dde3e8;border-left:4px solid #e8842c;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      ${(p.defects||[]).map((d,i)=>`<div style="border:1px solid #dde3e8;border-left:4px solid #d97a2b;border-radius:8px;padding:10px 12px;margin-bottom:8px">
         <b>#${i+1}${d.code?"　CODE "+esc(d.code):""}${d.psc?"　PSC "+esc(d.psc):""}</b>
         ${kv("缺失詳情",d.detail)}${kv("實際情況",d.actual)}${kv("Initial Operator Comment",d.opComment)}${kv("直接原因",d.immediateCause)}${kv("改善措施",d.corrective)}${kv("根本原因",d.rootCause)}${kv("預防措施",d.preventive)}${kv("責任人",[d.rank,d.person].filter(Boolean).join(" "))}
         ${ph("矯正前照片",d.photosBefore)}${ph("矯正後照片",d.photosAfter)}</div>`).join("")||'<p class="hint">（沒有缺失）</p>'}
@@ -1286,7 +1286,7 @@ function renderRef(){
         return `<div class="nt${long?" clamp3":""}">${esc(s)}</div>`+(long?`<a href="#" class="more" onclick="event.preventDefault();const o=this.previousElementSibling.classList.toggle('open');this.textContent=o?'收合 ▲':'詳全文 ▼'">詳全文 ▼</a>`:"");})():""}
       ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
       <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
-      <div class="ac">${d.url?`<a class="btn" style="background:#e8842c;border-color:#e8842c;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
+      <div class="ac">${d.url?`<a class="btn" style="background:#d97a2b;border-color:#d97a2b;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
       ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}
       ${need?`<button type="button" class="btn dark" onclick="refDownloaded('${esc(d.id)}','閱讀')" title="看完內容後按這裡確認（點開附件或連結也會自動算已下載）">✓ 確認已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">${q?`沒有符合「${esc(q)}」的文件，請換個關鍵字。`:(K==="oth"?"目前沒有進行中的其他資訊。":"目前沒有公司分享的參考文件。")}</div>`);
 }
@@ -1311,7 +1311,7 @@ function refSub(s){
   $("#ref-sub-ref").style.display=REF_SUB!=="cb"?"":"none";
   const n=refPending().length,nb=k=>{const c=refPending().filter(d=>refKind(d)===k).length;return c?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${c}</span>`:"";};
   {const rb=document.querySelector('#refSubtabs button[data-s="ref"]');if(rb)rb.innerHTML="📚 參考文件"+nb("ref");const ob=document.querySelector('#refSubtabs button[data-s="oth"]');if(ob)ob.innerHTML="📢 其他資訊"+nb("oth");}
-  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #e8842c;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則新的參考文件／其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub(refPending().some(d=>refKind(d)==='ref')?'ref':'oth')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
+  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #d97a2b;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則新的參考文件／其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub(refPending().some(d=>refKind(d)==='ref')?'ref':'oth')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
   if(REF_SUB==="cb")renderDocs();else renderRef();
 }
 const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:()=>refSub("cb"),ntf:renderNtf,ref:()=>refSub(REF_SUB)};
@@ -1393,11 +1393,11 @@ $("#refMonth").addEventListener("change",renderRef);
   body.ps-on #airViewOv{overflow:auto;display:block!important}
   body.ps-on #airViewOv>div{max-width:none!important;border-radius:0!important;min-height:100%}
   #psPanel .ps-h{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line,#dde4ea);background:#f7f9fb;flex-wrap:wrap}
-  #psPanel .ps-h b{color:var(--navy,#1f5f8f);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
+  #psPanel .ps-h b{color:var(--navy,#1a4c75);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
   #psPanel iframe{flex:1;width:100%;border:0;background:#fff}
   .ps-cur>td,tr.ps-cur>td{background:#fff3e2!important}
   .pchip{display:inline-flex;border:1px solid var(--line,#dde4ea);background:#fff;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#3d4f5c;margin:0 6px 6px 0}
-  .pchip.on{background:var(--navy,#1f5f8f);color:#fff;border-color:var(--navy,#1f5f8f)}
+  .pchip.on{background:var(--navy,#1a4c75);color:#fff;border-color:var(--navy,#1a4c75)}
   #pSum{display:flex;flex-wrap:wrap;align-items:center}
   table.poslist tr.pr:hover td{background:#f9fbfa}
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
@@ -1494,8 +1494,8 @@ $("#refMonth").addEventListener("change",renderRef);
 
 <style>
 /* ════════ 2026-11-26 船上平台：配色、圖示跟主系統一致（① 海藍）；高風險船提醒縮小；首頁卡片簡化；字的大小 小／中／大 */
-:root{--navy:#1f5f8f!important;--navy2:#2c77ae!important}
-body{background:#f3f7fa}
+:root{--navy:#1a4c75!important;--navy2:#245d8a!important}
+body{background:#f1f4f7}
 .ic{width:1.05em;height:1.05em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-.15em}
 #tabs button .ic{color:#8794a0;margin-right:3px}
 #tabs button.on .ic,#tabs button:hover .ic{color:var(--navy)}
@@ -1611,10 +1611,10 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
 .st2 th,.st2 td{padding:7px 10px;text-align:center;border-top:1px solid #eef1f4;white-space:nowrap}
 .st2 thead th{border-top:0;background:#f3f6f9;font-weight:800;color:#1f2d38;cursor:pointer;max-width:120px;white-space:normal;line-height:1.25;font-size:12.5px}
 .st2 thead th.cap{color:#fff;font-size:14px;cursor:default;width:64px}
-.st2 .e thead th.cap{background:#1f5f8f}.st2 .i thead th.cap{background:#e08a2c}
+.st2 .e thead th.cap{background:#1a4c75}.st2 .i thead th.cap{background:#e08a2c}
 .st2 tbody th{text-align:left;font-weight:600;color:#3d4f5c;background:#fff;cursor:default}
 .st2 td{font-family:var(--mono);cursor:pointer}
-.st2 .on{background:#eaf2fb!important;box-shadow:inset 0 -3px 0 #1f5f8f}
+.st2 .on{background:#eaf2fb!important;box-shadow:inset 0 -3px 0 #1a4c75}
 .st2 .i .on{background:#fdf1e4!important;box-shadow:inset 0 -3px 0 #e08a2c}
 .st2 .dim{opacity:.45}
 .st2 td.hi{color:#c0392b;font-weight:700}
