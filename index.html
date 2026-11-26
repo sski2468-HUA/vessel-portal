@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>船舶檢查填報平台 — FPMC</title>
 <style>
-:root{--navy:#1c3a5e;--navy2:#2f6690;--signal:#e8862a;--ink:#1d2a33;--ink2:#5b6a75;--ink3:#8195a0;--line:#dfe6eb;--bg:#f4f7f9;--card:#fff;--ok:#20703f;--bad:#c0392b;--warn:#b5610f;--int:#5b3290;--ext:#176670;
+:root{--navy:#1f5f8f;--navy2:#2f6690;--signal:#e8862a;--ink:#1d2a33;--ink2:#5b6a75;--ink3:#8195a0;--line:#dfe6eb;--bg:#f4f7f9;--card:#fff;--ok:#20703f;--bad:#c0392b;--warn:#b5610f;--int:#5b3290;--ext:#176670;
   --sans:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;--mono:Consolas,"Courier New",monospace}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.55}
@@ -196,7 +196,7 @@ div.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius
 .cpst{font-size:11.5px;border-radius:9px;padding:0 8px;font-weight:700;white-space:nowrap}
 .cpst.ok{background:#e3f4e8;color:#2e7d4f}.cpst.fixed{background:#e6eefb;color:#2c4a8a}.cpst.trk{background:#fdecd8;color:#a8550c}
 .cpst.self{background:#efe8fa;color:#6a3fa0}.cpst.na,.cpst.pend{background:#eef1f4;color:#6b7785}
-.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1c3a5e;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
+.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1f5f8f;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
 /* 需追蹤的項目：表格式（2026-11-12） */
 .tkn{background:#e0a020;color:#fff;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
 .tkwrap{overflow:hidden;margin-top:6px;border:1px solid #f0d9a8;border-radius:8px}
@@ -1393,11 +1393,11 @@ $("#refMonth").addEventListener("change",renderRef);
   body.ps-on #airViewOv{overflow:auto;display:block!important}
   body.ps-on #airViewOv>div{max-width:none!important;border-radius:0!important;min-height:100%}
   #psPanel .ps-h{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line,#dde4ea);background:#f7f9fb;flex-wrap:wrap}
-  #psPanel .ps-h b{color:var(--navy,#1c3a5e);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
+  #psPanel .ps-h b{color:var(--navy,#1f5f8f);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
   #psPanel iframe{flex:1;width:100%;border:0;background:#fff}
   .ps-cur>td,tr.ps-cur>td{background:#fff3e2!important}
   .pchip{display:inline-flex;border:1px solid var(--line,#dde4ea);background:#fff;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#3d4f5c;margin:0 6px 6px 0}
-  .pchip.on{background:var(--navy,#1c3a5e);color:#fff;border-color:var(--navy,#1c3a5e)}
+  .pchip.on{background:var(--navy,#1f5f8f);color:#fff;border-color:var(--navy,#1f5f8f)}
   #pSum{display:flex;flex-wrap:wrap;align-items:center}
   table.poslist tr.pr:hover td{background:#f9fbfa}
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
@@ -1489,6 +1489,118 @@ $("#refMonth").addEventListener("change",renderRef);
   if(typeof airView==="function"){const o=airView;window.airView=function(id){const b=document.querySelector(`#aList button[onclick="airView(${id})"]`);const r=o.apply(this,arguments);setTimeout(()=>{document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(b&&b.closest("tr"))b.closest("tr").classList.add("ps-cur");},0);return r;};}
   /* 換頁籤時，右邊收起來 */
   if(typeof go==="function"){const g=go;window.go=function(p){const cur=(document.querySelector(".page.on")||{}).id;if(("p-"+p)!==cur&&document.body.classList.contains("ps-on")){if(!PSplit.leaveOk())return;const pp=$("#psPanel");if(pp)pp.remove();const v=$("#airViewOv");if(v)v.remove();PSplit.url="";PSplit.editing=false;PSplit.sync();}return g.apply(this,arguments);};}
+})();
+</script>
+
+<style>
+/* ════════ 2026-11-26 船上平台：配色、圖示跟主系統一致（① 海藍）；高風險船提醒縮小；首頁卡片簡化；字的大小 小／中／大 */
+:root{--navy:#1f5f8f!important;--navy2:#2c77ae!important}
+body{background:#f3f7fa}
+.ic{width:1.05em;height:1.05em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-.15em}
+#tabs button .ic{color:#8794a0;margin-right:3px}
+#tabs button.on .ic,#tabs button:hover .ic{color:var(--navy)}
+h2.pt .ic{color:var(--navy);margin-right:4px}
+header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
+/* 高風險船：一行提醒，說明收起來 */
+.riskban{background:#fdf0ee;border:1px solid #efc2bc;border-left:5px solid #c0392b;border-radius:8px;padding:8px 14px;margin:0 0 14px;color:#7a1c14;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
+.riskban .rb-t{font-size:15px;font-weight:800;color:#b3261e;line-height:1.4}
+.riskban .rb-d{font-size:13.5px;margin:0;line-height:1.5;flex-basis:100%}
+.riskban .rb-s{display:none}
+.riskban .rb-i{margin:0;font-size:12.5px;margin-left:auto}
+.riskban .rb-i[open]{flex-basis:100%;margin-left:0}
+/* 首頁：填報＋外部平台 卡片簡化（白底、細框、左邊小圖示） */
+.homeTop{gap:16px!important}
+.entry,#homeTools .entry{min-height:0!important}
+.entry{border:1px solid var(--line)!important;border-top:1px solid var(--line)!important;background:#fff!important;border-radius:10px;padding:12px 14px;gap:6px;box-shadow:none}
+.entry:hover{border-color:var(--navy2)!important;box-shadow:0 3px 10px rgba(31,95,143,.08)}
+.entry .t{font-size:15px!important;color:var(--navy)!important;display:flex;align-items:center;gap:8px}
+.entry .t .ic{width:30px;height:30px;padding:6px;border-radius:8px;background:#eaf2f9;color:var(--navy);flex:none}
+.entry .d{font-size:13px;line-height:1.6;color:var(--ink2)}
+.entry .st{margin-top:auto}
+#homeTools{gap:12px}
+/* 待辦清單圖示 */
+.todolist .ic svg.ic,.todolist .ic>.ic{width:20px;height:20px;color:#6b7c88}
+.todolist .trow.has .ic>.ic{color:#c0392b}
+/* 字的大小 */
+#psFsz{display:flex;align-items:center;gap:2px;border:1px solid rgba(255,255,255,.35);border-radius:7px;padding:2px;color:#fff;font-size:12px;flex:none;margin-right:8px}
+#psFsz span{padding:0 5px;opacity:.85}
+#psFsz button{border:0;background:transparent;color:#fff;font-family:inherit;border-radius:5px;padding:3px 8px;cursor:pointer;line-height:1.1}
+#psFsz button.on{background:#fff;color:var(--navy);font-weight:700}
+#psFsz button[data-z="1"]{font-size:12px}#psFsz button[data-z="1.08"]{font-size:14px}#psFsz button[data-z="1.16"]{font-size:16px}
+@media(max-width:768px){
+  #psFsz{margin:0}
+  header h1 small{display:none!important}
+  header .hd{gap:6px 8px!important;padding-top:8px!important;padding-bottom:8px!important}
+  header .shipbadge{font-size:14px!important;padding:4px 10px!important}
+  header .guide{padding:4px 10px!important;font-size:13px!important}
+  #tabs{flex-wrap:nowrap!important;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #tabs::-webkit-scrollbar{display:none}
+  #tabs button{flex:none!important;white-space:nowrap}
+  .riskban .rb-d{font-size:12.5px}
+  .riskban .rb-t{font-size:14px}
+  .entry .t .ic{width:26px;height:26px;padding:5px}
+}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+ <symbol id="ic-clip" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 10h6M9 14h6M9 18h4"/></symbol>
+ <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></symbol>
+ <symbol id="ic-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></symbol>
+ <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+ <symbol id="ic-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+ <symbol id="ic-news" viewBox="0 0 24 24"><path d="M4 5h13v15H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5"/></symbol>
+ <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></symbol>
+ <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+ <symbol id="ic-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1 3h6l1-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></symbol>
+ <symbol id="ic-audit" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m9 13 2 2 4-4"/></symbol>
+ <symbol id="ic-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></symbol>
+ <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+ <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+ <symbol id="ic-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+ <symbol id="ic-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 11h8"/><path d="M4 14a8 8 0 0 0 16 0"/></symbol>
+ <symbol id="ic-mega" viewBox="0 0 24 24"><path d="M3 10v4h4l6 4V6L7 10z"/><path d="M16 9a4 4 0 0 1 0 6"/></symbol>
+</svg>
+<script>
+(function(){
+  const MAP=[[/首頁/,"home"],[/線上填單|外部檢查線上填單|填報/,"doc"],[/檢查紀錄|執行情形/,"clip"],[/正面評價/,"award"],[/追蹤|結案/,"flag"],[/逾期|注意/,"alert"],[/自查/,"search"],[/緊急通報/,"phone"],
+    [/通報單|其他資訊|公司文件/,"news"],[/操作說明|SQMS|程序書/,"book"],[/外部平台/,"link"],[/待辦/,"inbox"],[/內部檢查|改善單/,"audit"],[/Itinerary|航程/,"compass"],[/計劃|年度/,"cal"],[/公告/,"mega"]];
+  const EMO=/^[\s☀-➿⬀-⯿️‍←-⇿⌀-⏿]*(?:[\uD83C-\uDBFF][\uDC00-\uDFFF][️‍]*)*[\s️]*/;
+  const ico=n=>`<svg class="ic"><use href="#ic-${n}"/></svg>`;
+  const frag=h=>document.createRange().createContextualFragment(h);
+  function fix(el,key){
+    if(!el||el.querySelector(":scope > svg.ic"))return;
+    const n=[...el.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim());if(!n)return;
+    const before=n.nodeValue,after=before.replace(EMO,"");if(after===before)return;
+    n.nodeValue=after;const hit=MAP.find(([re])=>re.test(key||el.textContent));if(hit)el.insertBefore(frag(ico(hit[1])),n);
+  }
+  function run(){
+    document.querySelectorAll("#tabs button,h2.pt,.subtabs button,.entry .t,.mq-lbl").forEach(e=>fix(e));
+    const h1=document.querySelector("header h1");if(h1&&!h1.querySelector("svg.ic")){const n=[...h1.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim());if(n){n.nodeValue=n.nodeValue.replace(EMO,"");h1.insertBefore(frag(ico("anchor")),n);}}
+    const g=document.querySelector("header .guide");if(g)fix(g);
+    document.querySelectorAll(".todolist .trow").forEach(r=>{const c=r.querySelector(".ic");if(!c||c.querySelector("svg"))return;const T=r.querySelector(".tt"),tt=T?([...T.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim())||{nodeValue:T.textContent}).nodeValue:"";const hit=MAP.find(([re])=>re.test(tt));c.innerHTML=ico(hit?hit[1]:"inbox");});
+  }
+  let busy=false;const mo=new MutationObserver(()=>{if(busy)return;busy=true;requestAnimationFrame(()=>{try{run();}catch(e){}busy=false;});});
+  /* 字的大小（跟主系統一樣：整頁放大，並換算位置，下拉、浮動視窗不會跑掉） */
+  const ZF={k:1,vp:1};
+  (function(){const P=Element.prototype,g=P.getBoundingClientRect;P.getBoundingClientRect=function(){const r=g.call(this);const k=ZF.k;return k===1?r:new DOMRect(r.x/k,r.y/k,r.width/k,r.height/k);};
+    const wd=Object.getOwnPropertyDescriptor(window,"innerWidth")||{},hd=Object.getOwnPropertyDescriptor(window,"innerHeight")||{};
+    if(wd.get&&wd.configurable!==false)Object.defineProperty(window,"innerWidth",{configurable:true,get(){return wd.get.call(window)/ZF.vp;}});
+    if(hd.get&&hd.configurable!==false)Object.defineProperty(window,"innerHeight",{configurable:true,get(){return hd.get.call(window)/ZF.vp;}});
+    [MouseEvent.prototype,typeof Touch!=="undefined"?Touch.prototype:null].forEach(p=>{if(!p)return;["clientX","clientY"].forEach(k=>{const d=Object.getOwnPropertyDescriptor(p,k);if(d&&d.get)Object.defineProperty(p,k,{configurable:true,get(){return d.get.call(this)/ZF.k;}});});});
+    ZF.raw=g;ZF.wd=wd;})();
+  function calibrate(z){ZF.k=1;ZF.vp=1;const f=+z||1;if(f===1)return;const d=document.createElement("div");d.style.cssText="position:fixed;left:0;top:0;width:100px;height:10px;visibility:hidden;pointer-events:none";document.body.appendChild(d);
+    const w=ZF.raw.call(d).width;d.style.cssText="position:fixed;left:0;right:0;top:0;height:1px;visibility:hidden;pointer-events:none";const full=d.offsetWidth,iw=ZF.wd.get?ZF.wd.get.call(window):full;d.remove();
+    if(Math.abs(w-100*f)<2)ZF.k=f;if(full&&Math.abs(iw-full*f)<3)ZF.vp=f;}
+  const KEY="ps_font_zoom",get=()=>{try{return localStorage.getItem(KEY)||"1";}catch(e){return "1";}};
+  function apply(z){document.documentElement.style.zoom=z==="1"?"":z;try{calibrate(z);}catch(e){ZF.k=1;ZF.vp=1;}try{localStorage.setItem(KEY,z);}catch(e){}document.querySelectorAll("#psFsz button").forEach(b=>b.classList.toggle("on",b.dataset.z===z));}
+  function fsz(){const hd=document.querySelector("header .hd");if(!hd||document.getElementById("psFsz"))return;
+    const w=document.createElement("div");w.id="psFsz";w.title="字的大小（只影響這台電腦／手機）";
+    w.innerHTML=`<span>字</span><button type="button" data-z="1">小</button><button type="button" data-z="1.08">中</button><button type="button" data-z="1.16">大</button>`;
+    w.querySelectorAll("button").forEach(b=>b.onclick=()=>apply(b.dataset.z));
+    const g=hd.querySelector(".guide");if(g)g.before(w);else hd.appendChild(w);apply(get());}
+  function init(){fsz();run();["#tabs","main","header",".mq"].forEach(s=>{const el=document.querySelector(s);if(el&&!el._icw){el._icw=1;mo.observe(el,{childList:true,subtree:true});}});}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+  setTimeout(init,1500);
 })();
 </script>
 </body>
