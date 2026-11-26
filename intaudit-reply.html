@@ -780,6 +780,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
 .ia3-send{position:sticky;bottom:0;z-index:15;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(20,40,60,.08);padding:10px 14px;display:flex;gap:10px;align-items:center;margin-top:6px}
 .ia3-send .t{flex:1;font-size:13.5px}.ia3-send .t b{color:#2e7d4f;font-size:15px}
 .ia3-send button{border:0;background:#d97a2b;color:#fff;border-radius:10px;padding:10px 18px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+.ia3-send button.ia3-sv{background:#fff;color:#1a4c75;border:1.5px solid #1a4c75}
 .ia3-send button[disabled]{background:#c9d3dc;cursor:not-allowed}
 #navrow3{display:none!important}
 @media(max-width:760px){
@@ -861,7 +862,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
   function sendBar(){
     let el=$q("#ia3Send");if(!el){el=document.createElement("div");el.id="ia3Send";el.className="ia3-send";$q("#stepPanel3").appendChild(el);}
     const n=ALL().filter(isReadyD).length;
-    el.innerHTML=`<span class="t">${n?`已填妥 <b>${n}</b> 項，可以先送出，其餘之後再回來填`:"填好任何一項（改善措施＋完成日期）就可以先送出"}</span><button type="button" ${n?"":"disabled"} onclick="goStep(4)">送出已填妥的 ${n} 項 ›</button>`;
+    el.innerHTML=`<span class="t">${n?`已填妥 <b>${n}</b> 項，可以先送出，其餘之後再回來填`:"填好任何一項（改善措施＋完成日期）就可以先送出"}</span><button type="button" class="ia3-sv" onclick="iaSave()">💾 存檔</button><button type="button" ${n?"":"disabled"} onclick="goStep(4)">送出已填妥的 ${n} 項 ›</button>`;
   }
   /* 常用句、今天 */
   function enhance(root,d){
@@ -903,7 +904,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
   function rightHtml(){
     const d=subset().find(x=>x.uid===S3.cur);if(!d)return `<div class="banner" style="margin:0">這個篩選下沒有項目。</div>`;
     const todo=subset().filter(x=>["ret","red"].includes(stX(x))),pi=todo.indexOf(d);
-    return `<div class="ia3-pos"><button type="button" class="mb" data-ia3list>‹ 全部項目</button>${pi>=0?`<span>待改善第 <b>${pi+1}</b> / ${todo.length} 項</span><button type="button" data-ia3mv="-1">‹</button><button type="button" data-ia3mv="1">›</button>`:`<span>No.${seqOf(d)}</span>`}<span style="flex:1"></span><span class="ia3-next" style="margin:0"><button type="button" class="btn primary" style="padding:6px 14px" data-ia3next>${stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›"}</button></span></div>
+    return `<div class="ia3-pos"><button type="button" class="mb" data-ia3list>‹ 全部項目</button>${pi>=0?`<span>待改善第 <b>${pi+1}</b> / ${todo.length} 項</span><button type="button" data-ia3mv="-1">‹</button><button type="button" data-ia3mv="1">›</button>`:`<span>No.${seqOf(d)}</span>`}<span style="flex:1"></span><span class="ia3-next" style="margin:0"><button type="button" class="btn primary" style="padding:6px 14px" data-ia3next>💾 存檔，下一項 ›</button></span></div>
       ${rowHtml(d,seqOf(d))}`;
   }
   function drawD(){
@@ -959,7 +960,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
     _paint.apply(this,arguments);
     if(currentStep!==3)return;const d=byUid(uid);if(!d)return;
     if(S3.view==="t"){const tr=document.getElementById("t-"+uid);if(tr){tr.className=`st-${stX(d)} ${S3.foc===uid?"foc":""}`;const b=document.getElementById("tb-"+uid);if(b){b.className="badge "+stOf(d);b.textContent=badgeText(d,stOf(d));}}}
-    else{const nb=$q(".ia3-next .btn");if(nb&&uid===S3.cur)nb.textContent=stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›";}
+    else{}
   };
   window.updateBar=updateBar=function(){
     renderGlobalBar();
@@ -975,7 +976,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
     if(t.closest("[data-ia3fold]")){S3.showDone=true;redrawLeft();return;}
     if(t.closest("[data-ia3list]")){const dd=$q("#ia3d");if(dd)dd.classList.add("showlist");return;}
     const mv=t.closest("[data-ia3mv]");if(mv){const todo=subset().filter(x=>["ret","red"].includes(stX(x)));const i=todo.findIndex(x=>x.uid===S3.cur),n=todo[i+(+mv.dataset.ia3mv)];if(n){S3.cur=n.uid;redrawLeft();redrawRight();}return;}
-    if(t.closest("[data-ia3next]")){const L=subset(),i=L.findIndex(x=>x.uid===S3.cur);
+    if(t.closest("[data-ia3next]")){iaSave(true);const L=subset(),i=L.findIndex(x=>x.uid===S3.cur);
       const n=L.slice(i+1).find(x=>["ret","red"].includes(stX(x)))||L.find(x=>x.uid!==S3.cur&&["ret","red"].includes(stX(x)));
       if(n){S3.cur=n.uid;redrawLeft();redrawRight();window.scrollTo({top:0,behavior:"smooth"});}else toast("🎉 已經沒有待改善的項目了，可以按最下面「送出」");return;}
   });
@@ -997,6 +998,31 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
     }catch(e){console.warn("ia3 preview",e);}
     return r;
   };
+  /* ══ 2026-11-27 存檔與離開提醒：內容一樣會隨時自動暫存（防當機），但以「按存檔」為準；
+     有改過還沒按存檔就要離開（切到平台其他頁、回清單、關分頁）→ 問「存檔後離開／不存檔離開／取消」 ══ */
+  let SNAP=null;
+  const snap=()=>{SNAP=JSON.stringify(drafts||{});};
+  const _ld=loadDrafts;window.loadDrafts=loadDrafts=function(){const r=_ld.apply(this,arguments);snap();return r;};
+  const iaDirty=()=>!!rec&&!PV&&SNAP!==null&&JSON.stringify(drafts||{})!==SNAP;
+  window.iaSave=function(quiet){saveDrafts();snap();toast(quiet?"💾 已存檔，換下一項":"💾 已存檔（存在這台電腦；填好後記得按「送出」給督導）");};
+  function iaDiscard(){try{drafts=JSON.parse(SNAP||"{}");}catch(e){drafts={};}saveDrafts();}
+  function iaAsk(proceed){
+    if(!iaDirty()){proceed();return;}
+    $q("#submitModalBody").innerHTML=`<div style="font-size:34px;margin-bottom:8px">💾</div><h3 style="margin:0 0 8px;color:var(--navy)">剛剛填寫的內容還沒存檔</h3>
+      <p style="margin:0 0 16px;color:var(--ink-2);font-size:13.5px;line-height:1.7">要先存檔再離開嗎？<br><span style="font-size:12.5px">選「不存檔離開」會回到上一次存檔的內容。</span></p>
+      <div style="display:flex;flex-direction:column;gap:8px"><button class="btn primary" id="lvSave">💾 存檔後離開</button><button class="btn" id="lvDrop">不存檔離開</button><button class="btn" id="lvStay" style="border:0;color:var(--ink-3)">取消，繼續填寫</button></div>`;
+    $q("#submitModal").classList.add("show");
+    $q("#lvSave").onclick=()=>{iaSave(true);closeSubmitStatus();proceed();};
+    $q("#lvDrop").onclick=()=>{iaDiscard();closeSubmitStatus();proceed();};
+    $q("#lvStay").onclick=()=>closeSubmitStatus();
+  }
+  window.iaLeave={dirty:iaDirty,save:()=>iaSave(true),ask:iaAsk};
+  const _sa=submitAll;window.submitAll=submitAll=async function(){const r=await _sa.apply(this,arguments);snap();return r;};
+  /* 頁面裡的連結（回本船改善單清單等）*/
+  document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[href]");if(!a||a.target==="_blank")return;const h=a.getAttribute("href")||"";if(!h||h.startsWith("#")||/^javascript:/i.test(h))return;
+    if(iaDirty()){e.preventDefault();e.stopPropagation();iaAsk(()=>{location.href=a.href;});}},true);
+  /* 關掉分頁／重新整理 */
+  addEventListener("beforeunload",e=>{if(iaDirty()){e.preventDefault();e.returnValue="";}});
   const _gs=goStep;window.goStep=goStep=function(n){const r=_gs.apply(this,arguments);if(n!==3)document.body.classList.remove("ia3-dmode");return r;};
   /* 已開著的頁面（例如先打開清單）直接套用 */
   try{if(typeof shipRows!=="undefined"&&shipRows.length&&$q("#shipPage").style.display!=="none")renderShip();}catch(e){}

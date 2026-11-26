@@ -1007,8 +1007,9 @@ function renderPos(){
     .sort((a,b)=>((pd(b.date)||{}).iso||"").localeCompare((pd(a.date)||{}).iso||""));
   const people=new Set(rows.map(r=>r.person).filter(Boolean)).size;
   $("#pSum").innerHTML=`<span class="pchip ${!PICK.pos?"on":""}" onclick="PICK.pos=null;renderPos()">全部　${base.length}</span>`+srcs.map(t=>`<span class="pchip ${PICK.pos===t?"on":""}" onclick="PICK.pos=PICK.pos===${esc(JSON.stringify(t)).replace(/"/g,"&quot;")}?null:${esc(JSON.stringify(t)).replace(/"/g,"&quot;")};renderPos()">${isInt(t)?"內":"外"} ${esc(t)}　${base.filter(r=>r.itype===t).length}</span>`).join("")+`<span class="hint" style="margin-left:auto">共 <b>${rows.length}</b> 則・獲評人員 <b>${people}</b> 位</span>`;
+  setTimeout(()=>{document.querySelectorAll("#pSum .pchip").forEach(c=>{if(c.dataset.s)return;c.dataset.s=1;c.title=c.textContent.trim();c.innerHTML=c.innerHTML.replace(/主題檢查::(其他：)?/g,"專項檢查：");});},0);
   POSROWS=rows;
-  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn">${posPpl(r)}</td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
+  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td class="psrc">${r.itype&&r.itype!=="—"?`<div class="pss">${ioTag(r.itype)}<div>${String(r.itype).split("、").map(s=>`<div>${esc(s.replace(/^主題檢查::(其他：)?/,"專項檢查："))}</div>`).join("")}</div></div>`:"—"}</td><td class="pn">${posPpl(r)}</td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
   return;
   $("#pList").innerHTML=rows.map(r=>`<div class="pos"><div><span class="who">${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</span>　<span class="src">${esc(r.rank||"")}</span>${r.item?`　<span class="pill ok">${esc(r.item)}</span>`:""}</div><div class="meta">${esc((pd(r.date)||{}).txt||r.date||"")}　${r.itype&&r.itype!=="—"?`${ioTag(r.itype)}<b style="color:var(--ink)">${esc(r.itype)}</b>`:"—"}</div><div class="c">${esc(r.comment||r.content||"")}</div></div>`).join("")||`<div class="empty">沒有符合條件的正面評價</div>`;
 }
@@ -1403,7 +1404,9 @@ $("#refMonth").addEventListener("change",renderRef);
   table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
   table.poslist .pq,table.poslist .pc{line-height:1.6;white-space:pre-line;overflow-wrap:anywhere} /* 2026-11-24 完整顯示，不截斷、不點開右邊 */
   table.poslist .pq,table.poslist .pc{min-width:0;max-width:none;width:auto}
-  table.poslist tr>:nth-child(4),table.poslist tr>:nth-child(5){width:34%} /* 2026-11-25 項目、評語平均分配欄寬 */
+  table.poslist tr>:nth-child(4){width:17%}table.poslist tr>:nth-child(5){width:46%} /* 2026-11-27 評語加寬 */
+  table.poslist td.psrc{width:250px;min-width:250px}table.poslist .pss{display:flex;gap:6px;align-items:flex-start}table.poslist .pss>div{font-size:12.5px;line-height:1.55}table.poslist .pss>div>div{white-space:nowrap}table.poslist .pss .io{flex:none;margin-top:1px}
+  #pSum .pchip{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
   table.poslist td.pn{min-width:170px;white-space:nowrap}table.poslist .pp{line-height:1.5;margin-bottom:3px}table.poslist .pp b{display:inline!important}table.poslist .pp span{font-size:12.5px;color:#6b7c88;margin-left:4px}
   table.poslist .pq{color:#1f6b4a;font-size:13px}
   body.ps-on table.poslist .pw{display:none}
@@ -1722,7 +1725,7 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     if(history.state&&history.state.emb){history.back();return;}
     _go(prev||"home");
   }
-  document.getElementById("embBack").onclick=()=>{if(loads>1){loads-=2;try{F().contentWindow.history.back();return;}catch(e){}}back();};
+  document.getElementById("embBack").onclick=()=>{const g=guard();if(g&&g.dirty()){g.ask(()=>{if(loads>1){loads-=2;try{F().contentWindow.history.back();return;}catch(e){}}back();});return;}if(loads>1){loads-=2;try{F().contentWindow.history.back();return;}catch(e){}}back();};
   addEventListener("popstate",e=>{
     const st=e.state;
     if(st&&st.emb)open(st.emb,false);
@@ -1730,9 +1733,15 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
   });
   /* go()：「內部檢查改善單」選單打開本船改善單清單 */
   const _go=go;
-  window.go=go=function(p){
+  const guard=()=>{try{return F().contentWindow.iaLeave||null;}catch(e){return null;}};
+  /* 2026-11-27 改善單有修改還沒存檔 → 先問「存檔後離開／不存檔離開／取消」 */
+  function goReal(p){
     if(p==="ia"){const s=shipCode();open(`${base()}intaudit-reply.html${s?"?ship="+encodeURIComponent(s):""}`);return;}
-    return _go.apply(this,arguments);
+    return _go(p);
+  }
+  window.go=go=function(p){
+    if(sec.classList.contains("on")){const g=guard();if(g&&g.dirty()){g.ask(()=>goReal(p));return;}}
+    return goReal(p);
   };
   document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
   /* 平台裡指向這幾頁的連結 → 改成內嵌開啟 */
