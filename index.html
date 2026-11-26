@@ -598,7 +598,11 @@ document.addEventListener("click",e=>{
   // （?preview=1，該頁所有寫入都擋下、不替船建立填答紀錄），看得到船上點進去的實際畫面。
   if(isPreview()&&/submit-airform\.html|intaudit-reply\.html|submit-selfcheck-share\.html/.test(h)){
     e.preventDefault();e.stopPropagation();
-    window.open(h+(h.includes("?")?"&":"?")+"preview=1","_blank","noopener");
+    /* 2026-11-27 預覽模式也跟船上一樣在本頁右邊／平台裡打開（仍是 ?preview=1，所有寫入都擋下） */
+    const u=new URL(h+(h.includes("?")?"&":"?")+"preview=1",location.href).href,cur=((document.querySelector(".page.on")||{}).id||"");
+    if(/submit-airform\.html/.test(h)&&window.PSplit){if(cur!=="p-air")go("air");PSplit.open(u,{title:"外部檢查線上填單（預覽，不會送出）",full:false,editing:false,air:true});return;}
+    if(/submit-selfcheck-share\.html/.test(h)&&window.PSplit){if(cur!=="p-camp")go("camp");PSplit.open(u,{title:"🔍 分享缺失自查（預覽，不會送出）",editing:false});return;}
+    window.open(u,"_blank","noopener");
     return;
   }
   const txt=(a.closest(".entry")?a.querySelector(".t"):a)?.textContent?.trim().slice(0,60)||"";
@@ -1714,6 +1718,8 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
   }
   function open(url,push){
     const u=new URL(url,location.href),fn=u.pathname.split("/").pop(),info=PAGES[fn]||["",""];
+    /* 預覽模式（海技從主系統看船上畫面）：一律加 preview=1，該頁所有寫入都擋下 */
+    try{if(typeof isPreview==="function"&&isPreview()&&!u.searchParams.has("preview"))u.searchParams.set("preview","1");}catch(e){}
     const cur=document.querySelector(".page.on");if(cur&&cur.id!=="p-emb")prev=cur.id.replace(/^p-/,"");
     _go("emb");mark(info[1]);curKey=info[1];
     document.getElementById("embT").innerHTML=`${info[0]} <span class="hint">${HINT[fn]||""}</span>`;

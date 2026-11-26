@@ -738,6 +738,7 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
 .ia3r .row{grid-template-columns:1fr;margin:0}
 .ia3r .rl{border-right:none;border-bottom:1px dashed var(--line)}
 /* 2026-11-27 清單填寫：一個畫面填完，不用上下捲 */
+body.ia3-s3 .globalbar{display:none!important} /* 2026-11-27 系統填報這一步：數字跟下方篩選列重複，藏起來 */
 body.ia3-dmode #stepPanel3>.banner,body.ia3-dmode #main>.hint{display:none}
 body.ia3-dmode .stepbar{margin-top:8px!important;margin-bottom:8px!important}body.ia3-dmode .stepbar .step{padding-top:4px!important;padding-bottom:4px!important;min-height:0!important;font-size:13px}body.ia3-dmode .stepbar .step .dot{width:20px!important;height:20px!important;line-height:20px!important;font-size:11px!important}
 body.ia3-dmode .globalbar .ghint{display:none}
@@ -941,7 +942,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
       :`<div class="banner" style="margin:0 14px">${S3.st==="todo"?"🎉 這個篩選下沒有待改善的項目。":"這個篩選下沒有項目。"}</div>`;
     L.forEach(d=>enhance(document.getElementById("t-"+d.uid),d));
   }
-  function draw(){document.body.classList.toggle("ia3-dmode",S3.view==="d");toolbar();if(S3.view==="t")drawT();else drawD();sendBar();renderGlobalBar();if(S3.view==="d"){window.scrollTo(0,0);requestAnimationFrame(fitD);}}
+  function draw(){document.body.classList.add("ia3-s3");document.body.classList.toggle("ia3-dmode",S3.view==="d");toolbar();if(S3.view==="t")drawT();else drawD();sendBar();renderGlobalBar();if(S3.view==="d"){window.scrollTo(0,0);requestAnimationFrame(fitD);}}
   window.renderSysStep=renderSysStep=function(){
     const bn=$q("#stepPanel3>.banner");if(bn&&!bn.dataset.ia3){bn.dataset.ia3=1;bn.innerHTML="每一項填<b>改善措施</b>和<b>改善完成日期</b>（照片選填，最多 3 張）。<b>不用一次填完</b>：填好幾項就按最下面「送出」，其餘之後再回來。內容會自動存成草稿。";}
     if(!S3.entered){S3.entered=1;const c=k=>subset().filter(d=>k.includes(stX(d))).length;S3.st=c(["ret","red"])?"todo":c(["green"])?"green":"all";}
@@ -1023,7 +1024,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
     if(iaDirty()){e.preventDefault();e.stopPropagation();iaAsk(()=>{location.href=a.href;});}},true);
   /* 關掉分頁／重新整理 */
   addEventListener("beforeunload",e=>{if(iaDirty()){e.preventDefault();e.returnValue="";}});
-  const _gs=goStep;window.goStep=goStep=function(n){const r=_gs.apply(this,arguments);if(n!==3)document.body.classList.remove("ia3-dmode");return r;};
+  const _gs=goStep;window.goStep=goStep=function(n){const r=_gs.apply(this,arguments);if(n!==3)document.body.classList.remove("ia3-dmode","ia3-s3");return r;};
   /* 已開著的頁面（例如先打開清單）直接套用 */
   try{if(typeof shipRows!=="undefined"&&shipRows.length&&$q("#shipPage").style.display!=="none")renderShip();}catch(e){}
   try{if(rec&&currentStep===2)renderFlowStep();if(rec&&currentStep===3)renderSysStep();}catch(e){}
