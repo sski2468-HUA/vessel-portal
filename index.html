@@ -1603,5 +1603,72 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
   setTimeout(init,1500);
 })();
 </script>
-</body>
+<style>
+/* ════════ 2026-11-26 檢查紀錄：檢查來源改成跟主系統一樣的統計表（左外部、右內部；欄＝來源，列＝次數／缺失數／平均缺失） */
+.st2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px;margin:2px 0 6px}
+.st2 .tw{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:auto}
+.st2 table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:max-content}
+.st2 th,.st2 td{padding:7px 10px;text-align:center;border-top:1px solid #eef1f4;white-space:nowrap}
+.st2 thead th{border-top:0;background:#f3f6f9;font-weight:800;color:#1f2d38;cursor:pointer;max-width:120px;white-space:normal;line-height:1.25;font-size:12.5px}
+.st2 thead th.cap{color:#fff;font-size:14px;cursor:default;width:64px}
+.st2 .e thead th.cap{background:#1f5f8f}.st2 .i thead th.cap{background:#e08a2c}
+.st2 tbody th{text-align:left;font-weight:600;color:#3d4f5c;background:#fff;cursor:default}
+.st2 td{font-family:var(--mono);cursor:pointer}
+.st2 .on{background:#eaf2fb!important;box-shadow:inset 0 -3px 0 #1f5f8f}
+.st2 .i .on{background:#fdf1e4!important;box-shadow:inset 0 -3px 0 #e08a2c}
+.st2 .dim{opacity:.45}
+.st2 td.hi{color:#c0392b;font-weight:700}
+.st2-hint{font-size:12px;color:#6b7c88;margin:0 0 10px}
+.st2-all{display:inline-block;margin:0 0 8px;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 12px;cursor:pointer}
+</style>
+<script>
+(function(){
+  if(typeof srcCards!=="function")return;
+  const _sc=srcCards;
+  window.srcCards=function(el,items,which,unit,extra){
+    if(which!=="insp")return _sc.apply(this,arguments);
+    const M=new Map();items.forEach(r=>{const k=r.itype||"—";if(!M.has(k))M.set(k,{n:0,d:0});const o=M.get(k);o.n++;o.d+=(+r.ndef||0);});
+    const cur=PICK.insp;if(cur&&!M.has(cur))PICK.insp="";
+    const list=[...M.entries()].sort((a,b)=>b[1].n-a[1].n);
+    const js=k=>JSON.stringify(k).replace(/"/g,"&quot;");
+    const tbl=(cls,cap,L)=>{if(!L.length)return "";
+      const cc=k=>PICK.insp===k?"on":PICK.insp?"dim":"";
+      const td=(k,v,hi)=>`<td class="${cc(k)} ${hi?"hi":""}" onclick="pickSrc('insp',${js(k)})">${v}</td>`;
+      return `<div class="tw ${cls}"><table><thead><tr><th class="cap">${cap}</th>${L.map(([k])=>`<th class="${cc(k)}" onclick="pickSrc('insp',${js(k)})" title="點一下只看「${esc(k)}」，再點一次取消">${esc(k)}</th>`).join("")}</tr></thead>
+        <tbody><tr><th>次數</th>${L.map(([k,o])=>td(k,o.n)).join("")}</tr><tr><th>缺失數</th>${L.map(([k,o])=>td(k,o.d)).join("")}</tr>
+        <tr><th>平均缺失</th>${L.map(([k,o])=>{const a=o.n?o.d/o.n:0;return td(k,a.toFixed(1),a>=4);}).join("")}</tr></tbody></table></div>`;};
+    const ext=list.filter(([k])=>!isInt(k)),int=list.filter(([k])=>isInt(k));
+    el.className="";
+    el.innerHTML=(PICK.insp?`<button type="button" class="st2-all" onclick="pickSrc('insp',${js(PICK.insp)})">✕ 取消只看「${esc(PICK.insp)}」</button>`:"")+
+      `<div class="st2">${tbl("e","外部",ext)}${tbl("i","內部",int)}</div><div class="st2-hint">點表格裡的檢查來源（或數字）＝只看那種檢查，再點一次取消。統計會跟著上面的年份、外部／內部、搜尋變動。</div>`;
+    const h=el.previousElementSibling;if(h&&/點下方卡片/.test(h.textContent))h.style.display="none";
+  };
+  try{if(document.getElementById("iCards")&&typeof renderInsp==="function"&&window.D&&D.insp)renderInsp();}catch(e){}
+})();
+</script><style>
+/* ════════ 2026-11-26 船上首頁：左＝待辦事項（一打開就看到）；右＝填報＋外部平台（照 模擬_待辦收合與船上首頁 B） */
+#homeLR{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:4px}
+#homeLR>div{min-width:0;display:flex;flex-direction:column;gap:14px}
+#homeLR h2.pt{margin:0 0 8px!important}
+#homeLR .homeTop{display:flex!important;flex-direction:column;gap:14px!important}
+#homeLR .homeTop>div{min-width:0}
+#homeLR #homeFill{grid-template-columns:1fr!important}
+#homeLR #homeTools{grid-template-columns:1fr 1fr!important;gap:10px}
+#homeLR #homeTools .entry .d{font-size:12.5px}
+#homeLR #homeTools .entry .st{display:none}
+@media(max-width:900px){#homeLR{grid-template-columns:1fr}#homeLR #homeTools{grid-template-columns:1fr 1fr!important}}
+@media(max-width:480px){#homeLR #homeTools{grid-template-columns:1fr!important}}
+</style>
+<script>
+(function(){
+  function lay(){
+    const pg=document.getElementById("p-home"),top=pg&&pg.querySelector(".homeTop"),ent=document.getElementById("homeEntries");
+    if(!pg||!top||!ent||document.getElementById("homeLR"))return;
+    const h=ent.previousElementSibling&&ent.previousElementSibling.matches("h2.pt")?ent.previousElementSibling:null;
+    const g=document.createElement("div");g.id="homeLR";const L=document.createElement("div"),R=document.createElement("div");
+    top.before(g);if(h){h.style.marginTop="0";L.appendChild(h);}L.appendChild(ent);R.appendChild(top);g.append(L,R);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",lay);else lay();
+})();
+</script></body>
 </html>
