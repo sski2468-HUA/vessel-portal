@@ -716,7 +716,7 @@ function renderHome(){
     {ic:"🛠",t:"內部檢查改善單",has:iaHas,
      st:iaHas?[D.ia.pending?`${D.ia.pending} 項待填寫`:"",D.ia.returned?`${D.ia.returned} 項被退回需補充`:""].filter(Boolean).join("、"):`✓ 目前沒有待填寫${D.ia.waiting?`（${D.ia.waiting} 項待督導審核）`:""}`,
      d:"督導上船檢查（訪船、內稽等）後發出的改善單，請逐筆填寫改善措施、完成日期並上傳改善後照片；列為 FLOW 的缺失請至 FLOW 系統填報 DMP-FM01。",
-     href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,b:"前往填寫"},
+     href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,go:"ia",b:"前往填寫"}, /* 2026-11-27 直接開平台裡的「內部檢查改善單」頁 */
     {ic:"🔍",t:"分享缺失自查",has:openCamps>0,
      st:openCamps?`${openCamps} 項未送出${lateN?`（其中 ${lateN} 項已逾 1 個月）`:""}`:"✓ 都已送出",
      d:"公司將他船（或本船）發生的缺失、或自訂案例分享給全船隊，請逐題回覆本船狀況並送出。",go:"camp",b:"前往填寫"},
@@ -1771,7 +1771,7 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     /* 在平台裡不用再提醒「加入我的最愛」 */
     const tidy=()=>{try{d.querySelectorAll(".banner").forEach(b=>{if(/我的最愛/.test(b.textContent))b.style.display="none";});
       const w=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let x;while((x=w.nextNode()))if(/建議加入我的最愛/.test(x.nodeValue)){const p=x.parentElement;if(p&&p.textContent.trim().length<20)p.style.display="none";else x.nodeValue=x.nodeValue.replace(/[（(]?\s*⭐?\s*建議加入我的最愛\s*[）)]?/,"");}}catch(e){}};
-    [0,600,1500,3000].forEach(t=>setTimeout(tidy,t));
+    [0,600,1500,3000,6000,10000].forEach(t=>setTimeout(tidy,t));
     d.addEventListener("click",ev=>{
       const a=ev.target.closest&&ev.target.closest("a[href]");if(!a)return;
       let u;try{u=new URL(a.getAttribute("href"),d.location.href);}catch(e){return;}

@@ -737,6 +737,23 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
 .ia3r{min-width:0}
 .ia3r .row{grid-template-columns:1fr;margin:0}
 .ia3r .rl{border-right:none;border-bottom:1px dashed var(--line)}
+/* 2026-11-27 清單填寫：一個畫面填完，不用上下捲 */
+body.ia3-dmode #stepPanel3>.banner,body.ia3-dmode #main>.hint{display:none}
+body.ia3-dmode .stepbar{margin-top:8px!important;margin-bottom:8px!important}body.ia3-dmode .stepbar .step{padding-top:4px!important;padding-bottom:4px!important;min-height:0!important;font-size:13px}body.ia3-dmode .stepbar .step .dot{width:20px!important;height:20px!important;line-height:20px!important;font-size:11px!important}
+body.ia3-dmode .globalbar .ghint{display:none}
+.ia3r .rr label{display:block!important;margin-bottom:6px}.ia3r .rr label textarea,.ia3r .rr label input{display:block;width:100%;margin-top:3px}
+.ia3r .rr .two{gap:10px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;text-align:left}.ia3r .rr .two label{text-align:left}
+.ia3r .rl .fld[data-f="photos"]{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-weight:700;font-size:13px;color:var(--ink-2)}.ia3r .rr .ih{margin-bottom:4px}
+.ia3r .rr .two label:first-child{display:flex!important;flex-direction:row!important;flex-wrap:wrap;align-items:center!important;justify-content:flex-start!important;gap:4px 6px}.ia3r .rr .two label:first-child>input{flex:1 1 calc(100% - 64px)}.ia3r .rr .two label:first-child input{flex:1;min-width:130px;width:auto;margin-top:0}.ia3r .rr .two label:first-child .ia3-today{margin-top:0}
+body.ia3-dmode .wrap{padding-bottom:0!important}
+body.ia3-dmode .globalbar{padding-top:7px!important;padding-bottom:7px!important}
+body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
+.ia3d.fit{align-items:stretch}.ia3d.fit .ia3l{position:static;max-height:none;height:100%}.ia3d.fit .ia3r{height:100%;overflow:auto;display:flex;flex-direction:column}
+.ia3d.fit .ia3r .row{flex:1}
+.ia3r .rl,.ia3r .rr{padding:12px 14px}.ia3r .finding{margin:6px 0}
+.ia3r textarea[data-f="action"]{min-height:64px;height:64px}.ia3r textarea[data-f="evidence"]{min-height:38px!important}
+.ia3r .ph,.ia3r .ph img,.ia3r .phadd{width:64px!important;height:64px!important}.ia3r .phadd{font-size:10.5px}
+@media(min-width:1000px){.ia3r .row{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}.ia3r .rl{border-right:1px dashed var(--line);border-bottom:0}}
 .ia3-pos{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}
 .ia3-pos button{border:1.5px solid var(--line-2);background:#fff;border-radius:7px;padding:3px 11px;cursor:pointer;font-weight:800;font-family:inherit}
 .ia3-pos .mb{display:none}
@@ -848,6 +865,8 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
   /* 常用句、今天 */
   function enhance(root,d){
     if(!root||!d)return;
+    /* 清單填寫（電腦／平板）：照片欄移到左欄缺失內容下面，右欄只剩措施、日期、備註，一個畫面放得下 */
+    if(root.closest&&root.closest("#ia3r")&&matchMedia("(min-width:1000px)").matches){const ph=root.querySelector(".rr .fld[data-f=\"photos\"]"),rl=root.querySelector(".rl");if(ph&&rl)rl.appendChild(ph);}
     const ta=root.querySelector('textarea[data-f="action"]');
     if(ta&&CHIPS.length&&!root.querySelector(".ia3-chips")){
       const box=document.createElement("div");box.className="ia3-chips";
@@ -883,17 +902,24 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
   function rightHtml(){
     const d=subset().find(x=>x.uid===S3.cur);if(!d)return `<div class="banner" style="margin:0">這個篩選下沒有項目。</div>`;
     const todo=subset().filter(x=>["ret","red"].includes(stX(x))),pi=todo.indexOf(d);
-    return `<div class="ia3-pos"><button type="button" class="mb" data-ia3list>‹ 全部項目</button>${pi>=0?`<span>待改善第 <b>${pi+1}</b> / ${todo.length} 項</span><button type="button" data-ia3mv="-1">‹</button><button type="button" data-ia3mv="1">›</button>`:`<span>No.${seqOf(d)}</span>`}</div>
-      ${rowHtml(d,seqOf(d))}
-      <div class="ia3-next"><button type="button" class="btn primary" data-ia3next>${stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›"}</button></div>`;
+    return `<div class="ia3-pos"><button type="button" class="mb" data-ia3list>‹ 全部項目</button>${pi>=0?`<span>待改善第 <b>${pi+1}</b> / ${todo.length} 項</span><button type="button" data-ia3mv="-1">‹</button><button type="button" data-ia3mv="1">›</button>`:`<span>No.${seqOf(d)}</span>`}<span style="flex:1"></span><span class="ia3-next" style="margin:0"><button type="button" class="btn primary" style="padding:6px 14px" data-ia3next>${stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›"}</button></span></div>
+      ${rowHtml(d,seqOf(d))}`;
   }
   function drawD(){
     pickDefault();
     $q("#defList").innerHTML=`<div class="ia3d" id="ia3d"><div class="ia3l" id="ia3l">${leftHtml()}</div><div class="ia3r" id="ia3r">${rightHtml()}</div></div>`;
     const d=byUid(S3.cur);if(d)enhance(document.getElementById("def-"+d.uid),d);
+    fitD();
   }
+  /* 左清單＋右表單的高度剛好填滿畫面（電腦／平板），整頁不用上下捲 */
+  function fitD(){const dd=$q("#ia3d");if(!dd)return;
+    if(matchMedia("(max-width:760px)").matches){dd.classList.remove("fit");dd.style.height="";return;}
+    const top=dd.getBoundingClientRect().top+window.scrollY,sb=$q("#ia3Send"),h=window.innerHeight-(top-window.scrollY)-(sb?sb.offsetHeight:0)-10;
+    if(h<260){dd.classList.remove("fit");dd.style.height="";return;}
+    dd.classList.add("fit");dd.style.height=h+"px";}
+  addEventListener("resize",()=>{if(currentStep===3&&S3.view==="d")fitD();});
   function redrawLeft(){const l=$q("#ia3l");if(!l)return;const st=l.scrollTop,qq=$q("#ia3Q"),had=qq&&document.activeElement===qq,p=had?qq.selectionStart:0;l.innerHTML=leftHtml();l.scrollTop=st;if(had){const n=$q("#ia3Q");n.focus();n.setSelectionRange(p,p);}}
-  function redrawRight(){const r=$q("#ia3r");if(!r)return;r.innerHTML=rightHtml();const d=byUid(S3.cur);if(d)enhance(document.getElementById("def-"+d.uid),d);}
+  function redrawRight(){const r=$q("#ia3r");if(!r)return;r.innerHTML=rightHtml();r.scrollTop=0;const d=byUid(S3.cur);if(d)enhance(document.getElementById("def-"+d.uid),d);}
   /* ── 表格填寫 ── */
   function tRow(d){
     const st=stX(d),rp=rpOf(d),x=val(d),seq=seqOf(d),lock=st==="lock";
@@ -913,7 +939,7 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
       :`<div class="banner" style="margin:0 14px">${S3.st==="todo"?"🎉 這個篩選下沒有待改善的項目。":"這個篩選下沒有項目。"}</div>`;
     L.forEach(d=>enhance(document.getElementById("t-"+d.uid),d));
   }
-  function draw(){toolbar();if(S3.view==="t")drawT();else drawD();sendBar();renderGlobalBar();}
+  function draw(){document.body.classList.toggle("ia3-dmode",S3.view==="d");toolbar();if(S3.view==="t")drawT();else drawD();sendBar();renderGlobalBar();if(S3.view==="d"){window.scrollTo(0,0);requestAnimationFrame(fitD);}}
   window.renderSysStep=renderSysStep=function(){
     const bn=$q("#stepPanel3>.banner");if(bn&&!bn.dataset.ia3){bn.dataset.ia3=1;bn.innerHTML="每一項填<b>改善措施</b>和<b>改善完成日期</b>（照片選填，最多 3 張）。<b>不用一次填完</b>：填好幾項就按最下面「送出」，其餘之後再回來。內容會自動存成草稿。";}
     if(!S3.entered){S3.entered=1;const c=k=>subset().filter(d=>k.includes(stX(d))).length;S3.st=c(["ret","red"])?"todo":c(["green"])?"green":"all";}
@@ -954,6 +980,7 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
   });
   document.addEventListener("input",e=>{if(e.target.id==="ia3Q"){S3.q=e.target.value;redrawLeft();}});
   document.addEventListener("focusin",e=>{const r=e.target.closest&&e.target.closest("[data-ia3row]");if(r&&S3.foc!==r.dataset.ia3row){S3.foc=r.dataset.ia3row;document.querySelectorAll(".ia3-t tr").forEach(x=>x.classList.toggle("foc",x===r));}});
+  const _gs=goStep;window.goStep=goStep=function(n){const r=_gs.apply(this,arguments);if(n!==3)document.body.classList.remove("ia3-dmode");return r;};
   /* 已開著的頁面（例如先打開清單）直接套用 */
   try{if(typeof shipRows!=="undefined"&&shipRows.length&&$q("#shipPage").style.display!=="none")renderShip();}catch(e){}
   try{if(rec&&currentStep===2)renderFlowStep();if(rec&&currentStep===3)renderSysStep();}catch(e){}
