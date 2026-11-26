@@ -1692,7 +1692,7 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
   const HINT={"intaudit-reply.html":"本船歷次內部檢查改善單，填寫改善回報","submit-airform.html":"外部檢查結束後填寫檢查結果與缺失","submit-selfcheck-share.html":"依公司分享的缺失做自查並回報","submit-selfcheck.html":"專案自查任務"};
   let loads=0;
   const sec=document.createElement("section");sec.className="page";sec.id="p-emb";
-  sec.innerHTML=`<div class="eb"><h2 class="pt" id="embT"></h2><span style="flex:1"></span><button type="button" class="bk" id="embBack" style="display:none">‹ 返回上一頁</button><a class="nw" style="margin-left:0" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面" allowtransparency="true"></iframe><div class="ld" id="embLd">讀取中…</div>`;
+  sec.innerHTML=`<div class="eb"><h2 class="pt" id="embT"></h2><span style="flex:1"></span><button type="button" class="bk" id="embBack" style="display:none">‹ 返回上一頁</button><a class="nw" style="margin-left:0;display:none" id="embGuide" href="airform-guide.pdf" target="_blank" rel="noopener" title="線上填單操作說明（PDF）">📖 填單操作說明</a><a class="nw" style="margin-left:0" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面" allowtransparency="true"></iframe><div class="ld" id="embLd">讀取中…</div>`;
   main.appendChild(sec);
   RENDER.emb=()=>{};
   /* 選單：內部檢查改善單 */
@@ -1715,7 +1715,7 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     const cur=document.querySelector(".page.on");if(cur&&cur.id!=="p-emb")prev=cur.id.replace(/^p-/,"");
     _go("emb");mark(info[1]);curKey=info[1];
     document.getElementById("embT").innerHTML=`${info[0]} <span class="hint">${HINT[fn]||""}</span>`;
-    document.getElementById("embNew").href=u.href;
+    document.getElementById("embNew").href=u.href;document.getElementById("embGuide").style.display=fn==="submit-airform.html"?"":"none";
     const f=F();
     if(curUrl!==u.href){curUrl=u.href;loads=0;document.getElementById("embBack").style.display="none";document.getElementById("embLd").style.display="";f.src=u.href;}
     if(push!==false){try{history.pushState({emb:u.href},"",location.pathname+location.search+"#emb");}catch(e){}}
@@ -1766,6 +1766,18 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     d.documentElement.classList.add("in-portal");
     loads++;document.getElementById("embBack").style.display=loads>1?"":"none";
     /* 改善單：看起來跟平台其他頁一樣（拿掉自己的深藍標題、外框與左右留白） */
+    /* 線上填單：一樣看起來是平台本身的頁面（拿掉自己的深藍標題、置中窄版與外框留白） */
+    if(/submit-airform\.html$/.test(d.location.pathname)&&!d.getElementById("inportal-css")){const st=d.createElement("style");st.id="inportal-css";st.textContent=`
+      html.in-portal,html.in-portal body{background:transparent!important}
+      html.in-portal .wrap{max-width:none!important;padding:0 0 40px!important}
+      html.in-portal .wrap>header{display:none!important}
+      html.in-portal .wrap>*{margin-left:0!important;margin-right:0!important}
+      html.in-portal .card{margin:12px 0!important}
+      html.in-portal .savebar{border-radius:8px;border:1px solid #f3dba6!important;margin:0 0 8px!important}
+      html.in-portal .draftbar{padding:0!important;background:none!important;border:0!important;margin:0 0 4px!important}
+      html.in-portal .draftbar .btn{flex:none!important;width:auto!important;padding:7px 16px!important}html.in-portal .draftbar{justify-content:flex-start}
+      html.in-portal .wrap>p.hint{padding:0!important;margin:0 0 8px!important}
+      html.in-portal .stepbar{border-radius:10px;border:1px solid #dbe3ea;background:#fff;margin:4px 0 0!important}`;d.head.appendChild(st);}
     if(/intaudit-reply\.html$/.test(d.location.pathname)&&!d.getElementById("inportal-css")){const st=d.createElement("style");st.id="inportal-css";st.textContent=`
       html.in-portal,html.in-portal body{background:transparent!important}
       html.in-portal .wrap{max-width:none!important;padding:0 0 60px!important}
