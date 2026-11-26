@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>船舶檢查填報平台 — FPMC</title>
+<style>
+:root{--navy:#1a4c75;--navy2:#2f6690;--signal:#d97a2b;--ink:#1d2a33;--ink2:#5b6a75;--ink3:#8195a0;--line:#dfe6eb;--bg:#f4f7f9;--card:#fff;--ok:#20703f;--bad:#c0392b;--warn:#b5610f;--int:#5b3290;--ext:#176670;
+  --sans:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.55}
+a{color:var(--navy2)}
+button{font-family:inherit}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #c3d0da;background:#fff;color:var(--navy);border-radius:8px;padding:7px 14px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--navy2)}
+.btn.dark{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.sig{background:var(--signal);color:#fff;border-color:var(--signal)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.hint{color:var(--ink3);font-size:12.5px}
+/* ── 登入關卡 ── */
+.gate{position:fixed;inset:0;z-index:999;display:none;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#16324f,#2f6690)}
+.gate .card{background:#fff;border-radius:14px;padding:28px 30px;width:min(420px,94vw);box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.gate h2{margin:0 0 4px;color:var(--navy);font-size:21px}
+.gate p{margin:0 0 16px;color:var(--ink2);font-size:13.5px}
+.gate input,.gate select{width:100%;padding:10px 12px;font-size:16px;border:1px solid #c3d3e3;border-radius:8px;margin:2px 0 4px;font-family:inherit}
+.gate .err{color:var(--bad);font-size:13px;min-height:20px;margin:4px 0 8px}
+.gate .go{width:100%;padding:11px;border:0;border-radius:8px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+/* ── 版頭 ── */
+header{background:var(--navy);color:#fff;padding:14px 20px}
+.hd{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hd h1{margin:0;font-size:20px;letter-spacing:.5px}
+.hd h1 small{display:block;font-size:11.5px;font-weight:400;color:#b9cadb;letter-spacing:1px}
+.shipbadge{background:var(--signal);color:#fff;font-weight:800;font-size:17px;border-radius:10px;padding:5px 14px}
+.hd .sp{flex:1}
+.hd a.lk{color:#ffd9a8;font-size:13px;cursor:pointer}
+.hd a.guide{background:#fff;color:var(--navy);font-weight:800;font-size:13.5px;border-radius:8px;padding:6px 12px;text-decoration:none;white-space:nowrap}
+.hd a.guide:hover{background:#fff7e6}
+.gate .help{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--navy2)}
+nav{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+/* 頁籤不用左右滑動：一排放得下就一排，螢幕較窄時自動換到第二排 */
+.tabs{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:0 2px;padding:0 12px}
+.tabs button{border:0;background:none;padding:12px 9px;font-size:14.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs a.extab{padding:12px 9px;font-size:14.5px;font-weight:700;color:var(--navy2);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent}
+.tabs a.extab:hover{color:var(--navy)}
+.tabs button.on{color:var(--navy);border-bottom-color:var(--signal)}
+/* 下拉群組（2026-11-03）：功能變多後收成「檢查紀錄／公司文件／外部平台」三組，導覽列維持一行；
+   群組裡有 UPDATE／NEW 時，群組名稱旁顯示紅色數字，不會因為收起來就漏看 */
+.dd{position:relative;display:flex}
+.dd.on>.ddb{color:var(--navy);border-bottom-color:var(--signal)}
+.ddm{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 22px rgba(20,40,60,.14);min-width:230px;padding:5px;z-index:30}
+.dd:last-child .ddm{left:auto;right:0}
+.dd.open .ddm{display:block}
+.tabs .ddm button,.tabs .ddm a.extab{display:block;width:100%;text-align:left;border-bottom:0;padding:10px 12px;border-radius:6px;font-size:14px}
+.tabs .ddm button:hover,.tabs .ddm a.extab:hover{background:#f2f6fa}
+.tabs .ddm button.on{background:#eaf1f8;color:var(--navy)}
+.gb{background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+.page{display:none}.page.on{display:block}
+h2.pt{margin:4px 0 12px;font-size:19px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2.pt .hint{font-weight:400}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.flt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.flt select,.flt input{padding:7px 10px;border:1px solid #c3d0da;border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+.flt input{min-width:200px}
+.flt input[type=checkbox]{min-width:0;width:16px;height:16px;padding:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:16px;padding:3px 11px;font-size:13px;color:var(--ink2)}
+.chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+.io{display:inline-block;font-size:11.5px;font-weight:800;border-radius:5px;padding:1px 6px;margin-right:4px}
+.io.i{background:#efe8f7;color:var(--int)}.io.e{background:#e3f1f3;color:var(--ext)}
+.src{font-size:12.5px;color:var(--ink2)}
+table.tb{width:100%;border-collapse:collapse;background:#fff}
+.tbwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.tb th{background:#f2f6fa;color:var(--navy);font-size:13px;text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
+table.tb td{border-top:1px solid var(--line);padding:8px 10px;vertical-align:top;font-size:13.5px}
+table.tb td.n{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.tb td.d{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
+.empty{padding:26px;text-align:center;color:var(--ink3)}
+/* 首頁入口卡 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+#homeEntries,#homeTools,#homeFill{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+/* 首頁卡片同寬：整頁當成 3 欄、欄距都是 12px——上排左邊「待辦事項」佔 2 欄（裡面 2 張卡各 1 欄）、右邊「填報」佔 1 欄；下排「常用功能」3 張各 1 欄 */
+.homeTop{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+.homeTop>.homeTodo{grid-column:span 2}
+#homeFill{grid-template-columns:minmax(0,1fr)}
+#homeTools{grid-template-columns:repeat(2,minmax(0,1fr))}
+#homeFill .entry,#homeTools .entry{min-height:180px}
+@media(max-width:900px){.homeTop{grid-template-columns:1fr}.homeTop>.homeTodo{grid-column:auto}#homeTools{grid-template-columns:1fr}}
+/* 待辦事項清單：固定 5 列，要做的整列紅色、完成的不加底色 */
+.todolist{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.todolist .trow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.todolist .trow:first-child{border-top:0}
+.todolist .ic{font-size:21px;text-align:center}
+.todolist .tt{font-weight:800;color:var(--navy);min-width:0;font-size:15px}
+.todolist .tt .stx{margin-left:8px;font-size:13px;font-weight:700}
+.todolist .tt small{display:block;font-weight:400;color:var(--ink2);font-size:12.5px;line-height:1.55;margin-top:2px}
+.todolist .trow.has{background:#fdecea;box-shadow:inset 4px 0 0 #c0392b}
+.todolist .trow.has .tt,.todolist .trow.has .stx{color:#c0392b}
+.todolist .trow:not(.has) .stx{color:var(--ink3);font-weight:400}
+.todolist .tgo{font:inherit;font-weight:700;font-size:13px;border-radius:8px;padding:7px 14px;white-space:nowrap;text-decoration:none;background:#fff;color:var(--navy);border:1px solid var(--line)}
+.todolist .trow.has .tgo{background:var(--navy);color:#fff;border-color:var(--navy)}
+@media(max-width:560px){.todolist .trow{grid-template-columns:28px minmax(0,1fr)}.todolist .tgo{grid-column:2;justify-self:start}}
+.entry{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
+.entry:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(28,58,94,.08)}
+.entry .t{font-size:16.5px;font-weight:800;color:var(--navy)}
+/* 首頁入口卡：每種用不同顏色（上緣色條＋淡底＋標題色） */
+.entry{border-top:5px solid var(--line)}
+.entry.ext{border-top-color:#176670;background:linear-gradient(#eef7f8,#fff 60%)}.entry.ext .t{color:#176670}
+.entry.int{border-top-color:#5b3290;background:linear-gradient(#f4effa,#fff 60%)}.entry.int .t{color:#5b3290}
+.entry.share{border-top-color:#b5610f;background:linear-gradient(#fdf4ea,#fff 60%)}.entry.share .t{color:#9a520c}
+.entry.itin{border-top-color:#2e7d4f;background:linear-gradient(#ecf6f0,#fff 60%)}.entry.itin .t{color:#2e7d4f}
+.entry.sqms{border-top-color:#2f6690;background:linear-gradient(#edf3f9,#fff 60%)}.entry.sqms .t{color:#2f6690}
+/* 緊急通報名單：畫面版（列印另用正式格式） */
+.nv-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.nv-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:860px){.nv-grid{grid-template-columns:1fr}}
+.nv-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.nv-card h3{margin:0 0 10px;font-size:15px;color:var(--navy)}
+.nv-hot{background:linear-gradient(135deg,#a8323a,#c0392b);color:#fff;border-radius:12px;padding:14px 16px}
+.nv-hot .lbl{font-size:12.5px;opacity:.85}
+.nv-hot .big{font-size:28px;font-weight:800;letter-spacing:1px;margin:2px 0 10px;font-variant-numeric:tabular-nums}
+.nv-hot .row{display:flex;gap:18px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.3);padding-top:9px;font-size:13px}
+.nv-hot .row b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.nv-kv{display:grid;grid-template-columns:128px 1fr;gap:8px 10px;align-items:start}
+.nv-kv .k{color:var(--ink2);font-size:12.5px;padding-top:2px}
+.nv-who b{font-size:14.5px}.nv-who .en{color:var(--ink2);font-size:12.5px;margin-left:5px}
+.nv-who .tel{display:block;font-size:12.5px;color:var(--navy2);font-variant-numeric:tabular-nums;margin-top:1px}
+.nv-tag{display:inline-block;font-size:11px;font-weight:700;border-radius:9px;padding:0 7px;margin-left:6px;vertical-align:1px}
+.nv-tag.m{background:#e3edf7;color:var(--navy)}.nv-tag.a{background:#f1f3f5;color:var(--ink2)}
+.nv-tb{width:100%;border-collapse:collapse}
+.nv-tb th{background:#eef3f7;color:var(--navy);font-size:12.5px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.nv-tb td{padding:8px 10px;border-bottom:1px solid #edf1f4;vertical-align:middle}
+.nv-tb tr.sup td{background:#f7fafc}
+.nv-tb .zh{font-weight:700}.nv-tb .en{color:var(--ink2);font-size:12.5px}
+.nv-tb td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.nv-tb td.sec{font-size:12px;color:var(--ink2);font-weight:700;letter-spacing:.5px;padding:10px 10px 4px;background:#fff}
+/* 頁內子頁籤（檢查紀錄／內部檢查執行情形一覽表） */
+.subtabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:0 0 12px;flex-wrap:wrap}
+.subtabs button{border:1px solid var(--line);border-bottom:none;background:#f3f6f8;color:var(--ink2);font-size:14px;font-weight:700;padding:7px 16px;border-radius:8px 8px 0 0;cursor:pointer;margin-bottom:-2px;font-family:inherit}
+.subtabs button.on{background:#fff;color:var(--navy);border-color:var(--line);border-bottom:2px solid #fff;box-shadow:inset 0 3px 0 var(--navy)}
+.entry.ntf{border-top-color:#a8323a;background:linear-gradient(#fbeeee,#fff 60%)}.entry.ntf .t{color:#a8323a}
+.entry.ref{border-top-color:#1f5f8b;background:linear-gradient(#ebf3f9,#fff 60%)}.entry.ref .t{color:#1f5f8b}
+.rdoc{background:#fff;border:1px solid var(--line);border-left:5px solid #1f5f8b;border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.rdoc.new{border-left-color:#c0392b}
+.rdoc .bd{flex:1;min-width:220px}
+.rdoc .tt{font-size:15.5px;font-weight:700;color:var(--navy)}
+.rdoc .vr{font-size:13px;margin:2px 0}
+.rdoc .nt{font-size:13px;color:var(--ink2);white-space:pre-line;margin-top:4px}
+.rdoc .nt.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.rdoc .nt.clamp3.open{display:block;-webkit-line-clamp:unset}
+.rdoc .ac{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.entry .d{font-size:13px;color:var(--ink2)}
+.entry .st{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-block;font-size:12.5px;font-weight:700;border-radius:12px;padding:2px 10px}
+.pill.bad{background:#fde8e6;color:var(--bad)}.pill.ok{background:#e4f3ea;color:var(--ok)}.pill.warn{background:#fff1dc;color:var(--warn)}.pill.mute{background:#eef2f4;color:var(--ink2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.kpi .v{font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12.5px;color:var(--ink2)}
+div.camp{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+/* 跑馬燈 */
+.mq{background:#fff8e6;border-bottom:1px solid #f0d9a8}
+.mq-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:7px 16px}
+.mq-lbl{flex:none;font-weight:800;font-size:13.5px;color:#a15c00}
+.mq-vp{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+.mq-track{display:inline-block;padding-left:100%;font-size:14px;color:#3d2c00;animation:mqmove linear infinite}
+.mq-track:hover{animation-play-state:paused}.mq-track .it{margin-right:46px}.mq-track .it.ok{color:#20703f}.mq-track .it.nt{font-weight:700;color:#8a3b00}
+@keyframes mqmove{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.mq-track{animation:none;padding-left:0;white-space:normal}}
+/* 首頁 FLOW 注意事項 */
+.flownote{background:#fdf1ee;border:1px solid #f0c4b9;border-left:5px solid #c0392b;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:14px;line-height:1.7;color:#5a1d14}
+.flownote ul{margin:2px 0 0;padding-left:20px}
+.ftags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.ftag{display:inline-block;font-size:11.5px;font-weight:700;line-height:1.5;padding:0 7px;border-radius:9px;background:#e8eef9;color:#2c4f8a;border:1px solid #c5d4ee}
+div.camp.hastrk{background:#fff6ea;margin:0 -10px;padding:8px 10px;border-radius:6px}
+/* 2026-11-05 未結案的追蹤項目加底色（淡黃＋橘框），一眼看出還要處理；已結案改淡綠 */
+/* 進行中的分享自查：表格式（2026-11-12） */
+.cpwrap{overflow:hidden;margin-top:6px;border:1px solid var(--line,#e3e8ef);border-radius:8px}
+.cptbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.cptbl th{background:#f3f6fa;text-align:left;font-size:12px;color:#5b6b80;padding:6px 10px;border-bottom:1px solid #e3e8ef;white-space:nowrap;font-weight:600}
+.cptbl td{padding:5px 10px;border-bottom:1px solid #eef1f5;vertical-align:middle}
+.cptbl tr:last-child td{border-bottom:0}
+.cptbl tr:hover td{background:#f7f9fc}
+.cptbl tr.hastrk td{background:#fff7ea}
+.cptbl tr.late td{background:#fdecea}.cptbl tr.late td:first-child{box-shadow:inset 4px 0 0 #c0392b}
+.cptbl .cp-s{white-space:nowrap;font-size:12.5px;color:#7a8696}
+.cptbl .cp-st{white-space:nowrap}.cptbl .cp-st .pill{margin:0 2px 0 0}
+.cptbl .cp-a{white-space:nowrap;text-align:right;width:1%}
+.cptbl td .pill{white-space:nowrap}
+.cptbl tr.camp{cursor:pointer}.cptbl .cp-car{display:inline-block;width:14px;color:#8195a0;font-size:12px}
+.cptbl tr.camp.open td{background:#eaf2fb}.cptbl tr.camp.open td:first-child b{color:var(--navy)}
+.cptbl tr.cpdet td{background:#fbfcfe;padding:4px 14px 10px 28px;border-bottom:2px solid #c9d9ea}
+.cpd-h{font-size:12.5px;color:#5b6a75;padding:6px 0;border-bottom:1px solid #e3e8ef}
+.cpd-i{padding:8px 0;border-bottom:1px dashed #dde3ea;font-size:13px;line-height:1.6}.cpd-i:last-child{border-bottom:0}
+.cpd-t{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.cpd-src{font-size:11.5px;background:#e8f1f8;color:#2f6690;border-radius:9px;padding:0 8px}
+.cpst{font-size:11.5px;border-radius:9px;padding:0 8px;font-weight:700;white-space:nowrap}
+.cpst.ok{background:#e3f4e8;color:#2e7d4f}.cpst.fixed{background:#e6eefb;color:#2c4a8a}.cpst.trk{background:#fdecd8;color:#a8550c}
+.cpst.self{background:#efe8fa;color:#6a3fa0}.cpst.na,.cpst.pend{background:#eef1f4;color:#6b7785}
+.cpd-d{color:#2a3540}.cpd-n{color:#6b7785;font-size:12.5px}.cpd-me{color:#1a4c75;font-weight:600;background:#f1f6fb;border-radius:6px;padding:2px 8px;margin:2px 0}.cpd-m{font-size:12px;color:#8195a0}
+/* 需追蹤的項目：表格式（2026-11-12） */
+.tkn{background:#e0a020;color:#fff;border-radius:10px;padding:0 8px;font-size:12px;font-weight:700}
+.tkwrap{overflow:hidden;margin-top:6px;border:1px solid #f0d9a8;border-radius:8px}
+.tktbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tktbl th{background:#f8f0dc;text-align:left;font-size:12px;color:#6b5a32;padding:6px 8px;border-bottom:1px solid #ecdcb4;white-space:nowrap;font-weight:600}
+.tktbl td{padding:6px 8px;border-bottom:1px solid #f3ead4;vertical-align:middle;background:#fffbf1}
+.tktbl tr:last-child td{border-bottom:0}
+.tktbl tr:hover td{background:#fff4dc}
+.tktbl tr.over td{background:#fdf0ee}
+.tktbl tr.done td{background:#f2f8f3;color:#556}
+.tktbl .tk-c{white-space:nowrap}.tktbl .tk-n{line-height:1.5;color:#4a3500;font-weight:600}.tktbl tr.done .tk-n{color:inherit;font-weight:400}
+.tktbl .tk-s{font-size:12px;color:#7a8696;line-height:1.4}.tktbl .tk-src{max-width:180px}.tktbl .tk-due{white-space:nowrap}.tktbl .tk-a{white-space:nowrap;text-align:right;width:1%}
+/* 不讓船上左右拖動：窄螢幕（手機）時表格自動改成一筆一塊、內容往下排 */
+@media(max-width:720px){
+.cptbl thead,.tktbl thead{display:none}
+.cptbl,.cptbl tbody,.tktbl,.tktbl tbody{display:block}
+.cptbl tr,.tktbl tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:7px 10px;border-bottom:1px solid #eef1f5}
+.cptbl td,.tktbl td{display:block;padding:0;border:0;background:transparent!important}
+.cptbl tr.hastrk{background:#fff7ea}.cptbl tr.late{background:#fdecea;box-shadow:inset 4px 0 0 #c0392b}.cptbl tr.late td:first-child{box-shadow:none}
+.tktbl tr{background:#fffbf1}.tktbl tr.over{background:#fdf0ee}.tktbl tr.done{background:#f2f8f3}
+.cptbl td:first-child{flex-basis:100%}
+.cptbl tr.cpdet{display:block;padding:0}.cptbl tr.cpdet td{display:block;padding:4px 12px 10px!important;background:#fbfcfe!important}.cptbl tr.camp.open{background:#eaf2fb}
+.tktbl .tk-n{flex-basis:100%;order:2}.tktbl .tk-c{order:1}.tktbl td:nth-child(3){order:3}.tktbl .tk-due{order:4}.tktbl .tk-src{order:5;max-width:none}
+.cptbl .cp-a,.tktbl .tk-a{margin-left:auto;order:9;width:auto}
+}
+.tkchip{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:9px;background:#eef2f7;color:#41546b;white-space:nowrap;margin:1px 0}
+.tkchip.ic{background:#fdecea;color:#a33}.tkchip.mat{background:#e8f4ea;color:#2c6b3a}.tkchip.eng{background:#e8eefb;color:#2c4a8a}
+div.camp:first-child{border-top:0}
+div.camp .tt{flex:1;min-width:0}
+/* 正面評價 */
+.pos{background:#fff;border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.pos .who{font-weight:800;color:var(--navy)}
+.pos .meta{font-size:12.5px;color:var(--ink3)}
+.pos .c{margin-top:6px;white-space:pre-line}
+/* 執行情形 */
+table.eo td,table.eo th{text-align:center}
+table.eo td{height:64px;min-width:72px}
+table.eo td.cur,table.eo th.cur{background:#fff8ec}
+.eoe{display:block;border-radius:6px;padding:3px 4px;margin:2px 0;font-size:12px;line-height:1.35}
+.eoe.audit{background:#efe8f7;color:#5b3290}.eoe.visit{background:#e3f1f3;color:#176670}.eoe.cross{background:#e4f3ea;color:#1f6f43}.eoe.accompany{background:#fff1dc;color:#9a520c}.eoe.isps{background:#e8edf3;color:#34506e}
+/* 通報單 */
+.doc{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none;color:inherit}
+.doc:hover{border-color:var(--navy2)}
+.doc .t{flex:1;font-weight:700;color:var(--navy)}
+.loading{padding:30px;text-align:center;color:var(--ink3)}
+/* 檢查來源統計卡：點卡片篩選，再點一次取消 */
+.scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.scard{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px 10px;cursor:pointer;text-align:left;font-family:inherit;transition:border-color .12s,box-shadow .12s,transform .12s;overflow:hidden}
+.scard:hover{border-color:var(--navy2);transform:translateY(-1px)}
+.scard:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.scard .nm{font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scard .v{font-size:24px;font-weight:800;line-height:1.15;color:var(--navy);font-variant-numeric:tabular-nums;margin-top:2px}
+.scard .v small{font-size:12px;font-weight:600;color:var(--ink3);margin-left:4px}
+.scard .bar{height:5px;border-radius:3px;background:#eef2f4;margin-top:6px;overflow:hidden}
+.scard .bar i{display:block;height:100%;border-radius:3px}
+.scard.e .bar i{background:var(--ext)}.scard.i .bar i{background:var(--int)}.scard.all .bar i{background:var(--navy)}
+.scard.e{border-top:4px solid var(--ext)}.scard.i{border-top:4px solid var(--int)}.scard.all{border-top:4px solid var(--navy)}
+.scard.on{border-color:var(--signal);box-shadow:0 0 0 3px rgba(232,134,42,.22);background:#fffaf3}
+.scard.on::after{content:"✓ 篩選中";position:absolute;top:6px;right:8px;font-size:11px;font-weight:800;color:var(--signal)}
+.scard.dim{opacity:.55}
+.scard .v,.scard .bar{display:block}
+/* 線上填單紀錄 */
+.banner-air{background:#eef6f7;border:1px solid #c7e1e4;color:#225a61;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:10px}
+.sub{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.sub.rej{opacity:.7;border-style:dashed}
+.sub .hd2{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;cursor:pointer}
+.sub .hd2:hover{background:#fafcfd}
+.sub .dt{font-family:var(--mono);font-weight:700;color:var(--navy);font-size:14px;white-space:nowrap}
+.sub .it{font-weight:800;color:var(--ink)}
+.sub .mt{font-size:12.5px;color:var(--ink2)}
+.sub .cnt{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sub .arr{color:var(--ink3);font-size:12px;transition:transform .15s}
+.sub.open .arr{transform:rotate(90deg)}
+.sub .bd{display:none;border-top:1px solid var(--line);padding:12px 14px;background:#fbfcfd}
+.sub.open .bd{display:block}
+.dfi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.dfi .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.dfi .no{background:var(--navy);color:#fff;border-radius:10px;font-size:11.5px;font-weight:800;padding:1px 8px}
+.dfi .kv{display:grid;grid-template-columns:90px 1fr;gap:3px 10px;font-size:13px}
+.dfi .kv>span:nth-child(odd){color:var(--ink3);white-space:nowrap}
+.dfi .kv>span:nth-child(even){white-space:pre-line}
+.phs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.phs a{display:block;width:84px;height:64px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.phs img{width:100%;height:100%;object-fit:cover}
+.phs .lb{font-size:11.5px;color:var(--ink3);width:100%}
+.scard.all.on{border-color:var(--navy);box-shadow:none;background:#f5f8fb}
+.scard.all.on::after{content:""}
+.scard.on:not(.all) .nm{padding-right:60px}
+.det{white-space:pre-line}
+.more{color:var(--navy2);cursor:pointer;font-size:12.5px}
+@media (max-width:640px){header{padding:12px 14px}.hd h1{font-size:17px}.shipbadge{font-size:15px}main{padding:14px 12px 40px}table.tb td,table.tb th{padding:7px 8px}}
+@media print{header .lk,nav,.flt,.noprint{display:none!important}body{background:#fff}.page{display:none!important}.page.on{display:block!important}.tbwrap{border:0;overflow:visible}}
+/* Tokyo MOU 高風險船提醒（主系統「船隊風險清單」app_db ship_risk） */
+.riskban{background:#fdecea;border:2px solid #c0392b;border-radius:10px;padding:14px 18px;margin:0 0 18px;color:#7a1c14}
+.riskban .rb-t{font-size:20px;font-weight:800;color:#b3261e;line-height:1.35}
+.riskban .rb-d{font-size:15px;margin-top:6px;line-height:1.6}
+.riskban .rb-s{font-size:13px;margin-top:6px;color:#8d4a43}
+.riskban .rb-i{margin-top:6px;font-size:13px}
+.riskban .rb-i summary{cursor:pointer;color:#8d4a43;display:inline-block}
+.riskban .rb-i summary:hover{text-decoration:underline}
+.riskban .rb-i div{margin-top:6px;background:#fff;border:1px solid #e8a29b;border-radius:6px;padding:8px 10px;line-height:1.7;color:#4a1a14}
+</style>
+</head>
+<body>
+
+<!-- ① 船上入口密碼（與海技／督導的系統密碼分開） -->
+<div class="gate" id="gPass"><div class="card">
+  <h2>🚢 船舶檢查填報平台</h2><p style="margin:-2px 0 10px;font-size:12px;letter-spacing:.5px">FPMC VESSEL INSPECTION REPORTING PORTAL</p>
+  <p>請輸入船上入口密碼<br><span style="font-size:12px">Please enter the portal password.</span></p>
+  <input type="password" id="gPassIn" placeholder="船上入口密碼 Password" onkeydown="if(event.key==='Enter')Auth.submitPass()">
+  <div class="err" id="gPassErr"></div>
+  <button class="go" onclick="Auth.submitPass()">進入 Enter</button>
+  <a class="help" href="ship-guide.pdf" target="_blank" rel="noopener">📖 第一次使用？看操作說明 Guide</a>
+</div></div>
+<!-- ② 選擇本船 -->
+<div class="gate" id="gShip"><div class="card">
+  <h2>選擇本船 Select your vessel</h2>
+  <p>請選擇本船船名，進入後只會看到本船的資料。</p>
+  <select id="gShipSel"></select>
+  <div class="err" id="gShipErr"></div>
+  <button class="go" onclick="Auth.submitShip()">確認 Confirm</button>
+</div></div>
+
+<div id="pvBar" style="display:none;background:#7b4fa3;color:#fff;padding:8px 16px;font-size:13.5px;align-items:center;gap:10px;flex-wrap:wrap"></div>
+<header><div class="hd">
+  <h1>🚢 船舶檢查填報平台<small>FPMC VESSEL INSPECTION REPORTING PORTAL ・ QMS &amp; VETTING</small></h1>
+  <span class="shipbadge" id="hdShip"></span>
+  <span class="sp"></span>
+  <a class="guide" href="ship-guide.pdf" target="_blank" rel="noopener" title="開啟船舶檢查填報平台操作說明（PDF）">📖 操作說明 Guide</a>
+  <a class="lk" id="hdSwitch" onclick="Auth.switchShip()">切換船舶 Change vessel</a>
+  <a class="lk" id="hdLogout" onclick="Auth.logout()">登出 Log out</a>
+</div></header>
+<nav><div class="tabs" id="tabs">
+  <!-- 2026-11-04 選單攤平：原「檢查紀錄」「公司文件」下拉的項目都直接列出來，船上一眼看得到平台有哪些東西；
+       「外部平台」下拉移除（首頁已有 Itinerary、SQMS 卡片） -->
+  <button data-p="home" class="on">🏠 首頁</button>
+  <button data-p="insp">📋 檢查紀錄</button>
+  <button data-p="air">📝 線上填單紀錄</button>
+  <button data-p="pos">👍 正面評價</button>
+  <button data-p="camp">🔍 分享缺失自查</button>
+  <button data-p="ntf">📇 緊急通報名單</button>
+  <button data-p="ref">📚 通報單／其他資訊</button>
+</div></nav>
+<!-- 跑馬燈：本船待辦（自動）＋公司公告（主系統 Owner 在資料管理新增，app_db portal_notices） -->
+<div class="mq" id="mq" style="display:none"><div class="mq-in"><span class="mq-lbl">📢 公告</span><div class="mq-vp"><div class="mq-track" id="mqTrack"></div></div></div></div>
+<main>
+  <!-- 首頁 -->
+  <section class="page on" id="p-home">
+    <div id="homeRisk"></div>
+    <!-- 第一排：左＝填報（外部檢查線上填單）、右＝待辦事項；第二排：常用功能 -->
+    <!-- 2026-11-04 首頁改版：上排左＝填報（外部檢查線上填單）、右＝外部平台；下方＝待辦事項清單（固定 5 列，要做的紅色、完成的不加底色） -->
+    <div class="homeTop">
+      <div><h2 class="pt">📝 填報 <span class="hint">每次外部檢查後填寫</span></h2>
+        <div class="grid" id="homeFill"></div></div>
+      <div class="homeTodo"><h2 class="pt">🔗 外部平台 <span class="hint">另開新視窗</span></h2>
+        <div class="grid" id="homeTools"></div></div>
+    </div>
+    <h2 class="pt" style="margin-top:22px">📌 待辦事項 <span class="hint" id="homeTodoSub">公司發給本船、需要處理的事項</span></h2>
+    <div class="todolist" id="homeEntries"><div class="loading">載入中…</div></div>
+    <div class="flownote" style="margin:22px 0 0">
+      <b>⚠ 請注意：在本平台填報，不能取代公司 FLOW 系統</b>
+      <div>以下項目除了在本平台填報外，<b>一樣要填報公司 FLOW 系統的 DMP-FM01</b>：</div>
+      <ul>
+        <li>外部檢查（SIRE、CDI、PSC、RightShip、FLAG、BVIQ、Terminal、第三方檢查）、內部檢查（訪船、內稽、隨船、交叉訪船）中<b>指定填入 FLOW 的項目</b></li>
+        <li>及其他異常項目<b>依 DMP 規定執行</b></li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- 檢查紀錄 -->
+  <section class="page" id="p-insp">
+    <h2 class="pt">📋 檢查紀錄 <span class="hint">本船歷次接受的外部／內部檢查</span></h2>
+    <div class="subtabs noprint">
+      <button type="button" class="on" data-s="list" onclick="inspSub('list')">📋 檢查紀錄</button>
+      <button type="button" data-s="exec" onclick="inspSub('exec')">📅 內部檢查執行情形一覽表</button>
+    </div>
+    <div id="insp-sub-list">
+    <div class="flt">
+      <select id="iYear"></select>
+      <select id="iIo"><option value="">外部＋內部</option><option value="e">只看外部檢查</option><option value="i">只看內部檢查</option></select>
+      <input id="iQ" placeholder="搜尋檢查來源／地點／檢查員">
+      <button class="btn sm noprint" onclick="window.print()">🖨 列印</button>
+    </div>
+    <div class="hint" style="margin:-4px 0 6px">點下方卡片可依檢查來源篩選，再點一次取消</div>
+    <div class="scards" id="iCards"></div>
+    <div class="chips" id="iSum" style="margin-bottom:10px"></div>
+    <div class="tbwrap"><table class="tb" id="iTb"></table></div>
+    </div>
+    <!-- 子頁籤：內部檢查執行情形一覽表 -->
+    <div id="insp-sub-exec" style="display:none">
+      <div class="hint" style="margin-bottom:8px">本船內稽、訪船、交叉訪船、隨船、ISPS 的實際執行月份</div>
+      <div class="flt"><select id="eYear"></select><button class="btn sm noprint" onclick="window.print()">🖨 列印</button></div>
+      <div class="chips" id="eSum" style="margin-bottom:10px"></div>
+      <div class="tbwrap"><table class="tb eo" id="eTb"></table></div>
+      <div class="panel" style="margin-top:14px"><b style="color:var(--navy)">明細</b><div id="eList" style="margin-top:6px"></div></div>
+    </div>
+  </section>
+
+  <!-- 外部檢查線上填單紀錄（唯讀） -->
+  <section class="page" id="p-air">
+    <h2 class="pt">📝 外部檢查線上填單紀錄 <span class="hint">本船送出過的外部檢查線上填單（日期、來源、缺失數、狀態）</span></h2>
+    <div class="flt">
+      <select id="aYear"></select>
+      <input id="aQ" placeholder="搜尋檢查來源">
+      <label class="hint" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="aRej">顯示未採用的送出</label>
+      <a class="btn sm dark noprint" id="aNew" target="_blank" rel="noopener">＋ 填寫新的外部檢查線上填單</a>
+    </div>
+    <div class="banner-air">送出後由海技審核匯入系統。按「👁 查看」可看當時送出的完整內容；內容有誤可按「✎ 修改後重送」（海技審核中，或海技收錄後 30 天內），改完要寫修改原因，一樣先送海技審核，海技確認後只更新有修改的地方。</div>
+    <div class="chips" id="aSum" style="margin-bottom:10px"></div>
+    <div id="aList"></div>
+  </section>
+
+
+  <!-- 分享缺失自查（本船要填寫的活動） -->
+  <section class="page" id="p-camp">
+    <h2 class="pt">🔍 分享缺失自查 <span class="hint">他船缺失分享給全船隊，請本船自查是否有類似情形並回覆</span></h2>
+    <div id="campTracks"></div>
+    <div class="panel" id="campList"></div>
+  </section>
+
+  <!-- 正面評價 -->
+  <section class="page" id="p-pos">
+    <h2 class="pt">👍 正面評價 <span class="hint">檢查中獲得肯定的人員與作法</span></h2>
+    <div class="flt">
+      <select id="pYear"></select>
+      <input id="pQ" placeholder="搜尋姓名／項目／內容">
+    </div>
+    <div class="hint" style="margin:-4px 0 6px">點下方卡片可依檢查來源篩選，再點一次取消</div>
+    <div class="scards" id="pCards"></div>
+    <div class="chips" id="pSum" style="margin-bottom:10px"></div>
+    <div id="pList"></div>
+  </section>
+
+
+
+  <!-- 緊急通報名單（Notification List）：主系統「船舶／公司人員資料」維護，本船唯讀；只提供列印／存成 PDF -->
+  <section class="page" id="p-ntf">
+    <h2 class="pt">📇 緊急通報名單 Notification List <span class="hint">本船的 DPA、CSO、督導與岸上緊急應變小組聯絡電話（由公司統一維護，內容有誤請通知海技組）</span></h2>
+    <div style="background:#eaf2fb;border:1px solid #b9d0ea;border-left:5px solid var(--navy);color:var(--navy);border-radius:8px;padding:6px 12px;margin:0 0 12px;font-size:11.5px;font-weight:600;line-height:1.6">📌 此份為 SOPEP／SMPEP 中的 NOTIFICATION LIST，請務必下載最新版本檢附於 SOPEP／SMPEP 計畫中。<br><span style="font-weight:400">🔖 名單右下角印有版本碼（Ver.），人員或電話（含手機）有任何異動，版本碼就會改變。請核對船上留存紙本的版本碼與本頁顯示的版本是否一致；不一致時請重新列印，並更換 SOPEP／SMPEP 內的名單。</span></div>
+    <div class="flt">
+      <button class="btn noprint" onclick="ntfPrint()" style="background:#d97a2b;border-color:#d97a2b;color:#fff;font-size:17px;font-weight:800;padding:11px 26px;border-radius:10px;box-shadow:0 3px 10px rgba(232,132,44,.35)">🖨 列印／存成 PDF</button>
+      <span class="hint" id="ntfInfo"></span>
+    </div>
+    <div id="ntfView"><div class="loading">載入中…</div></div>
+    <!-- 列印用的正式格式（NotifyDoc）放在畫面外，按「列印／存成 PDF」才印這份 -->
+    <iframe id="ntfFrame" title="緊急通報名單（列印用）" style="position:absolute;left:-10000px;top:0;width:800px;height:1130px;border:0" aria-hidden="true"></iframe>
+  </section>
+
+  <!-- 參考文件（主系統「20 海技參考資料 → 📤 分享船隊」維護，app_db ref_downloads）：公司分享給船隊的文件／訊息，船上下載或閱讀會記錄版本 -->
+  <section class="page" id="p-ref">
+    <!-- 2026-11-20：「船隊通報單」「參考文件」合併成一個頁籤，用子標籤分：📨 Circular／Bulletin（app_db refDocs）、📋 其他資訊（app_db ref_downloads） -->
+    <h2 class="pt">📚 通報單／其他資訊 Circulars &amp; Other Info <span class="hint">公司的 Circular／Bulletin，以及分享給船隊的文件、連結與訊息（有新版時請下載並更換船上留存版本）</span></h2>
+    <div id="refTodo"></div>
+    <div class="subtabs noprint" id="refSubtabs">
+      <!-- 2026-11-24 三分類：船隊通報（固定）｜參考文件（固定）｜其他資訊（有時效，過期自動收起） -->
+      <button type="button" data-s="cb" onclick="refSub('cb')">📄 船隊通報</button>
+      <button type="button" data-s="ref" onclick="refSub('ref')">📚 參考文件</button>
+      <button type="button" data-s="oth" onclick="refSub('oth')">📢 其他資訊</button>
+    </div>
+    <div id="ref-sub-cb">
+      <div class="flt"><input id="docQ" placeholder="🔍 搜尋標題" style="flex:1;max-width:320px" oninput="renderDocs()"></div>
+      <div id="docList"><div class="loading">載入中…</div></div>
+    </div>
+    <div id="ref-sub-ref" style="display:none">
+    <div class="flt"><input id="refQ" placeholder="🔍 搜尋標題／說明／附件名稱／分類" style="flex:1;max-width:420px"><select id="refMonth"><option value="">全部月份</option></select></div>
+    <div id="refList"><div class="loading">載入中…</div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   船舶專區（ship.html）：給船上的入口網站，與海技／督導使用的「船舶檢查暨缺失管理系統」分開。
+   ・登入：① 船上入口密碼（雲端 app_db「ship_site_pass」的 SHA-256，Owner／管理員在主系統資料管理設定）
+           ② 選擇本船。登入狀態存在本瀏覽器 7 天（鍵名與主系統不同，互不影響）。
+   ・資料：唯讀，只抓「本船」的檢查紀錄／缺失／正面評價（雲端 sync_* 表以 payload->>ship 篩選）。
+   ・入口：外部檢查線上填單、內部檢查改善單、分享缺失自查、船隊通報單。
+   ════════════════════════════════════════════════════════════════════════ */
+const CLOUD={url:"https://iqmbircjokdzdssouwkr.supabase.co",
+  key:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxbWJpcmNqb2tkemRzc291d2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNDAwODIsImV4cCI6MjA5NjgxNjA4Mn0.OZ2ez6ondz49kT90gwneYUXG7CbE8iiB6PnXE5fR6iY"};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const H=x=>Object.assign({apikey:CLOUD.key,Authorization:"Bearer "+CLOUD.key,"Content-Type":"application/json"},x||{});
+async function api(path,opts){
+  const r=await fetch(`${CLOUD.url}/rest/v1/${path}`,Object.assign({headers:H()},opts||{}));
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const t=await r.text();return t?JSON.parse(t):null;
+}
+async function getKey(k){const r=await api(`app_db?select=payload&k=eq.${encodeURIComponent(k)}`);return r&&r[0]?r[0].payload:null;}
+async function pullShip(table,code){
+  let all=[],off=0,b;
+  do{b=await api(`${table}?select=payload&payload->>ship=eq.${encodeURIComponent(code)}&order=id&offset=${off}&limit=1000`)||[];all=all.concat(b.map(x=>x.payload).filter(Boolean));off+=1000;}while(b.length===1000);
+  return all;
+}
+async function sha256hex(s){
+  try{if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}}catch(e){}
+  return "plain:"+s;
+}
+/* 日期：系統裡有 2024/02/16、2026/9/17、2026-10-06 幾種寫法 */
+function pd(s){const m=String(s||"").match(/(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);return m?{y:+m[1],m:+m[2],d:+m[3],iso:`${m[1]}-${String(+m[2]).padStart(2,"0")}-${String(+m[3]).padStart(2,"0")}`,txt:`${+m[1]}/${+m[2]}/${+m[3]}`}:null;}
+function dateRange(r){const a=pd(r.date),b=pd(r.dateTo);if(!a)return esc(r.date||"");if(!b||b.iso===a.iso)return a.txt;return a.txt+"～"+(a.y===b.y?`${b.m}/${b.d}`:b.txt);}
+
+/* ── 船舶清單、內部檢查判定（沿用主系統「分類規則」的內部檢查關鍵字） ── */
+let SHIPS=[],SHIPS_RAW=[],INTKW=["internal audit","isps","onboard visit","accompanying","cross ship visit","交叉訪船","專項檢查","sar-fm"];
+const shipLabel=c=>{const s=SHIPS.find(x=>x.code===c);return s?s.label:(c||"");};
+const isInt=t=>{const s=String(t||"").toLowerCase();return s.includes("內部檢查")||INTKW.some(k=>k&&s.includes(String(k).toLowerCase()));};
+/* 不給船隊看的檢查來源（公司內部用）：「機器故障」等。要再排除其他來源，加進這個清單即可 */
+const HIDE_ITYPES=["機器故障"];
+const shipVisible=r=>!HIDE_ITYPES.some(h=>String(r&&r.itype||"").includes(h));
+const ioTag=t=>isInt(t)?`<span class="io i">內</span>`:`<span class="io e">外</span>`;
+
+/* ════════ 登入 ════════ */
+const Auth={
+  KEY:"ship_portal_v1",TTL:7*24*3600*1000,
+  sess(){try{const s=JSON.parse(localStorage.getItem(this.KEY));return s&&s.exp>Date.now()?s:null;}catch(e){return null;}},
+  save(o){try{localStorage.setItem(this.KEY,JSON.stringify(Object.assign({exp:Date.now()+this.TTL},o)));}catch(e){}},
+  _res:null,
+  ensure(){return new Promise(res=>{this._res=res;this.next();});},
+  next(){
+    const s=this.sess();
+    if(!s||!s.ok){$("#gPass").style.display="flex";setTimeout(()=>$("#gPassIn").focus(),50);return;}
+    if(!s.ship){this.showShip();return;}
+    $("#gPass").style.display="none";$("#gShip").style.display="none";
+    if(this._res){const r=this._res;this._res=null;r(s.ship);}
+  },
+  async submitPass(){
+    const v=($("#gPassIn").value||"").trim();if(!v)return;
+    let h=null;try{const p=await getKey("ship_site_pass");h=p&&p.hash;}catch(e){$("#gPassErr").textContent="⚠ 連不上雲端，請檢查網路後再試";return;}
+    if(!h){$("#gPassErr").textContent="⚠ 船上入口密碼尚未設定，請洽海技組";return;}
+    if((await sha256hex(v))!==h){$("#gPassErr").textContent="❌ 密碼錯誤，請重新輸入 Wrong password";return;}
+    this.save({ok:true,ship:""});$("#gPass").style.display="none";this.next();
+  },
+  showShip(){
+    $("#gShipSel").innerHTML=`<option value="">— 請選擇船名 —</option>`+SHIPS.map(s=>`<option value="${esc(s.code)}">${esc(s.label)}</option>`).join("");
+    $("#gShip").style.display="flex";
+  },
+  submitShip(){
+    const c=$("#gShipSel").value;if(!c){$("#gShipErr").textContent="⚠ 請選擇本船船名";return;}
+    if(!confirm(`確認本船是「${shipLabel(c)}」嗎？`))return;
+    this.save({ok:true,ship:c});
+    try{sessionStorage.removeItem("ship_portal_tab");}catch(e){} // 剛登入一律從首頁開始
+    log("登入","系統",`${shipLabel(c)} 登入船舶檢查填報平台`);
+    this.next();
+  },
+  switchShip(){const s=this.sess();if(s){this.save({ok:true,ship:""});}location.reload();},
+  logout(){try{localStorage.removeItem(this.KEY);}catch(e){}location.reload();}
+};
+/* ════════ 預覽模式（2026-10-22）════════
+   主系統與本平台同在 sski2468-hua.github.io 底下，瀏覽器資料互通：主系統目前登入身分是 Owner／管理員時，
+   網址帶 ?preview=船代碼 就免密碼直接看該船畫面（給海技確認跑馬燈、自查項目等船上實際看到的內容）。
+   預覽時不寫操作紀錄（不會被算成船上使用），也不開放會寫入資料的填寫子頁面（線上填單／改善單／分享自查）。 */
+const PREVIEW=(()=>{
+  const c=new URLSearchParams(location.search).get("preview");if(!c)return null;
+  try{const s=JSON.parse(localStorage.getItem("vsm_identity_v1"));if(s&&s.exp>Date.now()&&["owner","admin","op1","op3"].includes(s.tier))return {ship:c,who:s.name||""}; /* 2026-11-03 開放督導（op1）、管理層等岸上人員（op3）；船舶帳號（op2）不行 */}catch(e){}
+  return {denied:true};
+})();
+const isPreview=()=>!!(PREVIEW&&!PREVIEW.denied);
+function showPreviewBar(code){
+  const b=$("#pvBar");if(!b)return;
+  if(PREVIEW&&PREVIEW.denied){b.style.display="flex";b.style.background="#c0392b";b.innerHTML="⚠ 預覽模式需要先在主系統以岸上人員身分（Owner／管理員／督導／管理層等）登入（同一個瀏覽器），目前改為一般登入。";return;}
+  b.style.display="flex";
+  b.innerHTML=`<b>👁 預覽模式</b><span>${esc(PREVIEW.who)} 正以「${esc(shipLabel(code))}」的畫面檢視；不會記錄為船上操作；填寫類頁面會以預覽方式開啟（不會存檔或送出）。</span><span style="flex:1"></span>
+    <span>換船</span><select style="padding:3px 6px;border-radius:5px;border:0" onchange="location.search='?preview='+encodeURIComponent(this.value)">${SHIPS.map(s=>`<option value="${esc(s.code)}" ${s.code===code?"selected":""}>${esc(s.label)}</option>`).join("")}</select>
+    <a style="color:#fff;text-decoration:underline;cursor:pointer" onclick="window.close();setTimeout(()=>location.search='',200)">結束預覽</a>`;
+  ["#hdSwitch","#hdLogout"].forEach(s=>{const e=$(s);if(e)e.style.display="none";});
+}
+/* 操作紀錄寫進主系統同一張 audit_log，海技可在主系統「操作紀錄查詢」看到船上何時登入 */
+function log(action,target,summary){
+  if(isPreview())return; // 預覽不記錄
+  const s=Auth.sess();
+  api("audit_log",{method:"POST",headers:H({"Prefer":"return=minimal"}),body:JSON.stringify([{ts:Date.now(),usr:`船舶 ${s&&s.ship||""}`,action,target:"船舶檢查填報平台－"+target,summary}])}).catch(()=>{});
+}
+/* ── 使用紀錄（2026-10-22，給海技在主系統「船舶平台使用情形」看各船實際使用狀況）──
+   登入一次可維持 7 天，只記登入會看不出每天有沒有在用，所以：
+   ① 開啟平台：每船每天記一次；② 瀏覽頁籤：每個頁籤每天記一次；③ 點進主要功能（填單、改善單、自查、操作說明、通報單、外部平台）每次都記。
+   同一動作 60 秒內重複點只記一次，避免連點灌爆操作紀錄。 */
+const TRACK_KEY="ship_portal_track_v1";
+function trackOnce(scope,action,target,summary){ // scope：同一天只記一次的識別字
+  const s=Auth.sess(),ship=s&&s.ship;if(!ship)return;
+  const day=new Date().toISOString().slice(0,10),k=`${ship}|${day}|${scope}`;
+  let m={};try{m=JSON.parse(localStorage.getItem(TRACK_KEY)||"{}");}catch(e){}
+  if(m[k])return;
+  Object.keys(m).forEach(x=>{if(!x.includes("|"+day+"|"))delete m[x];}); // 只留今天的
+  m[k]=1;try{localStorage.setItem(TRACK_KEY,JSON.stringify(m));}catch(e){}
+  log(action,target,summary);
+}
+const _lastAct={};
+function trackAct(action,target,summary){
+  const k=action+"|"+target+"|"+summary,now=Date.now();
+  if(_lastAct[k]&&now-_lastAct[k]<60000)return;_lastAct[k]=now;
+  log(action,target,summary);
+}
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
+  const h=a.getAttribute("href")||"",s=Auth.sess(),ship=(s&&s.ship)||"";
+  // 2026-11-06 預覽模式按「✎ 修改後重送」：改開「預覽用」修改畫面（?preview=1，所有寫入都擋下），讓海技看得到船上畫面
+  // 2026-11-06 預覽模式點任何填寫頁面（線上填單／修改後重送／改善單／分享自查）：一律改開「預覽用」頁面
+  // （?preview=1，該頁所有寫入都擋下、不替船建立填答紀錄），看得到船上點進去的實際畫面。
+  if(isPreview()&&/submit-airform\.html|intaudit-reply\.html|submit-selfcheck-share\.html/.test(h)){
+    e.preventDefault();e.stopPropagation();
+    window.open(h+(h.includes("?")?"&":"?")+"preview=1","_blank","noopener");
+    return;
+  }
+  const txt=(a.closest(".entry")?a.querySelector(".t"):a)?.textContent?.trim().slice(0,60)||"";
+  if(/submit-airform\.html/.test(h))trackAct("開啟","外部檢查線上填單",`${ship} 開啟外部檢查線上填單`);
+  else if(/intaudit-reply\.html/.test(h))trackAct("開啟","內部檢查改善單",`${ship} 開啟內部檢查改善單`);
+  else if(/submit-selfcheck-share\.html/.test(h))trackAct(/focus=/.test(h)?"前往結案":"開啟","分享缺失自查",`${ship} ${(a.closest(".camp,.trk")?.querySelector("b")?.textContent||"").trim().slice(0,60)}`);
+  else if(/ship-guide\.pdf/.test(h))trackAct("開啟","操作說明",`${ship} 開啟操作說明`);
+  else if(/ship-itinerary/.test(h))trackAct("開啟","船端 Itinerary",`${ship} 開啟船端 Itinerary`);
+  else if(/sqms/i.test(h))trackAct("開啟","SQMS",`${ship} 開啟 SQMS 程序書修訂需求管理平台`);
+  else if(a.closest("#ref-sub-cb"))trackAct("開啟","船隊通報單",`${ship} 開啟：${txt}`);
+  else if(a.dataset.rd)refDownloaded(a.dataset.rd);
+},true);
+
+/* ════════ 資料 ════════ */
+const D={ship:"",air:[],insp:[],pos:[],docs:[],camps:[],campsClosed:[],shareStates:{},resps:[],ia:{pending:0,returned:0,done:0,orders:0}};
+const yearsOf=arr=>[...new Set(arr.map(r=>(pd(r.date)||{}).y).filter(Boolean))].sort((a,b)=>b-a);
+function fillYear(sel,arr,allLabel){const ys=yearsOf(arr),cy=new Date().getFullYear();const el=$(sel),cur=el.value;el.innerHTML=(allLabel?`<option value="">${allLabel}</option>`:"")+[...new Set([cy,...ys])].sort((a,b)=>b-a).map(y=>`<option value="${y}">${y} 年</option>`).join("");if(cur)el.value=cur;}
+
+async function loadAll(code){
+  D.ship=code;
+  try{const c=await getKey("classify_rules");if(c&&Array.isArray(c.internalKw)&&c.internalKw.length)INTKW=c.internalKw;}catch(e){}
+  const tasks=[
+    pullShip("sync_insp",code).then(a=>D.insp=a.filter(shipVisible)),
+    pullShip("sync_sirepos",code).then(a=>D.pos=a.filter(shipVisible)),
+    getKey("refDocs").then(a=>D.docs=Array.isArray(a)?a:[]).catch(()=>{}),
+    // 外部檢查線上填單：本船送出過的（唯讀）
+    // 只讀基本資料（日期／檢查來源／缺失數），不讀缺失內容
+    api(`air_submissions?select=id,status,created_at,imported_at,basic:payload->basic,revOf:payload->revOf,revReason:payload->revReason&submitted_ship=eq.${encodeURIComponent(code)}&order=id.desc&limit=500`)
+      .then(a=>D.air=(a||[]).map(r=>{const b=r.basic||{};return {id:r.id,status:r.status,created_at:r.created_at,imported_at:r.imported_at,revOf:r.revOf||null,revReason:r.revReason||"",basic:{date:b.date||"",itype:b.itype||"",ndef:b.ndef,flagType:b.flagType||""}};}).filter(r=>shipVisible(r.basic))).catch(()=>{D.air=[];}),
+    loadCampaigns(code).catch(()=>{}),
+    loadIA(code).catch(()=>{}),
+    // 跑馬燈公告（主系統 Owner 在資料管理新增；唯讀）
+    getKey("portal_notices").then(p=>D.notices=(p&&Array.isArray(p.items))?p.items:[]).catch(()=>{D.notices=[];}),
+    // 緊急通報名單：開站就算好「有沒有更新沒列印」，頁籤／首頁卡片／跑馬燈才能提示
+    loadNtf().then(()=>ntfBadge()).catch(()=>{}),
+    // 參考文件下載：清單＋本船下載過的版本（頁籤／首頁卡片／跑馬燈的「有新版」提示）
+    loadRef(code).then(()=>refBadge()).catch(()=>{})
+  ];
+  await Promise.all(tasks.map(p=>p.catch(e=>console.warn(e))));
+}
+/* 分享缺失自查：進行中的活動，扣掉「本船就是缺失來源船」與不在指定範圍內的 */
+async function loadCampaigns(code){
+  const csAll=await api("selfcheck_share_campaigns?select=id,title,items,ship_scope,created_at,active&order=created_at.desc&limit=300")||[]; // 2026-11-13 已完成／已結束的也抓，船上看得到自己填過的
+  const cs=csAll.filter(c=>c.active!==false);
+  D.shareStates={};try{(await api("app_db?select=k,payload&k=like.share_state_*")||[]).forEach(r=>{if(r.payload)D.shareStates[String(r.k).replace("share_state_","")]=r.payload;});}catch(e){}
+  // 來源船：新活動 src 是「船代碼 來源 日期」，舊活動是「中文船名 英文船名 來源 日期」（如 SIRE-CI），
+  // 兩種都要認得，否則當事船會被列成要自查（同 submit-selfcheck-share.html 的 resolveSrcShip）
+  const srcShip=it=>{const s=String(it&&it.src||"").trim();if(!s)return "";const first=s.split(/\s+/)[0];
+    if(SHIPS.some(o=>o.code===first))return first;
+    let best="",bl=0;SHIPS.forEach(o=>[o.label,o.zh,o.en].filter(Boolean).forEach(n=>{if((s===n||s.startsWith(n+" ")||s.includes(" "+n+" ")||s.endsWith(" "+n))&&n.length>bl){best=o.code;bl=n.length;}}));
+    return best||first;};
+  const inScope=c=>{
+    const scope=(c.ship_scope&&c.ship_scope.length)?c.ship_scope:null;
+    if(scope&&!scope.includes(code))return false;
+    const its=c.items||[];if(its.length&&its.every(it=>srcShip(it)===code))return false;
+    return true;
+  };
+  D.camps=cs.filter(inScope);
+  D.campsClosed=csAll.filter(c=>c.active===false&&inScope(c)); // 2026-11-13 已完成／已終止：不算待辦，只供查看
+  // items：取本船自己的作答，列出「有，需處理」還沒結案的項目（需追蹤），讓船上直接點進去結案
+  if(D.camps.length||D.campsClosed.length)D.resps=await api(`selfcheck_share_responses?select=campaign_id,ship,submitted_at,items,checker_name,checker_title&ship=eq.${encodeURIComponent(code)}&limit=1000`)||[];
+}
+/* 內部檢查改善單：已發單的登錄單裡，內控／系統內結案的缺失，船上回報狀態 */
+async function loadIA(code){
+  const recs=await api(`intaudit_records?select=id,payload&payload->>ship=eq.${encodeURIComponent(code)}&limit=500`)||[];
+  const issued=recs.map(r=>r.payload).filter(p=>p&&p.issuedAt&&!p.draft);
+  const ids=issued.map(p=>p.id);
+  let reps=[];if(ids.length)reps=await api(`intaudit_replies?select=id,status&record_id=in.(${ids.join(",")})&limit=5000`)||[];
+  const st={};reps.forEach(r=>st[r.id]=r.status);
+  let pending=0,returned=0,done=0,waiting=0;
+  issued.forEach(p=>(p.defs||[]).forEach(d=>{
+    if(!d.uid||d.closeMode==="FLOW")return;
+    const s=st[`${p.id}_${d.uid}`];
+    if(!s)pending++;else if(s==="returned")returned++;else if(s==="reviewed")done++;else if(s==="submitted")waiting++;
+  }));
+  D.ia={pending,returned,done,waiting,orders:issued.length};
+}
+
+/* ════════ 跑馬燈 ════════
+   公司公告（期間內、全船隊或有指定本船）排前面；接著是本船自己還沒辦理的項目（預設內容）；都沒有就顯示「目前沒有待辦」。 */
+function renderMarquee(){
+  const t=new Date(),today=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  const notes=(D.notices||[]).filter(n=>n&&n.text&&!n.paused&&(!n.from||n.from<=today)&&(!n.to||n.to>=today)&&(!(n.ships||[]).length||n.ships.includes(D.ship)));
+  const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  const trk=campTracks().filter(x=>!x.it.closed).length;
+  const todo=[
+    D.ia.pending?`🛠 內部檢查改善單：待填寫 ${D.ia.pending} 項`:"",
+    D.ia.returned?`↩ 內部檢查改善單：被退回需補充 ${D.ia.returned} 項`:"",
+    campOverdue().length?`⏰ 分享缺失自查：${campOverdue().length} 項發佈超過 1 個月仍未送出，請儘速填寫`:"",
+    openCamps?`🔍 分享缺失自查：${openCamps} 項尚未送出`:"",
+    trk?`⚠ 分享缺失自查：${trk} 項需追蹤未結案`:"",
+    ntfNeedsPrint()?"🔔 緊急通報名單已更新，請重新列印":"",
+    refPending().filter(d=>d.marquee!==false).length?`📋 其他資訊：${refPending().filter(d=>d.marquee!==false).map(d=>d.title).join("、")}`:"" /* 「顯示在跑馬燈」沒勾的（例：LISCR 彙整）只靠紅點提醒 */
+  ].filter(Boolean);
+  const parts=[...notes.map(n=>`<span class="it nt">📢 ${esc(n.text)}</span>`),...todo.map(s=>`<span class="it">${esc(s)}</span>`)];
+  if(!todo.length)parts.push(`<span class="it ok">✓ 本船目前沒有待辦理的項目</span>`);
+  const tr=$("#mqTrack");if(!tr)return;
+  tr.innerHTML=parts.join("");
+  $("#mq").style.display="";
+  // 速度固定（約每秒 60px）：內容越長跑越久，不會因為訊息多就快到看不清楚
+  requestAnimationFrame(()=>{tr.style.animationDuration=Math.max(12,Math.round(tr.scrollWidth/60))+"s";});
+}
+/* ════════ 首頁 ════════ */
+function renderHome(){
+  {const rb=$("#homeRisk");if(rb)rb.innerHTML=riskBannerHtml(D.ship);}
+  const base=location.href.replace(/[^/]*$/,"");
+  const iaPills=[D.ia.pending?`<span class="pill bad">待填寫 ${D.ia.pending} 項</span>`:"",D.ia.returned?`<span class="pill warn">被退回需補充 ${D.ia.returned} 項</span>`:"",D.ia.waiting?`<span class="pill mute">待督導審核 ${D.ia.waiting} 項</span>`:"",(!D.ia.pending&&!D.ia.returned)?`<span class="pill ok">目前沒有待填寫的項目</span>`:""].join("");
+  const openCamps=D.camps.filter(c=>!D.resps.some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  // 首頁分兩區：📌 待辦事項（公司發給本船、有待回覆數量的）／🧰 填報與常用功能（有需要時才點的填報與外部平台）
+  const card=e=>`<a class="entry ${e.c}" href="${esc(e.href)}" ${e.go?`onclick="event.preventDefault();go('${e.go}')"`:`target="_blank" rel="noopener"`}><span class="t">${e.t}</span><span class="d">${e.d}</span><span class="st">${e.st}</span></a>`;
+  /* 2026-11-04 待辦事項改成清單：固定 5 列、固定順序；要做的整列紅色（深藍「前往」），完成的不加底色（白色「查看」） */
+  const trk=campTracks().filter(x=>!x.it.closed).length,lateN=campOverdue().length,refN=refPending().length,ntfUp=ntfNeedsPrint();
+  const iaHas=D.ia.pending||D.ia.returned;
+  const todo=[
+    {ic:"🛠",t:"內部檢查改善單",has:iaHas,
+     st:iaHas?[D.ia.pending?`${D.ia.pending} 項待填寫`:"",D.ia.returned?`${D.ia.returned} 項被退回需補充`:""].filter(Boolean).join("、"):`✓ 目前沒有待填寫${D.ia.waiting?`（${D.ia.waiting} 項待督導審核）`:""}`,
+     d:"督導上船檢查（訪船、內稽等）後發出的改善單，請逐筆填寫改善措施、完成日期並上傳改善後照片；列為 FLOW 的缺失請至 FLOW 系統填報 DMP-FM01。",
+     href:`${base}intaudit-reply.html?ship=${encodeURIComponent(D.ship)}`,b:"前往填寫"},
+    {ic:"🔍",t:"分享缺失自查",has:openCamps>0,
+     st:openCamps?`${openCamps} 項未送出${lateN?`（其中 ${lateN} 項已逾 1 個月）`:""}`:"✓ 都已送出",
+     d:"公司將他船（或本船）發生的缺失、或自訂案例分享給全船隊，請逐題回覆本船狀況並送出。",go:"camp",b:"前往填寫"},
+    {ic:"⚠️",t:"分享缺失自查・需追蹤結案",has:trk>0,
+     st:trk?`${trk} 項未結案`:"✓ 沒有未結案項目",
+     d:"答「有，需處理／未完成」的項目，改善完成後請回到該自查勾「已完成改善（結案）」再送出一次。",go:"camp",b:"前往結案"},
+    {ic:"📋",t:"其他資訊",has:refN>0,
+     st:refN?`${refN} 份新的／有更新，請下載或閱讀`:(refVisible().length?"✓ 都已下載／閱讀":"目前沒有文件"),
+     d:"公司分享給船隊的文件與訊息（例如 IMO SOPEP 聯絡清單、LISCR Marine Advisory、檢查要求）。",go:"refinfo",b:"前往查閱"},
+    {ic:"📇",t:"緊急通報名單 Notification List",has:ntfUp,
+     st:ntfUp?"名單已更新，請重新列印":(NTF&&NTF.printed?"✓ 已列印最新版":"✓ 目前為最新版"),
+     d:"DPA、CSO、督導（含代理人）與岸上緊急應變小組電話，可列印或存 PDF；名單更新時，SOPEP／SMPEP 內的名單務必更新抽換。",go:"ntf",b:"前往列印"}
+  ];
+  const nHas=todo.filter(x=>x.has).length;
+  const sub=$("#homeTodoSub");if(sub)sub.innerHTML=nHas?`公司發給本船、需要處理的事項（<b style="color:#c0392b">${nHas} 項待處理</b>，紅色＝要做）`:"公司發給本船、需要處理的事項（目前都已完成 ✓）";
+  $("#homeEntries").innerHTML=todo.map(x=>`<div class="trow${x.has?" has":""}"><div class="ic">${x.ic}</div>
+    <div class="tt">${esc(x.t)}<span class="stx">${esc(x.st)}</span><small>${esc(x.d)}</small></div>
+    <a class="tgo" href="${x.go?"#"+x.go:esc(x.href)}" ${x.go?`onclick="event.preventDefault();go('${x.go}')"`:`target="_blank" rel="noopener"`}>${x.has?x.b+" →":"查看 →"}</a></div>`).join("");
+  // 第一排右側：填報（外部檢查線上填單）
+  $("#homeFill").innerHTML=[
+    {c:"ext",t:"📝 外部檢查線上填單",d:"1. 外部檢查（PSC、SIRE、CDI、FLAG 等）結束後，在這裡線上填寫檢查結果與缺失（即以往的 After Inspection Review 表單）。<br>2. <b>零缺失也要填報</b>；正面評論有才需填寫。<br>3. <b style=\"color:#c0392b\">外部檢查缺失除了在本平台填報，一律還須至 FLOW 系統填報 DMP-FM01，進行核簽流程。</b>",href:`${base}submit-airform.html?ship=${encodeURIComponent(D.ship)}`,st:`<span class="pill mute">檢查後填寫</span><span class="pill ok">已送出 ${D.air.filter(r=>r.status!=="rejected").length} 份</span>`}
+  ].map(card).join("");
+  // 第二排：常用功能（船端 Itinerary → SQMS → 緊急通報名單）
+  $("#homeTools").innerHTML=[
+    {c:"itin",t:"🧭 船端 Itinerary",d:"1. 本船航程（Itinerary）。<br>2. 頁面內另有「船端配件／物料／工程跟蹤」與「內控異常／訴求／報告需求」。<br>（另開新視窗）",href:"https://ttwonder.github.io/ship-dynamics-todo-system/ship-itinerary.html",st:`<span class="pill mute">外部平台 ↗</span>`},
+    {c:"sqms",t:"📘 SQMS 程序書修訂需求管理平台",d:"對 SQMS 程序書有修訂建議或需求時，請在這裡提出。<br>（另開新視窗）",href:"https://ttwonder.github.io/sqms-revision-system-ready/",st:`<span class="pill mute">外部平台 ↗</span>`}
+  ].map(card).join("");} // 緊急通報名單、參考文件已移到下方待辦事項清單
+/* ════════ 分享缺失自查（本船） ════════ */
+/* 需追蹤：本船在各分享自查活動中答「有，需處理」(status=similar) 的項目。未結案的列出來＋「前往結案」
+   （開自查頁 ?focus=題號，直接跳到那一題勾「已完成改善（結案）」再送出）；已結案的收合在下方可展開查看。 */
+function campTracks(){
+  const out=[];
+  (D.resps||[]).forEach(r=>{
+    const c=(D.camps||[]).find(x=>String(x.id)===String(r.campaign_id));if(!c)return;
+    (r.items||[]).forEach((it,i)=>{if(it&&it.status==="similar")out.push({c,r,it,i});});
+  });
+  return out;
+}
+function renderCampTracks(){
+  const base=location.href.replace(/[^/]*$/,""),today=new Date().toISOString().slice(0,10);
+  const all=campTracks(),open=all.filter(x=>!x.it.closed),closed=all.filter(x=>x.it.closed);
+  open.sort((a,b)=>String(a.it.trackDue||"9999").localeCompare(String(b.it.trackDue||"9999")));
+  /* 2026-11-12 改成表格式（原本每筆一張大卡片，3 筆就佔快 400px）：題目｜本船實際狀況｜追蹤方式｜期限｜來源自查｜動作 */
+  const chip=t=>`<span class="tkchip${/內控/.test(t)?" ic":/物料|配件|備品/.test(t)?" mat":/工程|塢修|修理/.test(t)?" eng":""}">${esc(t)}</span>`;
+  const row=x=>{
+    const it=x.it,over=!it.closed&&it.trackDue&&it.trackDue<today;
+    const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(x.c.id)}&ship=${encodeURIComponent(D.ship)}&focus=${x.i}`;
+    const due=it.trackDue?`<span style="${over?"color:#c0392b;font-weight:700":""}">${esc(it.trackDue)}${over?"<br>已逾期":""}</span>`:`<span class="hint">—</span>`;
+    return `<tr class="trk${it.closed?" done":""}${over?" over":""}">
+      <td class="tk-c"><b>${esc(it.topic||(it.code?"CODE "+it.code:"")||("第 "+(x.i+1)+" 題"))}</b></td>
+      <td class="tk-n">${it.note?esc(it.note):`<span class="hint">（未填）</span>`}${it.closed&&(it.closedAt||it.closeNote)?`<div class="hint" style="margin-top:2px">✓ 結案 ${esc(it.closedAt||"")}${it.closeNote?"：" +esc(it.closeNote):""}</div>`:""}</td>
+      <td>${(it.track||[]).map(chip).join(" ")||`<span class="hint">—</span>`}</td>
+      <td class="tk-s tk-due">${due}</td>
+      <td class="tk-s tk-src">${esc(String(x.c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}・第 ${x.i+1} 題</td>
+      <td class="tk-a">${it.closed?`<span class="pill ok">已結案</span>`:`<a class="btn sm dark" href="${esc(href)}" target="_blank" rel="noopener">前往結案</a>`}</td></tr>`;};
+  const table=list=>`<div class="tkwrap"><table class="tktbl"><thead><tr><th>題目</th><th>本船實際狀況</th><th>追蹤方式</th><th>追蹤期限</th><th>來源自查</th><th></th></tr></thead><tbody>${list.map(row).join("")}</tbody></table></div>`;
+  return `<div class="panel" style="margin-bottom:12px;border-left:4px solid ${open.length?"#e0a020":"#2e8b57"};padding-top:10px;padding-bottom:10px">
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">⚠ 需追蹤的項目</b>${open.length?`<span class="tkn">${open.length}</span>`:""}
+    <span class="hint">本船答「有類似問題，需後續追蹤」；改善完成後按「前往結案」勾 ✓ 已完成改善並送出</span></div>
+    ${open.length?table(open):`<div class="hint" style="margin-top:6px">目前沒有未結案的追蹤項目。</div>`}
+    ${closed.length?`<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">已結案 ${closed.length} 項（點此展開）</summary>${table(closed)}</details>`:""}
+  </div>`;
+}
+/* 2026-11-04 發佈超過 1 個月（30 天）還沒送出的分享自查：列表標「⏰ 已逾期」並排最前面、首頁與跑馬燈另外提醒 */
+const CAMP_OVERDUE_DAYS=30;
+function campAgeDays(c){const t=+new Date(c&&c.created_at);return t?Math.floor((Date.now()-t)/86400000):0;}
+function campOverdue(){return (D.camps||[]).filter(c=>campAgeDays(c)>=CAMP_OVERDUE_DAYS&&!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at));}
+/* 2026-11-12 進行中的分享自查：點列展開本船填答結果（唯讀；要修改／結案仍按「查看」進填答頁） */
+const CAMP_OPEN=new Set();
+function toggleCampDet(cid,ev){
+  if(ev&&ev.target&&ev.target.closest("a,button"))return; // 點「查看／前往填寫」照常開新頁
+  CAMP_OPEN.has(cid)?CAMP_OPEN.delete(cid):CAMP_OPEN.add(cid);
+  renderCamp();
+}
+const CP_ST={ok:["本輪無類似情形","ok"],self:["當事船（本船缺失來源）","self"],na:["本船型不適用","na"],pending:["未作答","pend"]};
+function cpStChip(it){
+  if(it.status==="similar"){const fixed=it.simKind==="fixed";return `<span class="cpst ${fixed?"fixed":"trk"}">${fixed?"🔧 有類似問題，已解決":"⚠ 有類似問題，需後續追蹤"}${!fixed?(it.closed?"（已結案）":"（未結案）"):""}</span>`;}
+  const s=CP_ST[it.status]||CP_ST.pending;return `<span class="cpst ${s[1]}">${it.status==="ok"?"✅ ":""}${s[0]}</span>`;
+}
+function campDetHtml(c,r){
+  if(!r)return `<div class="hint" style="padding:4px 0">本船尚未填寫這份自查，請按右側「前往填寫」。</div>`;
+  const items=r.items||[];
+  const who=r.checker_name?`${esc(r.checker_name)}${r.checker_title?" "+esc(r.checker_title):""}`:"";
+  const sent=r.submitted_at?new Date(r.submitted_at).toLocaleString("zh-TW",{hour12:false}):"";
+  const n={ok:0,similar:0,other:0};items.forEach(it=>{if(it.status==="ok")n.ok++;else if(it.status==="similar")n.similar++;else n.other++;});
+  const head=`<div class="cpd-h">${who?`填答人：<b>${who}</b>　`:""}${sent?`送出：${esc(sent)}　`:`<b style="color:#b26a00">尚未送出（填寫中）</b>　`}共 ${items.length} 題・無類似 ${n.ok}・有類似 ${n.similar}${n.other?`・其他 ${n.other}`:""}</div>`;
+  const body=items.map((it,i)=>{
+    const head=it.topic?("📌 "+it.topic):(it.code?"CODE "+it.code:"第 "+(i+1)+" 題");
+    const note=[(it.note||"").trim(),(it.actual||"").trim()].filter(Boolean).join("\n")||(it.naNote||"");
+    const trk=(it.track||[]).filter(Boolean).map(t=>t==="FLOW"&&it.flowNo?`FLOW（單號 ${it.flowNo}）`:t==="其他"&&it.trackOther?`其他（${it.trackOther}）`:t).join("、");
+    return `<div class="cpd-i">
+      <div class="cpd-t"><b>#${i+1} ${esc(head)}</b>${it.src?`<span class="cpd-src">${esc(it.src)}</span>`:""}${cpStChip(it)}</div>
+      ${it.detail?`<div class="cpd-d">${esc(it.detail)}</div>`:it.key?`<div class="cpd-d">${esc(it.key)}</div>`:""}
+      ${it.actual2?`<div class="cpd-n">實際情況：${esc(it.actual2)}</div>`:""}
+      ${note?`<div class="cpd-me">本船說明：${esc(note)}</div>`:""}
+      ${it.status==="similar"&&(trk||it.trackDue)?`<div class="cpd-m">${trk?"追蹤方式："+esc(trk)+"　":""}${it.trackDue?"追蹤期限："+esc(it.trackDue):""}</div>`:""}
+      ${it.closed&&(it.closedAt||it.closeNote)?`<div class="cpd-m" style="color:#2e7d4f">✓ 結案 ${esc(it.closedAt||"")}${it.closeNote?"："+esc(it.closeNote):""}</div>`:""}
+      ${it.checkedBy||it.checkedAt?`<div class="cpd-m">最後回答：${esc(it.checkedBy||"")}　${esc(String(it.checkedAt||"").slice(0,10))}</div>`:""}
+    </div>`;}).join("");
+  return head+(body||`<div class="hint">（沒有題目）</div>`);
+}
+/* 2026-11-13 已完成／已終止的分享自查：船上仍看得到自己填過的內容（唯讀，不算待辦） */
+function campClosedHtml(base){
+  const cs=D.campsClosed||[];if(!cs.length)return "";
+  const gray=`background:#eceff1;color:#455a64`;
+  const rows=cs.map(c=>{
+    const r=(D.resps||[]).find(x=>String(x.campaign_id)===String(c.id));
+    const ss=(D.shareStates||{})[String(c.id)]||{};
+    const st=ss.state==="done"?`<span class="pill ok">✅ 已完成</span>`:ss.state==="stopped"?`<span class="pill" style="${gray}">⏹ 已終止</span>`:`<span class="pill" style="${gray}">已結束</span>`;
+    const why=ss.state==="stopped"&&ss.reason?`<div class="hint" style="margin-top:2px">終止原因：${esc(ss.reason)}</div>`:"";
+    const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(c.id)}&ship=${encodeURIComponent(D.ship)}`;
+    return `<tr><td><b>${esc(String(c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}</b>${why}</td>
+      <td class="cp-s">${pd(new Date(c.created_at).toISOString())?.txt||""}</td><td class="cp-s" style="text-align:center">${(c.items||[]).length}</td>
+      <td class="cp-st">${st}${r&&r.submitted_at?"":` <span class="pill" style="background:#fff3e0;color:#9a5b00">本船未送出</span>`}</td>
+      <td class="cp-a">${r?`<a class="btn sm" href="${esc(href)}" target="_blank" rel="noopener">查看</a>`:""}</td></tr>`;
+  }).join("");
+  return `<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--navy);font-weight:700;font-size:14.5px">已完成／已結束的分享自查（${cs.length} 項，僅供查看）</summary>
+    <div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+function renderCamp(){
+  const base=location.href.replace(/[^/]*$/,"");
+  const od=new Set(campOverdue().map(c=>String(c.id)));
+  const camps=[...D.camps].sort((a,b)=>(od.has(String(b.id))?1:0)-(od.has(String(a.id))?1:0)); // 逾期的排最前面，其餘維持原順序
+  const rows=camps.map(c=>{
+    const r=D.resps.find(x=>String(x.campaign_id)===String(c.id));
+    const late=od.has(String(c.id));
+    const st=(late?`<span class="pill bad" style="background:#c0392b;color:#fff">⏰ 已逾期 ${campAgeDays(c)} 天未送出</span>`:"")+(r&&r.submitted_at?`<span class="pill ok">已送出</span>`:r?`<span class="pill warn">填寫中</span>`:`<span class="pill bad">尚未填寫</span>`);
+    const href=`${base}submit-selfcheck-share.html?cid=${encodeURIComponent(c.id)}&ship=${encodeURIComponent(D.ship)}`;
+    // 跟海技的「分享自查彙整清單」一樣：本活動有「有，需處理」還沒結案的，標「⚠ N 項未結案」並把整列標橘底
+    const trk=r?(r.items||[]).filter(it=>it&&it.status==="similar"&&!it.closed).length:0;
+    const trkPill=trk?`<span class="pill bad">⚠ ${trk} 項未結案</span>`:"";
+    // 2026-11-12 改成表格式：主題｜發佈日｜題數｜未結案｜狀態｜動作（class camp 保留給點擊紀錄用）
+    // 2026-11-12 點整列（按鈕以外）就在下方展開本船填答結果，不用再點「查看」開新頁
+    const op=CAMP_OPEN.has(String(c.id));
+    return `<tr class="camp${trk?" hastrk":""}${late?" late":""}${op?" open":""}" onclick="toggleCampDet('${String(c.id).replace(/'/g,"")}',event)" title="點一下展開／收合本船填答結果"><td><span class="cp-car">${op?"▾":"▸"}</span><b>${esc(String(c.title||"缺失自查").replace(/^缺失自查[：:]\s*/,"")).replace(/-/g,"‑")}</b></td>
+      <td class="cp-s">${pd(new Date(c.created_at).toISOString())?.txt||""}</td><td class="cp-s" style="text-align:center">${(c.items||[]).length}</td>
+      <td>${trkPill}</td><td class="cp-st">${st}</td>
+      <td class="cp-a"><a class="btn sm ${r&&r.submitted_at?"":"dark"}" href="${esc(href)}" target="_blank" rel="noopener">${r&&r.submitted_at?"查看":"前往填寫"}</a></td></tr>`
+      +(op?`<tr class="cpdet"><td colspan="6">${campDetHtml(c,r)}</td></tr>`:"");
+  }).join("");
+  const nTodo=camps.filter(c=>!(D.resps||[]).some(r=>String(r.campaign_id)===String(c.id)&&r.submitted_at)).length;
+  $("#campList").innerHTML=`<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15.5px">進行中的分享自查</b><span class="hint">共 ${camps.length} 項${nTodo?`，<b style="color:#c0392b">${nTodo} 項尚未送出</b>`:"，全部已送出 ✓"}</span></div>${od.size?`<div style="margin-top:6px;padding:8px 12px;background:#fdecea;border:1px solid #f1b0a8;border-radius:8px;color:#a12a1e;font-weight:700">⏰ 有 ${od.size} 項分享自查發佈已超過 1 個月仍未送出，請儘速完成填寫並送出。</div>`:""}${rows?`<div class="cpwrap"><table class="cptbl"><thead><tr><th>自查主題</th><th>發佈日</th><th style="text-align:center">題數</th><th>追蹤</th><th>狀態</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="hint" style="margin-top:6px">目前沒有需要本船填寫的分享自查。</div>`}`+campClosedHtml(base);
+  const tb=$("#campTracks");if(tb)tb.innerHTML=campTracks().length?renderCampTracks():"";
+}
+
+/* ════════ 外部檢查線上填單紀錄（唯讀）════════
+   資訊安全：只向雲端讀「基本資料」（日期、檢查來源、缺失數），不讀缺失內容、措施、照片、正面評論；
+   畫面也只顯示日期、來源、缺失數與狀態。
+   status＝pending（已送出、海技審核中）／imported（海技已匯入）／rejected（未採用：重複或測試）。 */
+const AIR_ST={pending:["warn","已送出・海技審核中"],imported:["ok","海技已收錄"],rejected:["mute","未採用（重複或測試）"],superseded:["mute","已由修訂版取代"]};
+const AIR_REV_DAYS=30;   // 海技收錄後 30 天內可修改後重送
+/* 2026-11-06 可修改後重送：審核中隨時可改；已收錄 30 天內可改；已有一份修訂在審核中就先不能再改（避免同時好幾份修訂） */
+function airCanRevise(r){
+  if(D.air.some(x=>x.revOf===r.id&&x.status==="pending"))return {ok:false,why:"修訂審核中"};
+  // 已經有修訂版被採用 → 要改請改最新的那一份（才會帶到前一次修改後的內容）
+  if(D.air.some(x=>x.revOf===r.id&&x.status==="imported"))return {ok:false,why:"已有修訂版，請改最新的那一份"};
+  if(r.status==="pending")return {ok:true};
+  if(r.status==="imported"){
+    // 30 天從「第一次收錄」算起：修訂版沿著原送出往回找最早那一份的收錄日，不會因為改過一次就重新起算
+    let root=r,guard=0;while(root.revOf&&guard++<20){const p=D.air.find(x=>x.id===root.revOf);if(!p)break;root=p;}
+    const at=root.imported_at||r.imported_at;
+    if(!at)return {ok:true};
+    const left=AIR_REV_DAYS-Math.floor((Date.now()-new Date(at).getTime())/86400000);
+    return left>=0?{ok:true,left}:{ok:false,why:`收錄已超過 ${AIR_REV_DAYS} 天`};
+  }
+  return {ok:false,why:""};
+}
+function renderAir(){
+  const y=$("#aYear").value,q=($("#aQ").value||"").trim().toLowerCase(),showRej=$("#aRej").checked;
+  const all=D.air.filter(r=>!y||String((pd(r.basic.date)||{}).y)===y);
+  const hide=s=>s==="rejected"||s==="superseded";
+  const rows=all.filter(r=>(showRej||!hide(r.status))&&(!q||String(r.basic.itype||"").toLowerCase().includes(q)))
+    .sort((a,b)=>((pd(b.basic.date)||{}).iso||"").localeCompare((pd(a.basic.date)||{}).iso||"")||b.id-a.id);
+  const n=k=>all.filter(r=>r.status===k).length;
+  $("#aSum").innerHTML=`<span class="chip">共送出 <b>${all.length-n("rejected")-n("superseded")}</b> 份</span><span class="chip"><span class="pill ok">海技已收錄</span> <b>${n("imported")}</b></span>${n("pending")?`<span class="chip"><span class="pill warn">審核中</span> <b>${n("pending")}</b></span>`:""}${n("rejected")+n("superseded")?`<span class="chip hint">未採用／已取代 ${n("rejected")+n("superseded")} 份（勾選上方可顯示）</span>`:""}`;
+  const base=`${location.href.replace(/[^/]*$/,"")}submit-airform.html`;
+  $("#aList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb"><thead><tr><th>檢查日期</th><th>檢查來源</th><th>缺失數</th><th>狀態</th><th class="noprint">內容</th></tr></thead><tbody>${rows.map(r=>{const b=r.basic,st=AIR_ST[r.status]||AIR_ST.pending,cr=airCanRevise(r);
+      return `<tr style="${hide(r.status)?"opacity:.6":""}"><td class="d">${esc((pd(b.date)||{}).txt||b.date||"")}</td><td>${ioTag(b.itype)}${esc(b.itype||"")}${/flag/i.test(b.itype||"")?flagTags(b.flagType):""}${r.revOf?`<div class="hint" style="color:#a05a10">✎ 修訂版（原 #${r.revOf}）${r.revReason?"："+esc(r.revReason):""}</div>`:""}</td><td class="n">${esc(b.ndef??"")}</td><td><span class="pill ${st[0]}">${st[1]}</span></td>
+        <td class="noprint" style="white-space:nowrap"><button class="btn sm" onclick="airView(${r.id})">👁 查看</button>
+          ${cr.ok?`<a class="btn sm dark" href="${esc(base)}?rev=${r.id}&ship=${encodeURIComponent(D.ship)}" target="_blank" rel="noopener" title="${cr.left!=null?"還剩 "+cr.left+" 天可修改":"審核中，可修改"}">✎ 修改後重送</a>${cr.left!=null?`<div class="hint" style="font-size:11px">還剩 ${cr.left} 天可改</div>`:""}`:(cr.why?`<span class="hint" style="font-size:11.5px">${esc(cr.why)}</span>`:"")}</td></tr>`;}).join("")}</tbody></table></div>`
+    :`<div class="empty">${D.air.length?"沒有符合條件的填單紀錄":"本船還沒有送出過外部檢查線上填單"}</div>`;
+}
+/* 照片大圖：疊在「查看」視窗上面，按 ✕、點黑色背景或按 Esc 關閉 */
+function airPhoto(src,name){
+  let o=document.getElementById("airPhotoOv");
+  if(!o){o=document.createElement("div");o.id="airPhotoOv";
+    o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10001;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out";
+    o.onclick=e=>{if(e.target===o||e.target.dataset.close)o.remove();};
+    document.addEventListener("keydown",function k(e){if(e.key==="Escape"){const x=document.getElementById("airPhotoOv");if(x)x.remove();}});
+    document.body.appendChild(o);}
+  o.innerHTML=`<button data-close="1" style="position:absolute;top:14px;right:18px;background:#fff;border:0;border-radius:50%;width:38px;height:38px;font-size:20px;cursor:pointer;line-height:38px">✕</button>
+    <img src="${esc(src)}" style="max-width:94vw;max-height:84vh;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.5);cursor:default">
+    ${name?`<div style="color:#fff;margin-top:10px;font-size:13px">${esc(name)}</div>`:""}`;
+}
+/* 👁 查看：點了才向雲端讀這一份的完整內容（列表本身仍只讀基本資料） */
+async function airView(id){
+  let ov=document.getElementById("airViewOv");
+  if(!ov){ov=document.createElement("div");ov.id="airViewOv";ov.style.cssText="position:fixed;inset:0;background:rgba(20,30,40,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto";ov.onclick=e=>{if(e.target===ov)ov.remove();};document.body.appendChild(ov);}
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;max-width:900px;width:100%;padding:20px 22px"><p class="hint">讀取中…</p></div>`;
+  try{
+    const r=(await api(`air_submissions?id=eq.${id}&submitted_ship=eq.${encodeURIComponent(D.ship)}&select=id,status,created_at,imported_at,payload`))[0];
+    if(!r)throw new Error("找不到這份送出");
+    const p=r.payload||{},b=p.basic||{},nl=s=>esc(s||"").replace(/\n/g,"<br>");
+    const kv=(k,v)=>v?`<div style="display:grid;grid-template-columns:120px 1fr;gap:8px;padding:5px 0;border-bottom:1px dashed #e3e8ec"><span class="hint" style="font-weight:700">${k}</span><span>${nl(v)}</span></div>`:"";
+    // 2026-11-06 照片點了在本頁彈出大圖（可關閉），不再另開網頁；PDF 仍另開分頁
+    const ph=(lab,arr)=>(arr||[]).length?`<div style="margin-top:6px"><span class="hint" style="font-weight:700">${lab}</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${arr.map(x=>{const src=x.url||x.dataUrl||"";if(!src)return "";
+      if(/pdf/i.test(x.type||x.name||x.path||""))return `<a href="${esc(src)}" target="_blank" rel="noopener">📄 ${esc(x.name||"PDF")}</a>`;
+      return `<img src="${esc(src)}" alt="${esc(x.name||"")}" onclick="airPhoto(this.src,this.alt)" style="width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid #dde3e8;cursor:zoom-in">`;}).join("")}</div></div>`:"";
+    const st=AIR_ST[r.status]||AIR_ST.pending;
+    ov.firstElementChild.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+        <div><h3 style="margin:0;color:var(--navy)">外部檢查線上填單 #${r.id}</h3><div class="hint">${esc(b.itype||"")} ・ ${esc(b.date||"")} ・ 送出 ${r.created_at?esc(new Date(r.created_at).toLocaleString("zh-TW",{hour12:false})):""}　<span class="pill ${st[0]}">${st[1]}</span></div>
+        ${p.revOf?`<div class="hint" style="color:#a05a10;margin-top:4px">✎ 這是修訂版（原 #${p.revOf}）　修改原因：${esc(p.revReason||"")}</div>`:""}</div>
+        <button class="btn" onclick="document.getElementById('airViewOv').remove()">關閉</button></div>
+      <div style="margin-top:12px;padding:10px 12px;background:#f5f8fb;border-radius:8px">${kv("檢查來源",(b.itype||"")+(b.flagType?"（"+b.flagType+"）":""))}${kv("檢查日期",b.date)}${kv("檢查地點",b.place)}${kv("單位／油公司",b.oilco)}${kv("檢查員",b.inspector)}</div>
+      <h4 style="margin:14px 0 6px">缺失（${(p.defects||[]).length} 項）</h4>
+      ${(p.defects||[]).map((d,i)=>`<div style="border:1px solid #dde3e8;border-left:4px solid #d97a2b;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+        <b>#${i+1}${d.code?"　CODE "+esc(d.code):""}${d.psc?"　PSC "+esc(d.psc):""}</b>
+        ${kv("缺失詳情",d.detail)}${kv("實際情況",d.actual)}${kv("Initial Operator Comment",d.opComment)}${kv("直接原因",d.immediateCause)}${kv("改善措施",d.corrective)}${kv("根本原因",d.rootCause)}${kv("預防措施",d.preventive)}${kv("責任人",[d.rank,d.person].filter(Boolean).join(" "))}
+        ${ph("矯正前照片",d.photosBefore)}${ph("矯正後照片",d.photosAfter)}</div>`).join("")||'<p class="hint">（沒有缺失）</p>'}
+      ${(p.posComments||[]).length?`<h4 style="margin:14px 0 6px">正面評論（${p.posComments.length} 則）</h4>${p.posComments.map((c,i)=>`<div style="border:1px solid #d7ecdf;background:#f3fbf6;border-radius:8px;padding:8px 12px;margin-bottom:6px"><b>#${i+1} ${esc(c.code||"")} ${esc(c.item||"")}</b><div>${nl(c.comment)}</div><div class="hint">${esc((c.people||[]).map(x=>[x.rank,x.person].filter(Boolean).join(" ")).join("、"))}</div></div>`).join("")}`:""}`;
+  }catch(e){ov.firstElementChild.innerHTML=`<p style="color:var(--bad)">⚠ 讀取失敗：${esc(e.message||"")}</p><button class="btn" onclick="document.getElementById('airViewOv').remove()">關閉</button>`;}
+}
+/* ════════ 檢查來源統計卡（檢查紀錄／正面評價共用）════════
+   每張卡＝一個檢查來源：外部（藍綠）／內部（紫）、件數、占比條；點卡片篩選該來源，再點一次取消。
+   卡片的件數依「年度＋外部／內部＋搜尋」計算，不受卡片本身的篩選影響，方便比較。 */
+const PICK={insp:"",pos:""};
+function srcCards(el,items,which,unit,extra){
+  const cnt={};items.forEach(r=>{const k=r.itype||"—";cnt[k]=(cnt[k]||0)+1;});
+  const list=Object.entries(cnt).sort((a,b)=>b[1]-a[1]),max=Math.max(1,...list.map(x=>x[1])),tot=items.length,cur=PICK[which];
+  if(cur&&!cnt[cur])PICK[which]="";
+  const card=(k,v,cls,label)=>{const on=PICK[which]===k;const pct=tot?Math.round(v/tot*100):0;
+    return `<button type="button" class="scard ${cls} ${on?"on":""} ${PICK[which]&&!on?"dim":""}" onclick="pickSrc('${which}',${JSON.stringify(k).replace(/"/g,"&quot;")})" title="點選篩選「${esc(label)}」，再點一次取消">
+      <span class="nm">${label}</span><span class="v">${v}<small>${unit}${k?`・${pct}%`:""}</small></span>
+      <span class="bar"><i style="width:${k?Math.max(4,v/max*100):100}%"></i></span>${extra&&k?`<span class="hint" style="display:block;margin-top:3px">${extra(k)}</span>`:""}</button>`;};
+  el.innerHTML=card("",tot,"all","全部")+list.map(([k,v])=>card(k,v,isInt(k)?"i":"e",`${ioTag(k)}${esc(k)}`)).join("");
+}
+function pickSrc(which,k){PICK[which]=PICK[which]===k?"":k;({insp:renderInsp,pos:renderPos})[which]();}
+
+/* ════════ 檢查紀錄 ════════ */
+/* FLAG 檢查項目（ASI、ISSC、MLC、SMC、Bi-Annual…）：資料是空白分隔的字串或陣列，去重後顯示成醒目的小標籤 */
+function flagTags(v){
+  const a=[...new Set((Array.isArray(v)?v:String(v||"").split(/[\s,，、／\/]+/)).map(s=>String(s).trim()).filter(Boolean))];
+  return a.length?`<div class="ftags">${a.map(s=>`<span class="ftag">${esc(s)}</span>`).join("")}</div>`:"";
+}
+function renderInsp(){
+  const y=$("#iYear").value,io=$("#iIo").value,q=($("#iQ").value||"").trim().toLowerCase();
+  const base=D.insp.filter(r=>(!y||String((pd(r.date)||{}).y)===y)&&(!io||(io==="i")===isInt(r.itype))&&(!q||[r.itype,r.loc,r.inspector,r.unit].join(" ").toLowerCase().includes(q)));
+  srcCards($("#iCards"),base,"insp","次",k=>`缺失 ${base.filter(r=>r.itype===k).reduce((s,r)=>s+(+r.ndef||0),0)} 項`);
+  const rows=base.filter(r=>!PICK.insp||r.itype===PICK.insp)
+    .sort((a,b)=>((pd(b.date)||{}).iso||"").localeCompare((pd(a.date)||{}).iso||""));
+  const ext=rows.filter(r=>!isInt(r.itype)).length;
+  $("#iSum").innerHTML=`<span class="chip">共 <b>${rows.length}</b> 次</span><span class="chip"><span class="io e">外</span>外部 <b>${ext}</b></span><span class="chip"><span class="io i">內</span>內部 <b>${rows.length-ext}</b></span><span class="chip">缺失合計 <b>${rows.reduce((s,r)=>s+(+r.ndef||0),0)}</b></span>`;
+  $("#iTb").innerHTML=`<thead><tr><th>檢查日期</th><th>檢查來源</th><th>地點</th><th>檢查員</th><th>檢查單位／油公司</th><th>缺失數</th><th>正面評價</th></tr></thead><tbody>`+
+    (rows.map(r=>`<tr><td class="d">${dateRange(r)}</td><td>${ioTag(r.itype)}${esc(r.itype)}${/flag/i.test(r.itype||"")?flagTags(r.flagType):""}</td><td>${esc(r.loc)}</td><td>${esc(r.inspector)}</td><td>${esc(r.unit)}</td><td class="n" style="${(+r.ndef||0)>=4?"color:var(--bad);font-weight:700":""}">${esc(r.ndef||0)}</td><td class="n">${+r.npos?esc(r.npos):"—"}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">沒有符合條件的檢查紀錄</td></tr>`)+`</tbody>`;
+}
+
+/* ════════ 正面評價 ════════ */
+/* 正面評價的檢查來源：資料本身有 itype 就用；沒有的話跟主系統一樣，用「同一艘船、同一天」的檢查紀錄來源補上。
+   內部檢查匯入的（帶 intAuditId）優先對到同一張登錄單的檢查紀錄，同一天有多個來源時優先挑內部檢查。 */
+function fillPosSrc(){
+  D.pos.forEach(p=>{
+    if(p.itype)return;
+    const iso=(pd(p.date)||{}).iso;if(!iso){p.itype="—";return;}
+    const same=D.insp.filter(r=>(pd(r.date)||{}).iso===iso);
+    const hit=(p.intAuditId&&same.find(r=>String(r.intAuditId)===String(p.intAuditId)&&/onboard visit|訪船/i.test(r.itype||"")))
+      ||(p.intAuditId&&same.find(r=>String(r.intAuditId)===String(p.intAuditId)))
+      ||(p.intAuditId&&same.find(r=>isInt(r.itype)))||same[0];
+    p.itype=hit&&hit.itype?hit.itype:(p.intAuditId?"內部檢查":"—");
+  });
+}
+/* 2026-11-24 正面評價清單：點一列在右邊看完整內容 */
+let POSROWS=[];
+/* 2026-11-25 正面評價的人員：一人一行（姓名＋職位），多人時依「、」拆開一一對應 */
+function posPpl(r){const sp=v=>String(v||"").split(/[、,，;；]+/).map(s=>s.trim()).filter(Boolean);const P=sp(r.person),R=sp(r.rank);
+  if(!P.length)return `<div class="pp"><b>${esc(r.rank==="公司"?"公司":"本船")}</b></div>`;
+  return P.map((p,i)=>`<div class="pp"><b>${esc(p)}</b>${R[i]||(P.length===1&&R.length)?` <span>${esc(R[i]||R.join("、"))}</span>`:""}</div>`).join("")+(R.length>P.length&&P.length>1?`<div class="pp"><span>${esc(R.slice(P.length).join("、"))}</span></div>`:"");}
+function posOpen(i,tr){const r=POSROWS[i];if(!r||typeof PSplit==="undefined")return;
+  PSplit.openHtml(`👍 ${esc(r.person||"")}（${esc(r.rank||"")}）　${esc((pd(r.date)||{}).txt||r.date||"")}　${esc(r.itype||"")}`,
+    `<div style="padding:14px 18px;line-height:1.8">${r.item?`<div class="hint" style="font-weight:700;margin-bottom:4px">檢查項目</div><div style="background:#e8f4ec;border-radius:10px;padding:10px 14px;color:#1f6b4a;white-space:pre-line">${esc(r.item)}</div>`:""}
+     <div class="hint" style="font-weight:700;margin:14px 0 4px">評語</div><div style="white-space:pre-line">${esc(r.comment||r.content||"")}</div></div>`,tr);}
+function renderPos(){
+  const y=$("#pYear").value,q=($("#pQ").value||"").trim().toLowerCase();
+  const base=D.pos.filter(r=>(!y||String((pd(r.date)||{}).y)===y)&&(!q||[r.person,r.rank,r.item,r.comment,r.itype].join(" ").toLowerCase().includes(q)));
+  // 2026-11-24 改成清單：上方檢查來源改一排小按鈕（原本的大卡片不顯示）
+  $("#pCards").innerHTML="";$("#pCards").style.display="none";
+  const srcs=[...new Set(base.map(r=>r.itype).filter(t=>t&&t!=="—"))];
+  const rows=base.filter(r=>!PICK.pos||r.itype===PICK.pos)
+    .sort((a,b)=>((pd(b.date)||{}).iso||"").localeCompare((pd(a.date)||{}).iso||""));
+  const people=new Set(rows.map(r=>r.person).filter(Boolean)).size;
+  $("#pSum").innerHTML=`<span class="pchip ${!PICK.pos?"on":""}" onclick="PICK.pos=null;renderPos()">全部　${base.length}</span>`+srcs.map(t=>`<span class="pchip ${PICK.pos===t?"on":""}" onclick="PICK.pos=PICK.pos===${esc(JSON.stringify(t)).replace(/"/g,"&quot;")}?null:${esc(JSON.stringify(t)).replace(/"/g,"&quot;")};renderPos()">${isInt(t)?"內":"外"} ${esc(t)}　${base.filter(r=>r.itype===t).length}</span>`).join("")+`<span class="hint" style="margin-left:auto">共 <b>${rows.length}</b> 則・獲評人員 <b>${people}</b> 位</span>`;
+  POSROWS=rows;
+  $("#pList").innerHTML=rows.length?`<div class="tbwrap"><table class="tb poslist"><thead><tr><th>日期</th><th>檢查來源</th><th>人員</th><th>項目</th><th class="pw">評語</th></tr></thead><tbody>${rows.map((r,i)=>`<tr class="pr"><td class="d">${esc((pd(r.date)||{}).txt||r.date||"")}</td><td style="white-space:nowrap">${r.itype&&r.itype!=="—"?ioTag(r.itype)+esc(r.itype):"—"}</td><td class="pn">${posPpl(r)}</td><td><div class="pq">${esc(r.item||"—")}</div></td><td class="pw"><div class="pc">${esc(String(r.comment||r.content||"").replace(/\n/g," "))}</div></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">沒有符合條件的正面評價</div>`;
+  return;
+  $("#pList").innerHTML=rows.map(r=>`<div class="pos"><div><span class="who">${esc(r.person||(r.rank==="公司"?"公司":"本船"))}</span>　<span class="src">${esc(r.rank||"")}</span>${r.item?`　<span class="pill ok">${esc(r.item)}</span>`:""}</div><div class="meta">${esc((pd(r.date)||{}).txt||r.date||"")}　${r.itype&&r.itype!=="—"?`${ioTag(r.itype)}<b style="color:var(--ink)">${esc(r.itype)}</b>`:"—"}</div><div class="c">${esc(r.comment||r.content||"")}</div></div>`).join("")||`<div class="empty">沒有符合條件的正面評價</div>`;
+}
+
+/* ════════ 執行情形一覽表（本船） ════════ */
+const EO_TYPES=[{k:"audit",t:"內稽",it:"INTERNALAUDIT"},{k:"visit",t:"訪船",it:"ONBOARDVISIT"},{k:"cross",t:"交叉訪船",it:"CROSSSHIPVISIT"},{k:"accompany",t:"隨船",it:"ACCOMPANYINGSHIP"},{k:"isps",t:"ISPS",it:"ISPSAUDIT"}];
+const normIt=t=>String(t||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function eoEvents(){
+  const map={ISPSINTERNALAUDIT:"isps"};EO_TYPES.forEach(t=>map[t.it]=t.k);
+  return D.insp.map(r=>{const k=map[normIt(r.itype)]||(/交叉訪船/.test(r.itype||"")?"cross":undefined);const d=pd(r.date);if(!k||!d)return null;return Object.assign({k,insp:r.inspector||"",loc:r.loc||"",range:dateRange(r)},d);}).filter(Boolean);
+}
+function renderExec(){
+  const ev=eoEvents(),y=+($("#eYear").value||new Date().getFullYear());
+  const es=ev.filter(e=>e.y===y).sort((a,b)=>a.iso.localeCompare(b.iso));
+  const tl=k=>EO_TYPES.find(t=>t.k===k).t;
+  const now=new Date(),curM=now.getFullYear()===y?now.getMonth()+1:0;
+  const lastIA=ev.filter(e=>e.k==="audit").map(e=>e.iso).sort().pop();
+  const hasIA=es.some(e=>e.k==="audit");
+  $("#eSum").innerHTML=`<span class="chip">${y} 年度</span>`+EO_TYPES.map(t=>`<span class="chip">${t.t} <b>${es.filter(e=>e.k===t.k).length}</b> 次</span>`).join("")+`<span class="chip">最近一次內稽 <b>${lastIA?lastIA.replace(/-/g,"/"):"—"}</b></span>`+(hasIA?"":`<span class="chip" style="border-color:var(--bad);color:var(--bad)">本年度尚未內稽</span>`);
+  $("#eTb").innerHTML=`<thead><tr>${Array.from({length:12},(_,i)=>`<th class="${i+1===curM?"cur":""}">${i+1}月</th>`).join("")}</tr></thead><tbody><tr>`+
+    Array.from({length:12},(_,i)=>`<td class="${i+1===curM?"cur":""}">${es.filter(e=>e.m===i+1).map(e=>`<span class="eoe ${e.k}" title="${esc(tl(e.k)+"｜"+e.iso+"｜"+e.insp)}"><b>${tl(e.k)}</b><br>${e.m}/${e.d}</span>`).join("")}</td>`).join("")+`</tr></tbody>`;
+  $("#eList").innerHTML=es.length?`<table class="tb"><thead><tr><th>日期</th><th>類別</th><th>檢查人</th><th>地點</th></tr></thead><tbody>${es.map(e=>`<tr><td class="d">${e.range}</td><td><span class="eoe ${e.k}" style="display:inline-block;padding:1px 8px">${tl(e.k)}</span></td><td>${esc(e.insp||"—")}</td><td>${esc(e.loc)}</td></tr>`).join("")}</tbody></table>`:`<div class="hint">${y} 年度目前沒有內稽／訪船／隨船／ISPS 紀錄。</div>`;
+}
+
+/* ════════ 船隊通報單 ════════ */
+/* 2026-11-20：主系統可把某筆通報單設成「🔒 只有岸上」（vis:"in"），船上不顯示 */
+function renderDocs(){
+  const q=String(($("#docQ")||{}).value||"").trim().toLowerCase();
+  const list=D.docs.filter(d=>d&&d.vis!=="in"&&(!q||String(d.title||"").toLowerCase().includes(q))).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.createdAt||0)-(a.createdAt||0));
+  $("#docList").innerHTML=list.map(d=>`<a class="doc" href="${esc(d.url)}" target="_blank" rel="noopener">${d.pinned?"📌":"📄"}<span class="t">${esc(d.title)}</span><span class="hint">${d.createdAt?new Date(d.createdAt).toLocaleDateString("zh-TW"):""}</span><span class="btn sm">開啟 ↗</span></a>`).join("")||`<div class="empty">目前沒有通報單連結。</div>`;
+}
+
+/* ════════ 📇 緊急通報名單（Notification List）════════
+   ⚠ 與主系統（上傳GitHub\index.html）的 NotifyDoc 是同一份程式，改版面時兩邊要一起改。
+   資料：app_db staffDirectory（公司人員通訊錄＋共用設定，主系統維護）＋本船船舶資料（CSO、督導與代理人）。 */
+const NotifyDoc={
+  // 公司 MARK（取自原本 Notification List Excel 左上角的圖）
+  LOGO:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAABLCAYAAAAs2+QLAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAFxEAABcRAcom8z8AAAj/SURBVHhe7Zp7UFTXHceXlwVBBASFXQQ0NNqicUS6sKIStKiI0fhA1KARH4k2bUbbpBJEiMYoDgiiKVWjVSQUEeMDrUZlRR4iMkHio0A1WJFgheiQIs/C8u2cs7kX9p5dnksms+xv5vPP/n6/c85n9z7OvSCqrq5GYmIikpKSfjbEx8fjwIEDzOd9gTgSV1F2djZEItGAgLrm5eUxCV2FuuqFdRi9sK6jF9Z19MK6jl5Y19EL6zp6YV1HL6zr6IV1Hb2wrqMX1nV+cuFhdsMgkUggdhZD7CSGxFECC0sLpq6/6Hdh8yHm8J3hi9i9scjNy0VjcyOEUf28GhmZcoSGhULqKWXG0Cb9Jmw22AybPtiEh4/K2s3aFJDL5Ug7cQJpJ1ORmpqKlJQUFBYWdvRHVm42FgctZsbUBtoXNhBh45824tsfRWtrqpF4cA/efXsxRjnas/U/MtHNFR+8vwbnTiYCaKG95IhYsHABU9sXtCps72iP69nX+V8qcvP7sLMyY+q6wtV5OJL/9hk/zqEjByEyZOt6g9aEPTw9cK/4Pl1gQe4VzPT5jUp+/K9dERMTjehodcRg545tsBlqrtKzbsVCPKtUHiln0s/AQezAzNtTtCI8xGoIyivK6cLSvjgIK3MTpiY4cA7/i2mKMS52TJ+bqwT3Cm/Q/Olzp5l8T+mzsKGxIbJys+iCvjgcByM1NYQD8bsEeqrR2tqKkOXzmT6CxNYCRbcyaV10XDST7wl9Fv4w9EO6kONHEjTK2g41QdVT5RHQWci/OsP0cojthqCo8Bat85nuw+S7S5+EP9r6EV3A0ydlsLZgD2OOvVFhAjX1oVAoEDhXs8w0qRu5t6GhoQH+b/gz+e7Qa+EtkVv4hb61YAaT5/Cb6o662hoVsc7i29I7kNhZMuNw7NutnLepuQlz35zL5LuiV8K7Y6L4BX60cS2T53B3G40nZcUddNqDnLOaQn7pS9hamjLjEUyNRUg5+hda19LaguBVwUxNZ/RI+JdjXHH+4nl+YZs2rGBqOJYt8EN1J+et/1x/hG4JFX7MR1FBFmTuY5hxCcYiERIPxfG1sftiu70f75bwBPcJ9OL0sr6OTvC0/CE2hCzh8wYGBnB1FmPJfD+8GxKEbPkFKBTK3ZK6iNsXp+wzMkBefp4wzUf9yxqcTP4cK4LmY57/6xgxrP1QJ9J7o8LR0qRcU+mDUqwKeRsSJwmz/o4wwoN+MQhGxkZwcnbCuvXrkH4+nV+A4n+NOHYwDk72ViqDODjYo+o/TzssVXNkXMuA8SBjvtf5FWdUVFYIy9SG/OoVRsDbww1X/pHG17yoqcHxpONYHLgINsNsqAtxUhG+efMm/8G+/ftQ8Z3qAl7WVOFwQgwmur3CTEhwdJSgsbFJpUddFN0pgo2tNdMvlUlR89+uL2zkIUPYyzF7ugwXz6YAaObr6+rrUFFRQZ24OuraUXjr1nAUFxfjy7RU7IgIxXx/X7iI2UV2RCIRo7a2VmVxwsjIzICdPbuT4pBNkeFh2UNhm0rk5+czfULGj3VCcGAAYnd/iqtXLqOkpARbw8P5PHXt6hzuis6E792/h9XrVjM96rC0skR4ZDj9bzl10R3hrmDO4d7QmfCxpGMwMjFiejQx3GE4CotUn4+56BdhL6kH1q4Jge9UL4x2tIeBmiYhnQmTKH9SjqDlQUxfRwwMDRAesYWed5qiu8JmJiKMHe0C/9mzsHbNanhKPfgcc9FKT2+/KpM3FPeLbuHg/l3wmjiWGZijK2EuyH1X2EswNjHGiVMnhOVMdCZMfpg35/jgVPIhPHqgfEzlgjhxdcw57D3VG4FBgYjcHomiu9+oNKYlH8Y06WvMZCNHOqrUdRbr31vP9B85dkRYpjaKi0uYXiK6dP5M5GZe4uvayC3suhy//8N7CAwMpE5cPXNICxn32jgk/DWBf2UDKBC7Kxz2NkP4GnPzwdgWvhnZGRdRVJDDT6wpfP18+d7NWzYL0yrRWF+L/JwMXL14BiErlqmsbcKvXHA29Shf+/XtrxEWHoZRo10YD44uhTnMLMzwyafboWgj3x9Q/E0+XEeytxnyiDjr9cm4cDq5w7JV43H5Y5gONqU7OPKEpD7akBC3A+7jXJk5CAHTPVFXU0Urn1U/w8rVK5kadXRbmGPyFBkeP3lMJyq9X4gxLiOYGoKJgQhR28izsvILEoY8U46S0hLhxzQaXv6AlUGan4TmzfSm204S5NAVjxQzNZrosTDB0dkRd+/fpRM+enAHLg6aH+fio9ofI7sVba1YvtCPGYdj9jR3NDUoL5AnTqb06JZH6JUwwUHigNt3btOJz6YeYfIcJoYi3Mq5LLDSHJ/FRDJjcNgONcW/Hyi/6KS/H4ehoSFT0xW9FiaQrWLeLeXTzuI3fsvkOXxl49HcWC9QY6O8rAT2tpof82KjImkdfW1rwOa7Q5+ECaNcXdCiaMXL2hoEzPBk8hw3rl8U+jGxZ2cY08cR9sd1tKa4tJjJ9YQ+CxMWBi6ki2lu/AELZk9l8oT1IUsEeoJoU8Bj3CimjxD55w20pKq6CmPHad4AdQetCBN2RStfw7a1NmPT+mDmDea8WT54/vy5Rr4rL4OzeJhKj7WFMQ7F76TjNjU3Y9GSRcy8PUVrwoR3fvcO/4NlfnUGY0ap/i3Jytoa1jbqsIGl5VCV2lk+UpSVFtGxvn/xPbynte+W+oJWhQnT/abjnyXKF3f1tc+xZ2c4vCe9Ckuzrm8fI2wsMGeGFMcP7+e/uEuXL8H1VfWbj96gdWHCINNBWLlqJf718AG/cPIe7POEWAQEBGCypydkXl7wlnnBy9MTwcuX4VTKUfpmhYtr16/Bb5bm+3Fv6RdhDiK+9K2lOHchHXX1DbyMpqiorERSchKm+ExhxtIW/SrcEbsRdpB5y+gfySM+jkDEJxGI2B6ByI8j6RuRSdJJdH8t7NM2P5nwzwW9sK4zMIVv3LjBJHQV6lpQUABrsgsaABBXUUtLC168eDEgIK4i4QZA12PgCVdWViIqKmpAQFxFWVlZzNVMV6GuA+4+nJOTwyR0FepK/hCWm5s7ICCu/wcN6x+C5AufHQAAAABJRU5ErkJggg==",
+  norm(n){return String(n||"").replace(/\s+/g,"").replace(/雙/g,"双");},
+  person(dir,name){const k=this.norm(name);if(!k)return null;return ((dir&&dir.people)||[]).find(p=>p.active!==false&&this.norm(p.zh)===k)||null;},
+  full(dir,name){const p=this.person(dir,name);return p?[p.zh,p.en].filter(Boolean).join(" "):String(name||"").trim();},
+  fmtDate(s){const m=String(s||"").match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(!m)return "";
+    const M=["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return `${M[+m[2]-1]} ${+m[3]}, ${m[1]}`;},
+  /* 回傳 {html, warns}：warns 是名單裡缺英文名／電話／代理人等需要補的地方。logoSrc 給 Word 用（MHT 內嵌圖的位址） */
+  build(dir,ship,logoSrc){
+    const e=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+    const c=(dir&&dir.common)||{},warns=[],seen=new Set();
+    const chk=(name,role)=>{if(!String(name||"").trim()){warns.push(`未設定${role}`);return;}
+      const p=this.person(dir,name),k=this.norm(name)+"|"+role;if(seen.has(k))return;seen.add(k);
+      if(!p){if(/[\u4e00-\u9fff]/.test(name))warns.push(`${name}（${role}）不在公司人員通訊錄`);return;}
+      const miss=[!p.en&&"英文名",!p.ext&&!p.mobile&&"分機／手機"].filter(Boolean);
+      if(miss.length)warns.push(`${p.zh}（${role}）缺${miss.join("、")}`);};
+    const members=[];
+    ((dir&&dir.fixed)||[]).forEach(f=>{chk(f.name,f.titleZh||"固定成員");members.push({name:f.name,tz:f.titleZh,te:f.titleEn});});
+    [["deckSup","甲板督導","Superintendent(in Charge)",1],["deckSupAlt","甲板代理督導","Superintendent(the alternate)",0],
+     ["engineSup","機艙督導","Superintendent(in Charge)",1],["engineSupAlt","機艙代理督導","Superintendent(the alternate)",0]].forEach(([f,role,te,main])=>{
+      const n=String(ship[f]||"").trim();chk(n,role);if(n)members.push({name:n,tz:"船東督導",te,main});});
+    chk(c.dpa,"DPA");if(String(c.dpaAlt||"").trim())chk(c.dpaAlt,"Alternate DPA");chk(c.mlc,"MLC Representative");chk(ship.cso,"CSO");
+    const pair=(a,b)=>[a,b].map(n=>String(n||"").trim()).filter(Boolean).map(n=>this.full(dir,n)).join(" / ");
+    const office=`公司電話 Office<br><b style="font-size:10.5pt">${e(c.officeDay)}</b>`;
+    const rows=members.map((m,i)=>{const p=this.person(dir,m.name)||{},b=m.main?" mn":"";
+      const ext=p.ext?`~ ${e(String(p.ext).replace(/^~\s*/,""))}`:"";
+      return `<tr><td class="zh${b}" style="border-bottom:none">${e(p.zh||m.name)}</td><td class="zh${b}" style="border-bottom:none">${e(m.tz)}</td><td class="ce" rowspan="2">${ext}</td><td class="ce" rowspan="2">${e(p.mobile||"")}</td></tr>
+        <tr><td class="en${b}" style="border-top:none">${e(p.en||"")}</td><td class="en${b}" style="border-top:none">${e(m.te)}</td></tr>`;}).join("");
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>NOTIFICATION LIST-${e(ship.name)}</title><style>
+@page{size:A4 portrait;margin:10mm 10mm 10mm}
+body{font-family:"Times New Roman","標楷體",DFKai-SB,"BiauKai",serif;font-size:10.5pt;color:#000;margin:0;background:#fff}
+table{border-collapse:collapse}
+.frame{width:100%}
+.frame>tbody>tr>td{padding:0;vertical-align:top}
+.kai{font-family:inherit} /* 全文統一：英數 Times New Roman、中文標楷體 */
+.sans{font-family:inherit}
+.cozh{font-size:8.5pt;letter-spacing:1px}
+.coen{font-size:10pt;font-weight:bold;letter-spacing:.3px}
+.ship{text-align:center;font-size:17pt;font-weight:bold;margin:2pt 0 6pt}
+.ttl{font-size:14pt;font-weight:bold;text-decoration:underline}
+.eff{text-align:right;font-size:9.5pt;color:#555}
+.sm{margin:1.5pt 0;font-size:10pt;font-weight:bold;line-height:1.35}
+.hot{width:100%;margin-top:8pt;border:1pt solid #000}
+.hot td{padding:3pt 6pt;font-size:13pt;font-weight:bold;border-bottom:1pt solid #000}
+.sub{margin:10pt 0 4pt;font-size:11pt;font-weight:bold;text-decoration:underline}
+.t{width:100%}
+.t th,.t td{border:1pt solid #000;padding:1.5pt 4pt;font-size:9.5pt;vertical-align:middle;text-align:center}
+.t th{font-weight:normal;font-size:9pt}
+.t .zh{padding-top:3pt}.t .en{padding-bottom:3pt}
+.t .mn{font-weight:bold;font-size:11pt}
+.t .ce{white-space:nowrap;font-size:10.5pt}.of{margin:0 0 4pt;font-size:9.5pt}
+</style></head><body>
+<table class="frame"><tr><td>
+<table style="width:100%"><tr>
+<td style="width:46pt;vertical-align:middle"><img src="${logoSrc||this.LOGO}" width="34" height="43" alt="FPMC"></td>
+<td style="vertical-align:middle"><div class="cozh kai">${e(c.companyZh)}</div><div class="coen sans">${e(c.companyEn)}</div></td>
+</tr></table>
+<p class="ship sans">${e(ship.name)}</p>
+<table style="width:100%"><tr><td class="ttl">NOTIFICATION LIST</td><td class="eff">Effective Date: ${e(this.fmtDate(c.effDate))}</td></tr></table>
+<div style="margin-top:4pt">
+<p class="sm">DPA ： ${e(this.full(dir,c.dpa))}${String(c.dpaAlt||"").trim()?`　/　Alternate DPA ： ${e(this.full(dir,c.dpaAlt))}`:""}</p>
+<p class="sm">MLC Representative ： ${e(this.full(dir,c.mlc))}</p>
+<p class="sm">CSO ： ${e(this.full(dir,ship.cso))}</p>
+<p class="sm">Superintendent ： ${e(pair(ship.deckSup,ship.engineSup))} (in charge)</p>
+${(ship.deckSupAlt||ship.engineSupAlt)?`<p class="sm">Superintendent ： ${e(pair(ship.deckSupAlt,ship.engineSupAlt))} (the alternate)</p>`:""}
+</div>
+<table class="hot kai"><tr><td>緊急專線電話 (Emergency Hot Line) ： ( 24 hours )</td><td style="text-align:right;white-space:nowrap">${String(c.hotline||"").split(/\s*[；;，,\n]\s*/).filter(Boolean).map(e).join("<br>")}</td></tr>
+<tr><td colspan="2" style="border-bottom:none">台北應急中心　${e(c.center)}</td></tr></table>
+<p class="sub kai">緊急應變處理小組成員（Shore Emergency Response Team）</p>
+<table class="t"><thead><tr><th rowspan="2" style="width:24%">姓　名<br>Name</th><th rowspan="2">職　稱<br>Rank</th><th colspan="2">電　　話　Tel</th></tr>
+<tr><th style="width:19%;line-height:1.35"><span style="font-size:8.5pt">${office}</span><br>Ext.</th><th style="width:21%">Mobile Phone</th></tr></thead><tbody>${rows}</tbody></table>
+</td></tr></table>
+</body></html>`;
+    return {html,warns};
+  },
+  /* 版本碼：名單內容（含生效日期、人員、電話）任何一個字有變就不同；船上列印時記進操作紀錄，用來判斷「有更新、該輪還沒重新列印」 */
+  sig(dir,ship){const s=this.build(dir,ship).html;let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);},
+  /* 列印用：在名單右下角加一行很小的版本碼（Ver. xxx），督導上船可對照紙本是否最新版；版本碼本身仍以不含這行的 build() 計算 */
+  printHtml(dir,ship){const h=this.build(dir,ship).html;return h.replace("</body></html>",`<div style="text-align:right;font-size:6pt;color:#999;margin-top:2pt">Ver. ${this.sig(dir,ship)}</div></body></html>`);},
+  /* Word：包成 MHT（單一檔案網頁），公司 MARK 圖片內嵌在檔案裡，船上離線開也看得到 */
+  wordBlob(dir,ship){
+    const loc="file:///C:/fpmc_notify_logo.png",bd="----=_NextPart_FPMC_NOTIFY";
+    const html=this.build(dir,ship,loc).html.replace("<html>",'<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">');
+    const b64=this.LOGO.split(",")[1].replace(/(.{76})/g,"$1\r\n");
+    const mht=`MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${bd}"; type="text/html"\r\n\r\n--${bd}\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: 8bit\r\nContent-Location: file:///C:/fpmc_notify.htm\r\n\r\n${html}\r\n\r\n--${bd}\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\nContent-Location: ${loc}\r\n\r\n${b64}\r\n\r\n--${bd}--\r\n`;
+    return new Blob([mht],{type:"application/msword"});
+  }
+};
+let NTF=null; // {dir, ship, sig（目前版本碼）, printed:{sig,ts}（本船最後一次列印）}
+let RISK=null; // 主系統「船隊風險清單」app_db ship_risk：{ships:{船代碼:{tmou,prio,winFrom,winTo,checked}}}
+function riskBannerHtml(code){
+  const rk=RISK&&RISK.ships&&RISK.ships[code];
+  if(!rk||rk.tmou!=="HRS")return "";
+  const win=rk.winFrom||rk.winTo?`；檢查窗口 ${esc(rk.winFrom||"")} ～ ${esc(rk.winTo||"")}${rk.prio?`（${esc(rk.prio==="無優先級"?"No Priority":rk.prio)}）`:""}`:"";
+  return `<div class="riskban" role="alert"><div class="rb-t">⚠ 注意！本輪目前列為 Tokyo MOU 高風險船（HRS, High Risk Ship）</div>
+    <div class="rb-d">在 Tokyo MOU 區域港口被 PSC 檢查的機率較高${win}。請各部門落實日常保養，文件、證書與演練紀錄隨時備檢。</div>
+    <div class="rb-s">公司依 Tokyo MOU APCIS 查詢結果更新${rk.checked?`，查詢日期：${esc(rk.checked)}`:""}</div>
+    <details class="rb-i"><summary title="點一下看說明">ⓘ 什麼是高風險船、檢查窗口？</summary>
+      <div>高風險船（HRS）在 Tokyo MOU 區域每 <b>2～4 個月</b>就會排入下一次 PSC 檢查（標準風險 5～8 個月、低風險 9～18 個月），這段期間就是「檢查窗口」。<br>
+      <b>No Priority</b>：還沒到窗口期；<b>Priority II</b>：已進入窗口期，隨時可能被登輪檢查；<b>Priority I</b>：已超過窗口期，下一個港口幾乎一定會被檢查。<br>
+      被檢舉、發生事故等情況，不論優先級都可能直接被檢查。</div></details></div>`;
+}
+const NTF_TARGET="船舶檢查填報平台－緊急通報名單";
+async function loadNtf(){
+  if(NTF)return NTF;
+  const dir=await getKey("staffDirectory").catch(()=>null);
+  const ship=(SHIPS_RAW||[]).find(s=>s.code===D.ship)||null;
+  // 本船最後一次「列印」紀錄（操作紀錄的摘要裡帶「[版本 xxx]」）——換電腦也算，因為存在雲端
+  let printed=null;
+  try{const r=await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+D.ship)}&target=eq.${encodeURIComponent(NTF_TARGET)}&action=eq.${encodeURIComponent("列印")}&order=ts.desc&limit=200`)||[];
+    // 印過「目前這一版」就算已列印最新版（不只看最後一筆，避免舊版快取頁面印的、沒帶版本碼的紀錄蓋掉）
+    if(r[0]){const sigs=r.map(x=>(String(x.summary||"").match(/\[版本 ([0-9a-z]+)\]/)||[])[1]).filter(Boolean);const ns=r.find(x=>!/\[版本 [0-9a-z]+\]/.test(String(x.summary||"")));printed={sig:sigs[0]||"",sigs,ts:r[0].ts,noSigTs:ns?ns.ts:0};}}catch(e){}
+  const curSig=(dir&&ship)?NotifyDoc.sig(dir,ship):"";
+  if(printed&&curSig&&printed.sigs.includes(curSig))printed.sig=curSig;
+  // 沒帶版本碼的列印（舊版快取頁面印的）：在名單最後一次異動（通訊錄／本船資料）之後印的，就是目前這一版
+  if(printed&&curSig&&printed.sig!==curSig&&printed.noSigTs){try{
+    const a=await api("app_db?select=updated&k=eq.staffDirectory"),b=await api(`sync_ships?select=updated&id=eq.${encodeURIComponent(D.ship)}`);
+    const dirAt=+((a&&a[0]&&a[0].updated)||0),shipAt=+((b&&b[0]&&b[0].updated)||0);
+    if(dirAt&&printed.noSigTs>Math.max(dirAt,shipAt))printed.sig=curSig;}catch(e){}}
+  NTF={dir,ship,sig:curSig,printed};
+  if(!dir||!ship){const n=NTF;NTF=null;return n;} // 資料沒讀到不要記住，下次再重讀
+  return NTF;
+}
+/* 有更新、本船還沒重新列印（從沒列印過也算） */
+function ntfNeedsPrint(){return !!(NTF&&NTF.sig&&(!NTF.printed||NTF.printed.sig!==NTF.sig));}
+/* 頁籤上的 UPDATE 標記 */
+function ntfBadge(){
+  const b=document.querySelector('#tabs button[data-p="ntf"]');if(!b)return;
+  b.innerHTML=`📇 緊急通報名單 <span style="font-weight:400;font-size:12.5px">Notification List</span>${ntfNeedsPrint()?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">UPDATE</span>`:""}`;
+  try{groupBadge();}catch(e){}
+}
+async function renderNtf(){
+  const fr=$("#ntfFrame"),info=$("#ntfInfo"),view=$("#ntfView");
+  info.textContent="";
+  const {dir,ship}=await loadNtf();
+  if(!dir||!ship){fr.srcdoc="";view.innerHTML=`<div class="empty">⚠ 公司尚未建立本船的緊急通報名單，請洽海技組。</div>`;return;}
+  fr.srcdoc=NotifyDoc.printHtml(dir,ship); // 列印用（正式格式，右下角帶小字版本碼）
+  view.innerHTML=(ntfNeedsPrint()?`<div style="background:#fde8e6;border:1px solid #f1b8b0;color:#a8323a;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-weight:700">🔔 UPDATE：名單已更新${NTF.printed?`（本船上次列印：${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`:"，本船尚未列印過"}，請按「🖨 列印／存成 PDF」更新船上留存的版本。</div>`:"")+ntfScreen(dir,ship); // 畫面用（好讀版）
+  info.textContent=ntfNeedsPrint()?"列印時會印成公司正式格式":`✓ 本船已列印最新版（${new Date(NTF.printed.ts).toLocaleDateString("zh-TW")}）`;
+}
+/* 畫面版：緊急電話大卡＋本船聯絡窗口＋應變小組表（本船督導在前、公司成員在後），資料跟列印版同一份 */
+function ntfScreen(dir,ship){
+  const c=dir.common||{},P=n=>NotifyDoc.person(dir,n)||{zh:String(n||"")};
+  const ext=p=>p.ext?`~ ${esc(String(p.ext).replace(/^~\s*/,""))}`:"";
+  const tels=p=>[p.ext?`分機 ${esc(String(p.ext).replace(/^~\s*/,""))}`:"",p.mobile?`📱 ${esc(p.mobile)}`:""].filter(Boolean).join("　")||`<span class="hint">—</span>`;
+  const who=n=>{if(!String(n||"").trim())return `<span class="hint">—</span>`;const p=P(n);return `<div class="nv-who"><b>${esc(p.zh)}</b><span class="en">${esc(p.en||"")}</span><span class="tel">${tels(p)}</span></div>`;};
+  const row=(p,tz,te,tag,cls)=>`<tr class="${cls||""}"><td><div class="zh">${esc(p.zh)}</div><div class="en">${esc(p.en||"")}</div></td><td>${esc(tz)}${tag||""}<div class="en">${esc(te||"")}</div></td><td class="num">${ext(p)}</td><td class="num">${esc(p.mobile||"")}</td></tr>`;
+  const sups=[["deckSup","甲板督導","Superintendent (in Charge)",1],["deckSupAlt","甲板代理督導","Superintendent (the alternate)",0],["engineSup","機艙督導","Superintendent (in Charge)",1],["engineSupAlt","機艙代理督導","Superintendent (the alternate)",0]]
+    .filter(x=>String(ship[x[0]]||"").trim()).map(([f,tz,te,m])=>row(P(ship[f]),tz,te,`<span class="nv-tag ${m?"m":"a"}">${m?"主責":"代理"}</span>`,"sup")).join("");
+  const fixed=(dir.fixed||[]).map(f=>row(P(f.name),f.titleZh,f.titleEn)).join("");
+  return `<div class="nv-chips"><span class="chip">${esc(ship.name||"")}</span><span class="chip">生效日期 Effective Date：${esc(NotifyDoc.fmtDate(c.effDate))}</span><span class="chip" title="名單內容的版本碼；印出來的名單右下角也有同樣的 Ver. 代碼">版本 Ver. ${esc(NotifyDoc.sig(dir,ship))}</span></div>
+  <div class="nv-grid">
+    <div class="nv-hot"><div class="lbl">緊急專線電話 Emergency Hot Line（24 hours）</div><div class="big">${String(c.hotline||"").split(/\s*[；;，,\n]\s*/).filter(Boolean).map(esc).join("<br>")}</div>
+      <div class="row"><div>台北應急中心<b>${esc(c.center||"")}</b></div></div>
+      <div class="row"><div>公司電話 Office<b>${esc(c.officeDay||"")}</b></div></div></div>
+    <div class="nv-card"><h3>本船聯絡窗口</h3><div class="nv-kv">
+      <div class="k">DPA</div>${who(c.dpa)}${String(c.dpaAlt||"").trim()?`<div class="k">Alternate DPA</div>${who(c.dpaAlt)}`:""}<div class="k">MLC Representative</div>${who(c.mlc)}<div class="k">CSO</div>${who(ship.cso)}</div></div>
+  </div>
+  <div class="nv-card" style="padding:0;overflow:hidden">
+    <h3 style="padding:14px 16px 4px;margin:0">緊急應變處理小組成員 <span class="hint" style="font-weight:400">Shore Emergency Response Team　・　分機請撥公司電話 ${esc(c.officeDay||"")} 轉接</span></h3>
+    <div class="tbwrap" style="border:0;border-radius:0"><table class="nv-tb"><thead><tr><th style="width:26%">姓名 Name</th><th>職稱 Rank</th><th style="width:13%">分機 Ext.</th><th style="width:20%">手機 Mobile</th></tr></thead>
+    <tbody>${sups?`<tr><td colspan="4" class="sec">本船督導 Superintendents</td></tr>${sups}`:""}<tr><td colspan="4" class="sec">公司應變小組 Company Team</td></tr>${fixed}</tbody></table></div>
+  </div>`;
+}
+function ntfPrint(){
+  const fr=$("#ntfFrame");if(!fr||!fr.contentWindow||!NTF||!NTF.dir||!NTF.ship)return;
+  if(!NTF.sig)NTF.sig=NotifyDoc.sig(NTF.dir,NTF.ship);
+  // 「另存為 PDF」的預設檔名取自上層頁面標題：列印期間暫時改成「NOTIFICATION LIST-船名」，印完還原
+  const oldTitle=document.title;document.title=`NOTIFICATION LIST-${(NTF.ship&&NTF.ship.name)||D.ship}`;
+  const restore=()=>{document.title=oldTitle;window.removeEventListener("afterprint",restore);};
+  window.addEventListener("afterprint",restore);setTimeout(restore,60000);
+  fr.contentWindow.focus();fr.contentWindow.print();
+  // 記下列印的版本（主系統「各船下載狀態」與本船的 UPDATE 提示都看這筆）；預覽模式不記，也不清提示
+  log("列印","緊急通報名單",`${D.ship} 列印緊急通報名單 [版本 ${NTF.sig}]`);
+  if(!isPreview()){NTF.printed={sig:NTF.sig,ts:Date.now()};ntfBadge();renderNtf();try{renderMarquee();}catch(e){}}
+}
+
+/* ════════ 📚 參考文件（公司分享給船隊，2026-11-03）════════
+   資料：app_db ref_downloads（主系統「20 海技參考資料 → 📤 分享船隊」維護）
+   {items:[{id,title,cat,verDate,ver,note,files:[{name,url,type,size}],url,page,track,ships,paused,vid}]}。
+   vid＝版本識別碼，主系統改了日期／版本／連結／附件時就換一個。船上點附件或連結記「下載」、按「已閱讀」記「閱讀」
+   （摘要帶 [文件 id] [版本 vid]），主系統「各船下載／閱讀」與本船的「有新版」提示都看這筆。 */
+const REF_TARGET="船舶檢查填報平台－參考文件下載";
+const REF={docs:[],dl:{},cat:""}; // dl：{文件id:{vids:Set, ts:最後一次時間}}
+async function loadRef(code){
+  const p=await getKey("ref_downloads").catch(()=>null);
+  REF.docs=(p&&Array.isArray(p.items))?p.items:[];
+  REF.dl={};
+  try{(await api(`audit_log?select=ts,summary&usr=eq.${encodeURIComponent("船舶 "+code)}&target=eq.${encodeURIComponent(REF_TARGET)}&action=in.(${encodeURIComponent("下載")},${encodeURIComponent("閱讀")})&order=ts.desc&limit=500`)||[]).forEach(r=>{
+    const s=String(r.summary||""),id=(s.match(/\[文件 ([^\]]+)\]/)||[])[1],v=(s.match(/\[版本 ([^\]]+)\]/)||[])[1];if(!id)return;
+    const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:r.ts};if(v)o.vids.add(v);});}catch(e){}
+}
+/* 2026-11-24 參考文件／其他資訊分開（跟主系統同一個判斷）；其他資訊過了「有效到」就不顯示 */
+function refKind(d){return (d&&d.kind)||(/須知|提醒|訓練|訊息|活動/.test(String(d&&d.cat||""))?"oth":"ref");}
+function refToday(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function refVisible(){const t=refToday();return REF.docs.filter(d=>d&&!d.paused&&!(d.exp&&String(d.exp)<t)&&(!(d.ships||[]).length||d.ships.includes(D.ship)));}
+function refHas(d){const o=REF.dl[d.id];return !!(o&&o.vids.has(d.vid));}
+function refPending(){return refVisible().filter(d=>d.track!==false&&!refHas(d));}
+function refBadge(){
+  const b=document.querySelector('#tabs button[data-p="ref"]');if(!b)return;const n=refPending().length;
+  b.innerHTML=`📚 通報單／其他資訊${n?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${n}</span>`:""}`;
+  try{groupBadge();}catch(e){}
+}
+/* 點附件／連結＝下載；沒有附件的訊息按「已閱讀」 */
+function refDownloaded(id,act){
+  const d=REF.docs.find(x=>x.id===id);if(!d)return;
+  const a=act==="閱讀"?"閱讀":"下載";
+  log(a,"參考文件下載",`${D.ship} ${a==="閱讀"?"已閱讀":"下載"}：［${d.cat||""}］${d.title}（${d.verDate||""}${d.ver?" "+d.ver:""}）[文件 ${d.id}] [版本 ${d.vid}]`);
+  if(isPreview())return; // 預覽不記錄，也不清提示
+  const o=REF.dl[id]=REF.dl[id]||{vids:new Set(),ts:0};o.vids.add(d.vid);o.ts=Date.now();
+  setTimeout(()=>{refBadge();refSub(REF_SUB);try{renderMarquee();}catch(e){}},300);
+}
+function refSize(n){n=+n||0;return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";}
+function refHref(f){return /pdf|image/i.test(f.type||"")?f.url:`${f.url}?download=${encodeURIComponent(f.name||"")}`;}
+function renderRef(){
+  const box=$("#refList");if(!box)return;
+  // 搜尋（2026-11-03）：標題、說明、分類、版本、附件檔名都找得到；分類按鈕的數字跟著搜尋結果變
+  const q=String(($("#refQ")||{}).value||"").trim().toLowerCase();
+  const hit=d=>!q||[d.title,d.note,d.cat,d.ver,d.verDate,...(d.files||[]).map(f=>f.name)].join(" ").toLowerCase().includes(q);
+  // 發布月份（依文件日期）
+  const ms=$("#refMonth");if(ms){const cur=ms.value,mm=[...new Set(refVisible().map(d=>String(d.verDate||"").slice(0,7)).filter(Boolean))].sort().reverse();
+    ms.innerHTML=`<option value="">全部月份</option>`+mm.map(m=>`<option value="${m}">${m.replace("-"," 年 ")} 月</option>`).join("");if(mm.includes(cur))ms.value=cur;}
+  const mo=ms?ms.value:"";
+  const K=REF_SUB==="oth"?"oth":"ref",VIS=refVisible().filter(d=>refKind(d)===K);
+  const vis=VIS.filter(d=>hit(d)&&(!mo||String(d.verDate||"").startsWith(mo))),cats=[...new Set(VIS.map(d=>d.cat||"其他"))].sort();
+  if(REF.cat&&!cats.includes(REF.cat))REF.cat="";
+  const chip=(c,label,n,p)=>`<button type="button" class="btn sm${REF.cat===c?" dark":""}" onclick="REF.cat='${esc(c)}';renderRef()">${esc(label)}（${n}）${p?` <span style="color:#c0392b;font-weight:800">●</span>`:""}</button>`;
+  const pend=refPending().filter(d=>refKind(d)===K);
+  const head=VIS.length?`<div class="flt" style="flex-wrap:wrap">${chip("","全部",vis.length,pend.length)}${cats.map(c=>chip(c,c,vis.filter(d=>(d.cat||"其他")===c).length,pend.some(d=>(d.cat||"其他")===c))).join("")}</div>`:"";
+  const list=vis.filter(d=>!REF.cat||(d.cat||"其他")===REF.cat).slice()
+    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(refPending().includes(a)?0:1)-(refPending().includes(b)?0:1)||String(b.verDate||"").localeCompare(String(a.verDate||""))); // 📌 置頂 → 未下載 → 日期新到舊
+  const fmt=ts=>new Date(ts).toLocaleDateString("zh-TW");
+  box.innerHTML=head+(list.map(d=>{const has=refHas(d),o=REF.dl[d.id],need=d.track!==false&&!has,files=d.files||[];
+    return `<div class="rdoc${need?" new":""}"><div class="bd">
+      <div class="tt">${d.pinned?`<span title="置頂">📌</span> `:""}${esc(d.title)} <span class="pill mute" style="vertical-align:2px">${esc(d.cat||"其他")}</span></div>
+      <div class="vr">日期：<b>${esc(d.verDate||"—")}</b>${d.exp?`　<span style="color:#9a5a00">有效到 <b>${esc(d.exp)}</b></span>`:""}${d.ver?`　版本：<b>${esc(d.ver)}</b>`:""}${(d.sharer||d.createdBy)?`　<span class="hint">分享人：${esc(String(d.sharer||d.createdBy).replace(/[（(][^）)]*[）)]\s*$/,"").trim())}</span>`:""}</div>
+      ${d.note?(()=>{const s=String(d.note),long=s.length>150||(s.match(/\n/g)||[]).length>2; /* 太長只顯示前 3 行，按「詳全文」展開 */
+        return `<div class="nt${long?" clamp3":""}">${esc(s)}</div>`+(long?`<a href="#" class="more" onclick="event.preventDefault();const o=this.previousElementSibling.classList.toggle('open');this.textContent=o?'收合 ▲':'詳全文 ▼'">詳全文 ▼</a>`:"");})():""}
+      ${files.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${files.map(f=>`<a href="${esc(refHref(f))}" target="_blank" rel="noopener" data-rd="${esc(d.id)}" style="font-size:13.5px">📎 ${esc(f.name)} <span class="hint">${refSize(f.size)}</span></a>`).join("")}</div>`:""}
+      <div style="margin-top:6px">${need?`<span class="pill bad">🔔 ${o?"有新版，請重新下載／閱讀":"本船尚未下載／閱讀"}</span>`:has?`<span class="pill ok">✓ 本船已下載／閱讀最新版（${fmt(o.ts)}）</span>`:""}</div></div>
+      <div class="ac">${d.url?`<a class="btn" style="background:#d97a2b;border-color:#d97a2b;color:#fff;font-weight:800" href="${esc(d.url)}" target="_blank" rel="noopener" data-rd="${esc(d.id)}">⬇ 下載／開啟</a>`:""}
+      ${d.page?`<a class="btn sm" href="${esc(d.page)}" target="_blank" rel="noopener">官方頁面 ↗</a>`:""}
+      ${need?`<button type="button" class="btn dark" onclick="refDownloaded('${esc(d.id)}','閱讀')" title="看完內容後按這裡確認（點開附件或連結也會自動算已下載）">✓ 確認已閱讀</button>`:""}</div></div>`;}).join("")||`<div class="empty">${q?`沒有符合「${esc(q)}」的文件，請換個關鍵字。`:(K==="oth"?"目前沒有進行中的其他資訊。":"目前沒有公司分享的參考文件。")}</div>`);
+}
+
+/* ════════ 頁籤 ════════ */
+/* 檢查紀錄頁的兩個子頁籤：檢查紀錄／內部檢查執行情形一覽表（原本的「執行情形一覽表」頁籤併進來） */
+let INSP_SUB="list";
+function inspSub(s){
+  INSP_SUB=s==="exec"?"exec":"list";
+  document.querySelectorAll("#p-insp .subtabs button").forEach(b=>b.classList.toggle("on",b.dataset.s===INSP_SUB));
+  $("#insp-sub-list").style.display=INSP_SUB==="list"?"":"none";
+  $("#insp-sub-exec").style.display=INSP_SUB==="exec"?"":"none";
+  if(INSP_SUB==="exec"){renderExec();trackOnce("tab:exec","瀏覽","內部檢查執行情形一覽表",`${D.ship} 瀏覽「內部檢查執行情形一覽表」`);}else renderInsp();
+}
+/* 「📚 通報單／其他資訊」頁的子標籤（2026-11-20 合併）：cb＝Circular／Bulletin、ref＝其他資訊。
+   預設看 Circular／Bulletin；有新的其他資訊待下載／閱讀時，上方黃條提示可以直接切過去。 */
+let REF_SUB="cb";
+function refSub(s){
+  REF_SUB=s==="ref"||s==="oth"?s:"cb";
+  document.querySelectorAll("#refSubtabs button").forEach(b=>b.classList.toggle("on",b.dataset.s===REF_SUB));
+  $("#ref-sub-cb").style.display=REF_SUB==="cb"?"":"none";
+  $("#ref-sub-ref").style.display=REF_SUB!=="cb"?"":"none";
+  const n=refPending().length,nb=k=>{const c=refPending().filter(d=>refKind(d)===k).length;return c?` <span style="background:#c0392b;color:#fff;font-size:10.5px;font-weight:800;border-radius:9px;padding:1px 7px;margin-left:3px;vertical-align:1px">NEW ${c}</span>`:"";};
+  {const rb=document.querySelector('#refSubtabs button[data-s="ref"]');if(rb)rb.innerHTML="📚 參考文件"+nb("ref");const ob=document.querySelector('#refSubtabs button[data-s="oth"]');if(ob)ob.innerHTML="📢 其他資訊"+nb("oth");}
+  const t=$("#refTodo");if(t)t.innerHTML=n&&REF_SUB==="cb"?`<div style="background:#fff6e5;border:1px solid #f0c27a;border-left:5px solid #d97a2b;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:14px">🔔 有 ${n} 則新的參考文件／其他資訊待下載／閱讀：${esc(refPending().map(d=>d.title).join("、"))} <a href="#" onclick="event.preventDefault();refSub(refPending().some(d=>refKind(d)==='ref')?'ref':'oth')" style="margin-left:6px;font-weight:700">前往 →</a></div>`:"";
+  if(REF_SUB==="cb")renderDocs();else renderRef();
+}
+const RENDER={home:renderHome,air:renderAir,camp:renderCamp,insp:()=>inspSub(INSP_SUB),pos:renderPos,docs:()=>refSub("cb"),ntf:renderNtf,ref:()=>refSub(REF_SUB)};
+/* 下拉群組：點群組名稱展開／收合，點選項目或點旁邊空白就收起來 */
+function ddClose(except){document.querySelectorAll("#tabs .dd.open").forEach(d=>{if(d!==except){d.classList.remove("open");d.querySelector(".ddb").setAttribute("aria-expanded","false");}});}
+document.querySelectorAll("#tabs .ddb").forEach(b=>b.onclick=e=>{e.stopPropagation();const d=b.parentElement;ddClose(d);const o=d.classList.toggle("open");b.setAttribute("aria-expanded",o?"true":"false");});
+document.addEventListener("click",e=>{if(!e.target.closest||!e.target.closest("#tabs .dd"))ddClose();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")ddClose();});
+document.querySelectorAll("#tabs .ddm a").forEach(a=>a.addEventListener("click",()=>setTimeout(ddClose,0)));
+/* 群組名稱旁的紅色數字：群組裡有 UPDATE（緊急通報名單）／NEW（參考文件）就顯示，收起來也看得到 */
+function groupBadge(){
+  const n={doc:(ntfNeedsPrint()?1:0)+refPending().length};
+  document.querySelectorAll("#tabs .dd").forEach(d=>{const w=d.querySelector(".gbw");if(!w)return;const k=n[d.dataset.g]||0;w.innerHTML=k?` <span class="gb">${k}</span>`:"";});
+}
+function go(p){
+  if(p==="docs"){REF_SUB="cb";p="ref";} // 舊的「船隊通報單」頁籤已併入「通報單／其他資訊」
+  if(p==="refinfo"){REF_SUB="ref";p="ref";} // 首頁「其他資訊」卡片直接開到子標籤
+  ddClose();
+  document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+  document.querySelectorAll("#tabs .dd").forEach(d=>d.classList.toggle("on",!!d.querySelector(`button[data-p="${p}"]`)));
+  document.querySelectorAll(".page").forEach(s=>s.classList.toggle("on",s.id==="p-"+p));
+  RENDER[p]();window.scrollTo(0,0);
+  try{sessionStorage.setItem("ship_portal_tab",p);}catch(e){}
+  const TABN={home:"首頁",insp:"檢查紀錄",air:"外部檢查線上填單紀錄",camp:"分享缺失自查",pos:"正面評價",docs:"船隊通報單",ntf:"緊急通報名單",ref:"通報單／其他資訊"};
+  if(p!=="home")trackOnce("tab:"+p,"瀏覽",TABN[p]||p,`${D.ship} 瀏覽「${TABN[p]||p}」頁籤`);
+}
+document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
+["#iYear","#iIo","#iQ"].forEach(s=>$(s).addEventListener("input",renderInsp));
+["#pYear","#pQ"].forEach(s=>$(s).addEventListener("input",renderPos));
+["#aYear","#aQ","#aRej"].forEach(s=>$(s).addEventListener("input",renderAir));
+$("#eYear").addEventListener("input",renderExec);
+$("#refQ").addEventListener("input",renderRef);
+$("#refMonth").addEventListener("change",renderRef);
+
+(async function init(){
+  // 船舶資料：主系統現在逐筆存在 sync_ships（app_db 的 ships 是 8/6 之後就沒再更新的舊整包），讀不到才退回舊的
+  try{let p=null;try{const r=await api("sync_ships?select=payload");p=(r||[]).map(x=>x&&x.payload).filter(s=>s&&!s._deleted);if(!p.length)p=null;}catch(e){}
+    if(!p)p=await getKey("ships");
+    if(Array.isArray(p))SHIPS_RAW=p.filter(s=>s&&s.code);
+    if(Array.isArray(p))SHIPS=p.filter(s=>s&&s.code).map(s=>({code:s.code,zh:s.zh||"",en:s.name||"",label:[s.zh,s.name].filter(Boolean).join(" ")||s.code})).sort((a,b)=>String(a.code).localeCompare(String(b.code)));}catch(e){}
+  let code;
+  if(isPreview()&&SHIPS.some(s=>s.code===PREVIEW.ship)){code=PREVIEW.ship;showPreviewBar(code);}
+  else{if(PREVIEW)showPreviewBar("");code=await Auth.ensure();}
+  $("#hdShip").textContent="🚢 "+shipLabel(code);
+  document.title=`${shipLabel(code)} — 船舶檢查填報平台`;
+  $("#homeEntries").innerHTML=`<div class="loading">載入本船資料中…</div>`;
+  trackOnce("open","開啟","平台",`${code} 開啟船舶檢查填報平台`); // 每船每天一次
+  await loadAll(code);
+  try{RISK=await getKey("ship_risk");}catch(e){console.warn("risk",e);}
+  try{renderMarquee();}catch(e){console.warn("marquee",e);}  fillPosSrc();
+  fillYear("#aYear",D.air.map(r=>r.basic),"全部年度");
+  $("#aNew").href=`${location.href.replace(/[^/]*$/,"")}submit-airform.html?ship=${encodeURIComponent(code)}`;
+  fillYear("#iYear",D.insp,"全部年度");fillYear("#pYear",D.pos,"全部年度");fillYear("#eYear",D.insp,"");
+  $("#eYear").value=String(new Date().getFullYear());
+  let tab="home";try{tab=sessionStorage.getItem("ship_portal_tab")||"home";}catch(e){}
+  // 主系統「船上畫面預覽」等連結用 ?tab=ref 直接開到某一頁：只在第一次打開時用，用完就從網址拿掉，
+  // 之後重新整理才會停在「上次開啟的頁面」（2026-11-04：原本網址一直帶著 tab，重新整理永遠回到參考文件）
+  const qs=new URLSearchParams(location.search),qtab=qs.get("tab");
+  if(qtab){if(RENDER[qtab])tab=qtab;qs.delete("tab");try{history.replaceState(null,"",location.pathname+(qs.toString()?"?"+qs:"")+location.hash);}catch(e){}}
+  if(tab==="exec"){INSP_SUB="exec";tab="insp";} // 舊的「執行情形一覽表」頁籤已併入檢查紀錄
+  go(RENDER[tab]?tab:"home");
+})();
+</script>
+<script>
+/* ════════ 2026-11-24 船舶平台左右分割 PSplit ════════
+   線上填單（新填單、✎ 修改後重送）、分享缺失自查（填答／查看）不再另開網頁，改在本頁右邊打開（iframe，頁面本身完全沒改）：
+   ・新填單、修改後重送：預設全螢幕（打字、上傳照片需要空間），「⇲ 回左右分割」可縮回。
+   ・分享缺失自查：左右分割，左邊清單保留。
+   ・首頁「外部檢查線上填單」→ 先到「外部檢查線上填單紀錄」再打開；首頁的分享自查待辦 → 先到「分享缺失自查」再打開。
+   ・👁 查看（線上填單）：原本蓋滿畫面的視窗改成貼在右邊。
+   ・填到一半要換別的或關閉，先提醒一次（內容本來就會自動暫存）。寬度不到 1100 一律全螢幕。
+   ・預覽模式（海技從主系統看船上畫面）維持原本另開分頁，不受影響。 */
+(function(){
+  const css=document.createElement("style");css.textContent=`
+  body.ps-on main{max-width:none;margin:0 calc(min(56%,100% - 420px) + 8px) 0 0}
+  body.ps-full main{display:none}
+  #psPanel,body.ps-on #airViewOv{position:fixed!important;right:0!important;left:auto!important;bottom:0!important;width:min(56%,calc(100% - 420px))!important;background:#fff!important;border-left:1px solid var(--line,#dde4ea);box-shadow:-8px 0 22px rgba(20,40,60,.12);z-index:30!important;display:flex;flex-direction:column;padding:0!important;overflow:hidden}
+  body.ps-full #psPanel,body.ps-full #airViewOv{width:100%!important}
+  body.ps-on #airViewOv{overflow:auto;display:block!important}
+  body.ps-on #airViewOv>div{max-width:none!important;border-radius:0!important;min-height:100%}
+  #psPanel .ps-h{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line,#dde4ea);background:#f7f9fb;flex-wrap:wrap}
+  #psPanel .ps-h b{color:var(--navy,#1a4c75);font-size:15.5px}#psPanel .ps-h .x{margin-left:auto;display:flex;gap:6px}
+  #psPanel iframe{flex:1;width:100%;border:0;background:#fff}
+  .ps-cur>td,tr.ps-cur>td{background:#fff3e2!important}
+  .pchip{display:inline-flex;border:1px solid var(--line,#dde4ea);background:#fff;border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#3d4f5c;margin:0 6px 6px 0}
+  .pchip.on{background:var(--navy,#1a4c75);color:#fff;border-color:var(--navy,#1a4c75)}
+  #pSum{display:flex;flex-wrap:wrap;align-items:center}
+  table.poslist tr.pr:hover td{background:#f9fbfa}
+  table.poslist td{vertical-align:top}table.poslist .pn b{display:block}table.poslist .pn span{font-size:12.5px;color:#6b7c88}
+  table.poslist .pq,table.poslist .pc{line-height:1.6;white-space:pre-line;overflow-wrap:anywhere} /* 2026-11-24 完整顯示，不截斷、不點開右邊 */
+  table.poslist .pq,table.poslist .pc{min-width:0;max-width:none;width:auto}
+  table.poslist tr>:nth-child(4),table.poslist tr>:nth-child(5){width:34%} /* 2026-11-25 項目、評語平均分配欄寬 */
+  table.poslist td.pn{min-width:170px;white-space:nowrap}table.poslist .pp{line-height:1.5;margin-bottom:3px}table.poslist .pp b{display:inline!important}table.poslist .pp span{font-size:12.5px;color:#6b7c88;margin-left:4px}
+  table.poslist .pq{color:#1f6b4a;font-size:13px}
+  body.ps-on table.poslist .pw{display:none}
+  /* 右邊打開時，左邊線上填單紀錄只留：日期、來源、狀態、內容 */
+  body.ps-on #p-air table.tb tr>:nth-child(3){display:none}
+  @media(max-width:1099px){body.ps-on main{display:none}#psPanel,body.ps-on #airViewOv{width:100%!important}}`;
+  document.head.appendChild(css);
+  const $=s=>document.querySelector(s);
+  const PSplit={
+    url:"",kind:"",dirty:false,
+    top(){const n=$("nav"),m=$("main");return Math.max(n?n.getBoundingClientRect().bottom:0,m?m.getBoundingClientRect().top:0,0);},
+    fit(){const t=this.top()+"px";const p=$("#psPanel");if(p)p.style.top=t;const v=$("#airViewOv");if(v&&document.body.classList.contains("ps-on"))v.style.top=t;},
+    sync(){const on=!!$("#psPanel")||!!$("#airViewOv");document.body.classList.toggle("ps-on",on);if(!on){document.body.classList.remove("ps-full");document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));}this.fit();
+      document.querySelectorAll("[data-psfull]").forEach(b=>b.textContent=document.body.classList.contains("ps-full")?"⇲ 回左右分割":"⛶ 全螢幕");},
+    leaveOk(){
+      if(!$("#psPanel")||!this.editing)return true;
+      return confirm("右邊還在填寫中（內容會自動暫存在這台電腦，之後打開同一份會接續）。\n確定要離開嗎？");
+    },
+    open(url,o){
+      o=o||{};
+      if($("#psPanel")&&this.url===url){if(o.full)document.body.classList.add("ps-full");this.sync();return;}
+      if(!this.leaveOk())return;
+      const v=$("#airViewOv");if(v)v.remove();
+      let p=$("#psPanel");
+      if(!p){p=document.createElement("div");p.id="psPanel";document.body.appendChild(p);}
+      this.url=url;this.editing=!!o.editing;
+      p.innerHTML=`<div class="ps-h"><b>${o.title||""}</b><span class="x"><button class="btn sm" data-psfull onclick="PSplit.full()">⛶ 全螢幕</button><button class="btn sm" onclick="window.open(PSplit.url,'_blank','noopener')" title="另開一個瀏覽器分頁">↗ 另開視窗</button><button class="btn sm" onclick="PSplit.close()">✕ 關閉</button></span></div><iframe title="${o.title||""}"></iframe>`;
+      p.querySelector("iframe").src=url;
+      document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(o.mark)o.mark.classList.add("ps-cur");
+      document.body.classList.toggle("ps-full",!!o.full||innerWidth<1100);
+      this.sync();
+    },
+    openHtml(title,html,mark){
+      if(!this.leaveOk())return;const v=$("#airViewOv");if(v)v.remove();
+      let p=$("#psPanel");if(!p){p=document.createElement("div");p.id="psPanel";document.body.appendChild(p);}
+      this.url="";this.editing=false;
+      p.innerHTML=`<div class="ps-h"><b>${title}</b><span class="x"><button class="btn sm" data-psfull onclick="PSplit.full()">⛶ 全螢幕</button><button class="btn sm" onclick="PSplit.close(true)">✕ 關閉</button></span></div><div style="flex:1;overflow:auto">${html}</div>`;
+      document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(mark)mark.classList.add("ps-cur");
+      document.body.classList.toggle("ps-full",innerWidth<1100);this.sync();
+    },
+    full(){document.body.classList.toggle("ps-full");this.sync();},
+    close(force){
+      if(!force&&!this.leaveOk())return;
+      const p=$("#psPanel");if(p)p.remove();const v=$("#airViewOv");if(v)v.remove();
+      this.url="";this.editing=false;this.sync();
+      // 右邊填完／看完回來，清單重新讀一次（剛送出的才會出現）
+      try{if(typeof loadAll==="function"&&D&&D.ship)loadAll(D.ship).then(()=>{const on=document.querySelector(".page.on");const k=on&&on.id.replace("p-","");if(k&&RENDER[k])RENDER[k]();});}catch(e){}
+    }
+  };
+  window.PSplit=PSplit;
+  addEventListener("resize",()=>PSplit.fit());addEventListener("scroll",()=>PSplit.fit(),{passive:true});
+  /* 點到線上填單／分享自查的連結 → 本頁右邊打開 */
+  document.addEventListener("click",e=>{
+    const a=e.target.closest&&e.target.closest("a[href]");if(!a)return;
+    const h=a.getAttribute("href")||"";
+    if(typeof isPreview==="function"&&isPreview())return; // 預覽模式維持原本另開分頁
+    const air=/submit-airform\.html/.test(h),share=/submit-selfcheck-share\.html/.test(h);
+    if(!air&&!share)return;
+    e.preventDefault();
+    const cur=(document.querySelector(".page.on")||{}).id;
+    if(air){
+      const rev=/[?&]rev=/.test(h);
+      if(cur!=="p-air"&&typeof go==="function")go("air");
+      PSplit.open(a.href,{title:rev?"✎ 修改後重送":"＋ 外部檢查線上填單（新）",full:true,editing:true,mark:a.closest("tr")});
+    }else{
+      const cid=(h.match(/[?&]cid=([^&#]+)/)||[])[1];
+      if(cur!=="p-camp"&&typeof go==="function")go("camp");
+      // 換到分享自查頁之後，標出清單上的那一列
+      let mark=a.closest("tr");if(cur!=="p-camp"&&cid){const m=[...document.querySelectorAll('#p-camp a[href*="cid='+cid+'"]')][0];mark=m&&m.closest("tr");}
+      const t=(mark&&mark.querySelector("b")&&mark.querySelector("b").textContent)||"分享缺失自查";
+      PSplit.open(a.href,{title:"🔍 "+t,editing:true,mark});
+    }
+  });
+  /* 👁 查看（線上填單）：原本的視窗改成貼在右邊 */
+  new MutationObserver(()=>{
+    const v=$("#airViewOv");
+    if(v&&!v.dataset.ps){
+      if($("#psPanel")){if(!PSplit.leaveOk()){v.remove();return;}$("#psPanel").remove();PSplit.url="";PSplit.editing=false;}
+      v.dataset.ps="1";v.onclick=null;document.body.classList.remove("ps-full");
+    }
+    PSplit.sync();
+  }).observe(document.body,{childList:true});
+  if(typeof airView==="function"){const o=airView;window.airView=function(id){const b=document.querySelector(`#aList button[onclick="airView(${id})"]`);const r=o.apply(this,arguments);setTimeout(()=>{document.querySelectorAll(".ps-cur").forEach(x=>x.classList.remove("ps-cur"));if(b&&b.closest("tr"))b.closest("tr").classList.add("ps-cur");},0);return r;};}
+  /* 換頁籤時，右邊收起來 */
+  if(typeof go==="function"){const g=go;window.go=function(p){const cur=(document.querySelector(".page.on")||{}).id;if(("p-"+p)!==cur&&document.body.classList.contains("ps-on")){if(!PSplit.leaveOk())return;const pp=$("#psPanel");if(pp)pp.remove();const v=$("#airViewOv");if(v)v.remove();PSplit.url="";PSplit.editing=false;PSplit.sync();}return g.apply(this,arguments);};}
+})();
+</script>
+
+<style>
+/* ════════ 2026-11-26 船上平台：配色、圖示跟主系統一致（① 海藍）；高風險船提醒縮小；首頁卡片簡化；字的大小 小／中／大 */
+:root{--navy:#1a4c75!important;--navy2:#245d8a!important}
+body{background:#f1f4f7}
+.ic{width:1.05em;height:1.05em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-.15em}
+#tabs button .ic{color:#8794a0;margin-right:3px}
+#tabs button.on .ic,#tabs button:hover .ic{color:var(--navy)}
+h2.pt .ic{color:var(--navy);margin-right:4px}
+header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
+/* 高風險船：一行提醒，說明收起來 */
+.riskban{background:#fdf0ee;border:1px solid #efc2bc;border-left:5px solid #c0392b;border-radius:8px;padding:8px 14px;margin:0 0 14px;color:#7a1c14;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
+.riskban .rb-t{font-size:15px;font-weight:800;color:#b3261e;line-height:1.4}
+.riskban .rb-d{font-size:13.5px;margin:0;line-height:1.5;flex-basis:100%}
+.riskban .rb-s{display:none}
+.riskban .rb-i{margin:0;font-size:12.5px;margin-left:auto}
+.riskban .rb-i[open]{flex-basis:100%;margin-left:0}
+/* 首頁：填報＋外部平台 卡片簡化（白底、細框、左邊小圖示） */
+.homeTop{gap:16px!important}
+.entry,#homeTools .entry{min-height:0!important}
+.entry{border:1px solid var(--line)!important;border-top:1px solid var(--line)!important;background:#fff!important;border-radius:10px;padding:12px 14px;gap:6px;box-shadow:none}
+.entry:hover{border-color:var(--navy2)!important;box-shadow:0 3px 10px rgba(31,95,143,.08)}
+.entry .t{font-size:15px!important;color:var(--navy)!important;display:flex;align-items:center;gap:8px}
+.entry .t .ic{width:30px;height:30px;padding:6px;border-radius:8px;background:#eaf2f9;color:var(--navy);flex:none}
+.entry .d{font-size:13px;line-height:1.6;color:var(--ink2)}
+.entry .st{margin-top:auto}
+#homeTools{gap:12px}
+/* 待辦清單圖示 */
+.todolist .ic svg.ic,.todolist .ic>.ic{width:20px;height:20px;color:#6b7c88}
+.todolist .trow.has .ic>.ic{color:#c0392b}
+/* 字的大小 */
+#psFsz{display:flex;align-items:center;gap:2px;border:1px solid rgba(255,255,255,.35);border-radius:7px;padding:2px;color:#fff;font-size:12px;flex:none;margin-right:8px}
+#psFsz span{padding:0 5px;opacity:.85}
+#psFsz button{border:0;background:transparent;color:#fff;font-family:inherit;border-radius:5px;padding:3px 8px;cursor:pointer;line-height:1.1}
+#psFsz button.on{background:#fff;color:var(--navy);font-weight:700}
+#psFsz button[data-z="1"]{font-size:12px}#psFsz button[data-z="1.08"]{font-size:14px}#psFsz button[data-z="1.16"]{font-size:16px}
+@media(max-width:768px){
+  #psFsz{margin:0}
+  header h1 small{display:none!important}
+  header .hd{gap:6px 8px!important;padding-top:8px!important;padding-bottom:8px!important}
+  header .shipbadge{font-size:14px!important;padding:4px 10px!important}
+  header .guide{padding:4px 10px!important;font-size:13px!important}
+  #tabs{flex-wrap:nowrap!important;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #tabs::-webkit-scrollbar{display:none}
+  #tabs button{flex:none!important;white-space:nowrap}
+  .riskban .rb-d{font-size:12.5px}
+  .riskban .rb-t{font-size:14px}
+  .entry .t .ic{width:26px;height:26px;padding:5px}
+}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+ <symbol id="ic-clip" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 10h6M9 14h6M9 18h4"/></symbol>
+ <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></symbol>
+ <symbol id="ic-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></symbol>
+ <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+ <symbol id="ic-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+ <symbol id="ic-news" viewBox="0 0 24 24"><path d="M4 5h13v15H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5"/></symbol>
+ <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></symbol>
+ <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+ <symbol id="ic-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1 3h6l1-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></symbol>
+ <symbol id="ic-audit" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m9 13 2 2 4-4"/></symbol>
+ <symbol id="ic-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></symbol>
+ <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+ <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+ <symbol id="ic-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+ <symbol id="ic-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 11h8"/><path d="M4 14a8 8 0 0 0 16 0"/></symbol>
+ <symbol id="ic-mega" viewBox="0 0 24 24"><path d="M3 10v4h4l6 4V6L7 10z"/><path d="M16 9a4 4 0 0 1 0 6"/></symbol>
+</svg>
+<script>
+(function(){
+  const MAP=[[/首頁/,"home"],[/線上填單|外部檢查線上填單|填報/,"doc"],[/檢查紀錄|執行情形/,"clip"],[/正面評價/,"award"],[/追蹤|結案/,"flag"],[/逾期|注意/,"alert"],[/自查/,"search"],[/緊急通報/,"phone"],
+    [/通報單|其他資訊|公司文件/,"news"],[/操作說明|SQMS|程序書/,"book"],[/外部平台/,"link"],[/待辦/,"inbox"],[/內部檢查|改善單/,"audit"],[/Itinerary|航程/,"compass"],[/計劃|年度/,"cal"],[/公告/,"mega"]];
+  const EMO=/^[\s☀-➿⬀-⯿️‍←-⇿⌀-⏿]*(?:[\uD83C-\uDBFF][\uDC00-\uDFFF][️‍]*)*[\s️]*/;
+  const ico=n=>`<svg class="ic"><use href="#ic-${n}"/></svg>`;
+  const frag=h=>document.createRange().createContextualFragment(h);
+  function fix(el,key){
+    if(!el||el.querySelector(":scope > svg.ic"))return;
+    const n=[...el.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim());if(!n)return;
+    const before=n.nodeValue,after=before.replace(EMO,"");if(after===before)return;
+    n.nodeValue=after;const hit=MAP.find(([re])=>re.test(key||el.textContent));if(hit)el.insertBefore(frag(ico(hit[1])),n);
+  }
+  function run(){
+    document.querySelectorAll("#tabs button,h2.pt,.subtabs button,.entry .t,.mq-lbl").forEach(e=>fix(e));
+    const h1=document.querySelector("header h1");if(h1&&!h1.querySelector("svg.ic")){const n=[...h1.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim());if(n){n.nodeValue=n.nodeValue.replace(EMO,"");h1.insertBefore(frag(ico("anchor")),n);}}
+    const g=document.querySelector("header .guide");if(g)fix(g);
+    document.querySelectorAll(".todolist .trow").forEach(r=>{const c=r.querySelector(".ic");if(!c||c.querySelector("svg"))return;const T=r.querySelector(".tt"),tt=T?([...T.childNodes].find(x=>x.nodeType===3&&x.nodeValue.trim())||{nodeValue:T.textContent}).nodeValue:"";const hit=MAP.find(([re])=>re.test(tt));c.innerHTML=ico(hit?hit[1]:"inbox");});
+  }
+  let busy=false;const mo=new MutationObserver(()=>{if(busy)return;busy=true;requestAnimationFrame(()=>{try{run();}catch(e){}busy=false;});});
+  /* 字的大小（跟主系統一樣：整頁放大，並換算位置，下拉、浮動視窗不會跑掉） */
+  const ZF={k:1,vp:1};
+  (function(){const P=Element.prototype,g=P.getBoundingClientRect;P.getBoundingClientRect=function(){const r=g.call(this);const k=ZF.k;return k===1?r:new DOMRect(r.x/k,r.y/k,r.width/k,r.height/k);};
+    const wd=Object.getOwnPropertyDescriptor(window,"innerWidth")||{},hd=Object.getOwnPropertyDescriptor(window,"innerHeight")||{};
+    if(wd.get&&wd.configurable!==false)Object.defineProperty(window,"innerWidth",{configurable:true,get(){return wd.get.call(window)/ZF.vp;}});
+    if(hd.get&&hd.configurable!==false)Object.defineProperty(window,"innerHeight",{configurable:true,get(){return hd.get.call(window)/ZF.vp;}});
+    [MouseEvent.prototype,typeof Touch!=="undefined"?Touch.prototype:null].forEach(p=>{if(!p)return;["clientX","clientY"].forEach(k=>{const d=Object.getOwnPropertyDescriptor(p,k);if(d&&d.get)Object.defineProperty(p,k,{configurable:true,get(){return d.get.call(this)/ZF.k;}});});});
+    ZF.raw=g;ZF.wd=wd;})();
+  function calibrate(z){ZF.k=1;ZF.vp=1;const f=+z||1;if(f===1)return;const d=document.createElement("div");d.style.cssText="position:fixed;left:0;top:0;width:100px;height:10px;visibility:hidden;pointer-events:none";document.body.appendChild(d);
+    const w=ZF.raw.call(d).width;d.style.cssText="position:fixed;left:0;right:0;top:0;height:1px;visibility:hidden;pointer-events:none";const full=d.offsetWidth,iw=ZF.wd.get?ZF.wd.get.call(window):full;d.remove();
+    if(Math.abs(w-100*f)<2)ZF.k=f;if(full&&Math.abs(iw-full*f)<3)ZF.vp=f;}
+  const KEY="ps_font_zoom",get=()=>{try{return localStorage.getItem(KEY)||"1";}catch(e){return "1";}};
+  function apply(z){document.documentElement.style.zoom=z==="1"?"":z;try{calibrate(z);}catch(e){ZF.k=1;ZF.vp=1;}try{localStorage.setItem(KEY,z);}catch(e){}document.querySelectorAll("#psFsz button").forEach(b=>b.classList.toggle("on",b.dataset.z===z));}
+  function fsz(){const hd=document.querySelector("header .hd");if(!hd||document.getElementById("psFsz"))return;
+    const w=document.createElement("div");w.id="psFsz";w.title="字的大小（只影響這台電腦／手機）";
+    w.innerHTML=`<span>字</span><button type="button" data-z="1">小</button><button type="button" data-z="1.08">中</button><button type="button" data-z="1.16">大</button>`;
+    w.querySelectorAll("button").forEach(b=>b.onclick=()=>apply(b.dataset.z));
+    const g=hd.querySelector(".guide");if(g)g.before(w);else hd.appendChild(w);apply(get());}
+  function init(){fsz();run();["#tabs","main","header",".mq"].forEach(s=>{const el=document.querySelector(s);if(el&&!el._icw){el._icw=1;mo.observe(el,{childList:true,subtree:true});}});}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+  setTimeout(init,1500);
+})();
+</script>
+<style>
+/* ════════ 2026-11-26 檢查紀錄：檢查來源改成跟主系統一樣的統計表（左外部、右內部；欄＝來源，列＝次數／缺失數／平均缺失） */
+.st2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px;margin:2px 0 6px}
+.st2 .tw{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:auto}
+.st2 table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:max-content}
+.st2 th,.st2 td{padding:7px 10px;text-align:center;border-top:1px solid #eef1f4;white-space:nowrap}
+.st2 thead th{border-top:0;background:#f3f6f9;font-weight:800;color:#1f2d38;cursor:pointer;max-width:120px;white-space:normal;line-height:1.25;font-size:12.5px}
+.st2 thead th.cap{color:#fff;font-size:14px;cursor:default;width:64px}
+.st2 .e thead th.cap{background:#1a4c75}.st2 .i thead th.cap{background:#e08a2c}
+.st2 tbody th{text-align:left;font-weight:600;color:#3d4f5c;background:#fff;cursor:default}
+.st2 td{font-family:var(--mono);cursor:pointer}
+.st2 .on{background:#eaf2fb!important;box-shadow:inset 0 -3px 0 #1a4c75}
+.st2 .i .on{background:#fdf1e4!important;box-shadow:inset 0 -3px 0 #e08a2c}
+.st2 .dim{opacity:.45}
+.st2 td.hi{color:#c0392b;font-weight:700}
+.st2-hint{font-size:12px;color:#6b7c88;margin:0 0 10px}
+.st2-all{display:inline-block;margin:0 0 8px;font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 12px;cursor:pointer}
+</style>
+<script>
+(function(){
+  if(typeof srcCards!=="function")return;
+  const _sc=srcCards;
+  window.srcCards=function(el,items,which,unit,extra){
+    if(which!=="insp")return _sc.apply(this,arguments);
+    const M=new Map();items.forEach(r=>{const k=r.itype||"—";if(!M.has(k))M.set(k,{n:0,d:0});const o=M.get(k);o.n++;o.d+=(+r.ndef||0);});
+    const cur=PICK.insp;if(cur&&!M.has(cur))PICK.insp="";
+    const list=[...M.entries()].sort((a,b)=>b[1].n-a[1].n);
+    const js=k=>JSON.stringify(k).replace(/"/g,"&quot;");
+    const tbl=(cls,cap,L)=>{if(!L.length)return "";
+      const cc=k=>PICK.insp===k?"on":PICK.insp?"dim":"";
+      const td=(k,v,hi)=>`<td class="${cc(k)} ${hi?"hi":""}" onclick="pickSrc('insp',${js(k)})">${v}</td>`;
+      return `<div class="tw ${cls}"><table><thead><tr><th class="cap">${cap}</th>${L.map(([k])=>`<th class="${cc(k)}" onclick="pickSrc('insp',${js(k)})" title="點一下只看「${esc(k)}」，再點一次取消">${esc(k)}</th>`).join("")}</tr></thead>
+        <tbody><tr><th>次數</th>${L.map(([k,o])=>td(k,o.n)).join("")}</tr><tr><th>缺失數</th>${L.map(([k,o])=>td(k,o.d)).join("")}</tr>
+        <tr><th>平均缺失</th>${L.map(([k,o])=>{const a=o.n?o.d/o.n:0;return td(k,a.toFixed(1),a>=4);}).join("")}</tr></tbody></table></div>`;};
+    const ext=list.filter(([k])=>!isInt(k)),int=list.filter(([k])=>isInt(k));
+    el.className="";
+    el.innerHTML=(PICK.insp?`<button type="button" class="st2-all" onclick="pickSrc('insp',${js(PICK.insp)})">✕ 取消只看「${esc(PICK.insp)}」</button>`:"")+
+      `<div class="st2">${tbl("e","外部",ext)}${tbl("i","內部",int)}</div><div class="st2-hint">點表格裡的檢查來源（或數字）＝只看那種檢查，再點一次取消。統計會跟著上面的年份、外部／內部、搜尋變動。</div>`;
+    const h=el.previousElementSibling;if(h&&/點下方卡片/.test(h.textContent))h.style.display="none";
+  };
+  try{if(document.getElementById("iCards")&&typeof renderInsp==="function"&&window.D&&D.insp)renderInsp();}catch(e){}
+})();
+</script><style>
+/* ════════ 2026-11-26 船上首頁：左＝待辦事項（一打開就看到）；右＝填報＋外部平台（照 模擬_待辦收合與船上首頁 B） */
+#homeLR{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:4px}
+#homeLR>div{min-width:0;display:flex;flex-direction:column;gap:14px}
+#homeLR h2.pt{margin:0 0 8px!important}
+#homeLR .homeTop{display:flex!important;flex-direction:column;gap:14px!important}
+#homeLR .homeTop>div{min-width:0}
+#homeLR #homeFill{grid-template-columns:1fr!important}
+#homeLR #homeTools{grid-template-columns:1fr 1fr!important;gap:10px}
+#homeLR #homeTools .entry .d{font-size:12.5px}
+#homeLR #homeTools .entry .st{display:none}
+@media(max-width:900px){#homeLR{grid-template-columns:1fr}#homeLR #homeTools{grid-template-columns:1fr 1fr!important}}
+@media(max-width:480px){#homeLR #homeTools{grid-template-columns:1fr!important}}
+</style>
+<script>
+(function(){
+  function lay(){
+    const pg=document.getElementById("p-home"),top=pg&&pg.querySelector(".homeTop"),ent=document.getElementById("homeEntries");
+    if(!pg||!top||!ent||document.getElementById("homeLR"))return;
+    const h=ent.previousElementSibling&&ent.previousElementSibling.matches("h2.pt")?ent.previousElementSibling:null;
+    const g=document.createElement("div");g.id="homeLR";const L=document.createElement("div"),R=document.createElement("div");
+    top.before(g);if(h){h.style.marginTop="0";L.appendChild(h);}L.appendChild(ent);R.appendChild(top);g.append(L,R);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",lay);else lay();
+})();
+</script><!-- ════════ 2026-11-27 平台內嵌：改善單、線上填單、分享缺失自查都在本頁作業（不跳新視窗）；外部網站、PDF 照舊另開 ════════ -->
+<style id="pemb-css">
+#p-emb{padding:0!important}
+#p-emb .eb{display:flex;align-items:center;gap:10px;padding:8px 2px 8px;flex-wrap:wrap}
+#p-emb .eb .bk{border:1.5px solid #b9c6d2;background:#fff;border-radius:8px;padding:5px 12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px;color:#1a4c75}
+#p-emb .eb b{font-size:15px;color:#1a4c75}
+#p-emb .eb .nw{margin-left:auto;font-size:12.5px;color:#6b7c88;text-decoration:none}
+#p-emb .eb .nw:hover{color:#1a4c75;text-decoration:underline}
+#embF{display:block;width:100%;border:1px solid #dbe3ea;border-radius:10px;background:#fff;min-height:420px}
+#p-emb .ld{position:absolute;inset:60px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:60px;color:#6b7c88;font-size:13px;pointer-events:none}
+#p-emb{position:relative}
+</style>
+<script>
+(function(){
+  const main=document.querySelector("main");if(!main||typeof go!=="function"||typeof RENDER==="undefined")return;
+  const PAGES={"intaudit-reply.html":["🛠 內部檢查改善單","ia"],"submit-airform.html":["📝 外部檢查線上填單","air"],
+    "submit-selfcheck-share.html":["🔍 分享缺失自查","camp"],"submit-selfcheck.html":["🔍 專案自查","camp"]};
+  const sec=document.createElement("section");sec.className="page";sec.id="p-emb";
+  sec.innerHTML=`<div class="eb"><button type="button" class="bk" id="embBack">‹ 返回</button><b id="embT"></b><a class="nw" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面"></iframe><div class="ld" id="embLd">讀取中…</div>`;
+  main.appendChild(sec);
+  RENDER.emb=()=>{};
+  /* 選單：內部檢查改善單 */
+  const tabs=document.getElementById("tabs");
+  if(tabs&&!tabs.querySelector('[data-p="ia"]')){const b=document.createElement("button");b.dataset.p="ia";b.textContent="🛠 內部檢查改善單";
+    const after=tabs.querySelector('[data-p="air"]');(after||tabs.lastElementChild).after(b);b.onclick=()=>go("ia");}
+  const shipCode=()=>{try{return (typeof D!=="undefined"&&D.ship)||"";}catch(e){return "";}};
+  const base=()=>location.href.replace(/[#?].*$/,"").replace(/[^/]*$/,"");
+  RENDER.ia=()=>{};
+  let prev="home",curUrl="",curKey="";
+  const F=()=>document.getElementById("embF");
+  function fit(){const f=F();if(!f||!sec.classList.contains("on"))return;const r=f.getBoundingClientRect();f.style.height=Math.max(420,Math.round(window.innerHeight-r.top-10))+"px";}
+  addEventListener("resize",fit);
+  function mark(key){
+    document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===key));
+    document.querySelectorAll("#tabs .dd").forEach(d=>d.classList.toggle("on",!!d.querySelector(`button[data-p="${key}"]`)));
+  }
+  function open(url,push){
+    const u=new URL(url,location.href),fn=u.pathname.split("/").pop(),info=PAGES[fn]||["",""];
+    const cur=document.querySelector(".page.on");if(cur&&cur.id!=="p-emb")prev=cur.id.replace(/^p-/,"");
+    _go("emb");mark(info[1]);curKey=info[1];
+    document.getElementById("embT").textContent=info[0];
+    document.getElementById("embNew").href=u.href;
+    const f=F();
+    if(curUrl!==u.href){curUrl=u.href;document.getElementById("embLd").style.display="";f.src=u.href;}
+    if(push!==false){try{history.pushState({emb:u.href},"",location.pathname+location.search+"#emb");}catch(e){}}
+    window.scrollTo(0,0);requestAnimationFrame(fit);setTimeout(fit,300);
+  }
+  function back(){
+    if(history.state&&history.state.emb){history.back();return;}
+    _go(prev||"home");
+  }
+  document.getElementById("embBack").onclick=back;
+  addEventListener("popstate",e=>{
+    const st=e.state;
+    if(st&&st.emb)open(st.emb,false);
+    else if(sec.classList.contains("on"))_go(prev||"home");
+  });
+  /* go()：「內部檢查改善單」選單打開本船改善單清單 */
+  const _go=go;
+  window.go=go=function(p){
+    if(p==="ia"){const s=shipCode();open(`${base()}intaudit-reply.html${s?"?ship="+encodeURIComponent(s):""}`);return;}
+    return _go.apply(this,arguments);
+  };
+  document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
+  /* 平台裡指向這幾頁的連結 → 改成內嵌開啟 */
+  function internal(a){
+    if(!a||!a.getAttribute)return null;const h=a.getAttribute("href");if(!h||h.startsWith("#")||/^(mailto|tel|javascript):/i.test(h))return null;
+    let u;try{u=new URL(h,location.href);}catch(e){return null;}
+    if(u.origin!==location.origin)return null;
+    const fn=u.pathname.split("/").pop();
+    return PAGES[fn]?u.href:null;
+  }
+  document.addEventListener("click",e=>{
+    if(e.ctrlKey||e.metaKey||e.shiftKey||e.button!==0)return;
+    const a=e.target.closest&&e.target.closest("a[href]");const u=internal(a);if(!u)return;
+    if(a.closest("#p-emb"))return;
+    e.preventDefault();e.stopPropagation();open(u);
+  },true);
+  /* iframe 裡：「回平台」的連結改成回到平台頁籤；其他照常在框內換頁 */
+  F().addEventListener("load",()=>{
+    document.getElementById("embLd").style.display="none";fit();
+    let d;try{d=F().contentDocument;}catch(e){return;}if(!d)return;
+    try{curUrl=F().contentWindow.location.href;document.getElementById("embNew").href=curUrl;}catch(e){}
+    d.documentElement.classList.add("in-portal");
+    /* 在平台裡不用再提醒「加入我的最愛」 */
+    const tidy=()=>{try{d.querySelectorAll(".banner").forEach(b=>{if(/我的最愛/.test(b.textContent))b.style.display="none";});
+      const w=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let x;while((x=w.nextNode()))if(/建議加入我的最愛/.test(x.nodeValue)){const p=x.parentElement;if(p&&p.textContent.trim().length<20)p.style.display="none";else x.nodeValue=x.nodeValue.replace(/[（(]?\s*⭐?\s*建議加入我的最愛\s*[）)]?/,"");}}catch(e){}};
+    [0,600,1500,3000].forEach(t=>setTimeout(tidy,t));
+    d.addEventListener("click",ev=>{
+      const a=ev.target.closest&&ev.target.closest("a[href]");if(!a)return;
+      let u;try{u=new URL(a.getAttribute("href"),d.location.href);}catch(e){return;}
+      if(u.origin!==location.origin)return;
+      const fn=u.pathname.split("/").pop();
+      if(fn===""||fn==="index.html"||fn==="index-v2.html"){ev.preventDefault();back();return;}
+      if(PAGES[fn]&&a.target==="_blank"){ev.preventDefault();F().src=u.href;}
+    },true);
+  });
+  /* 重新整理時若停在內嵌頁，回到原本頁籤 */
+  if(location.hash==="#emb"){try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}}
+})();
+</script>
+
+<!-- 2026-11-27 船上平台試用版（index-v2）：新功能（內控等）先在這裡做，主管確認後才換成正式版 index.html -->
+<style>.v2tag{display:inline-block;margin-left:8px;background:#d97a2b;color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:1px 7px;vertical-align:middle;letter-spacing:.05em}</style>
+<script>(function(){document.title="【試用版】"+document.title;const h=document.querySelector("header h1, header .brand, header .t");if(h&&!h.querySelector(".v2tag")){const s=h.querySelector("small");(s||h).insertAdjacentHTML(s?"beforebegin":"beforeend",'<span class="v2tag">試用版</span>');}})();</script></body>
+</html>

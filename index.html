@@ -1670,5 +1670,107 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",lay);else lay();
 })();
-</script></body>
+</script><!-- ════════ 2026-11-27 平台內嵌：改善單、線上填單、分享缺失自查都在本頁作業（不跳新視窗）；外部網站、PDF 照舊另開 ════════ -->
+<style id="pemb-css">
+#p-emb{padding:0!important}
+#p-emb .eb{display:flex;align-items:center;gap:10px;padding:8px 2px 8px;flex-wrap:wrap}
+#p-emb .eb .bk{border:1.5px solid #b9c6d2;background:#fff;border-radius:8px;padding:5px 12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px;color:#1a4c75}
+#p-emb .eb b{font-size:15px;color:#1a4c75}
+#p-emb .eb .nw{margin-left:auto;font-size:12.5px;color:#6b7c88;text-decoration:none}
+#p-emb .eb .nw:hover{color:#1a4c75;text-decoration:underline}
+#embF{display:block;width:100%;border:1px solid #dbe3ea;border-radius:10px;background:#fff;min-height:420px}
+#p-emb .ld{position:absolute;inset:60px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:60px;color:#6b7c88;font-size:13px;pointer-events:none}
+#p-emb{position:relative}
+</style>
+<script>
+(function(){
+  const main=document.querySelector("main");if(!main||typeof go!=="function"||typeof RENDER==="undefined")return;
+  const PAGES={"intaudit-reply.html":["🛠 內部檢查改善單","ia"],"submit-airform.html":["📝 外部檢查線上填單","air"],
+    "submit-selfcheck-share.html":["🔍 分享缺失自查","camp"],"submit-selfcheck.html":["🔍 專案自查","camp"]};
+  const sec=document.createElement("section");sec.className="page";sec.id="p-emb";
+  sec.innerHTML=`<div class="eb"><button type="button" class="bk" id="embBack">‹ 返回</button><b id="embT"></b><a class="nw" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面"></iframe><div class="ld" id="embLd">讀取中…</div>`;
+  main.appendChild(sec);
+  RENDER.emb=()=>{};
+  /* 選單：內部檢查改善單 */
+  const tabs=document.getElementById("tabs");
+  if(tabs&&!tabs.querySelector('[data-p="ia"]')){const b=document.createElement("button");b.dataset.p="ia";b.textContent="🛠 內部檢查改善單";
+    const after=tabs.querySelector('[data-p="air"]');(after||tabs.lastElementChild).after(b);b.onclick=()=>go("ia");}
+  const shipCode=()=>{try{return (typeof D!=="undefined"&&D.ship)||"";}catch(e){return "";}};
+  const base=()=>location.href.replace(/[#?].*$/,"").replace(/[^/]*$/,"");
+  RENDER.ia=()=>{};
+  let prev="home",curUrl="",curKey="";
+  const F=()=>document.getElementById("embF");
+  function fit(){const f=F();if(!f||!sec.classList.contains("on"))return;const r=f.getBoundingClientRect();f.style.height=Math.max(420,Math.round(window.innerHeight-r.top-10))+"px";}
+  addEventListener("resize",fit);
+  function mark(key){
+    document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.classList.toggle("on",b.dataset.p===key));
+    document.querySelectorAll("#tabs .dd").forEach(d=>d.classList.toggle("on",!!d.querySelector(`button[data-p="${key}"]`)));
+  }
+  function open(url,push){
+    const u=new URL(url,location.href),fn=u.pathname.split("/").pop(),info=PAGES[fn]||["",""];
+    const cur=document.querySelector(".page.on");if(cur&&cur.id!=="p-emb")prev=cur.id.replace(/^p-/,"");
+    _go("emb");mark(info[1]);curKey=info[1];
+    document.getElementById("embT").textContent=info[0];
+    document.getElementById("embNew").href=u.href;
+    const f=F();
+    if(curUrl!==u.href){curUrl=u.href;document.getElementById("embLd").style.display="";f.src=u.href;}
+    if(push!==false){try{history.pushState({emb:u.href},"",location.pathname+location.search+"#emb");}catch(e){}}
+    window.scrollTo(0,0);requestAnimationFrame(fit);setTimeout(fit,300);
+  }
+  function back(){
+    if(history.state&&history.state.emb){history.back();return;}
+    _go(prev||"home");
+  }
+  document.getElementById("embBack").onclick=back;
+  addEventListener("popstate",e=>{
+    const st=e.state;
+    if(st&&st.emb)open(st.emb,false);
+    else if(sec.classList.contains("on"))_go(prev||"home");
+  });
+  /* go()：「內部檢查改善單」選單打開本船改善單清單 */
+  const _go=go;
+  window.go=go=function(p){
+    if(p==="ia"){const s=shipCode();open(`${base()}intaudit-reply.html${s?"?ship="+encodeURIComponent(s):""}`);return;}
+    return _go.apply(this,arguments);
+  };
+  document.querySelectorAll("#tabs button[data-p]").forEach(b=>b.onclick=()=>go(b.dataset.p));
+  /* 平台裡指向這幾頁的連結 → 改成內嵌開啟 */
+  function internal(a){
+    if(!a||!a.getAttribute)return null;const h=a.getAttribute("href");if(!h||h.startsWith("#")||/^(mailto|tel|javascript):/i.test(h))return null;
+    let u;try{u=new URL(h,location.href);}catch(e){return null;}
+    if(u.origin!==location.origin)return null;
+    const fn=u.pathname.split("/").pop();
+    return PAGES[fn]?u.href:null;
+  }
+  document.addEventListener("click",e=>{
+    if(e.ctrlKey||e.metaKey||e.shiftKey||e.button!==0)return;
+    const a=e.target.closest&&e.target.closest("a[href]");const u=internal(a);if(!u)return;
+    if(a.closest("#p-emb"))return;
+    e.preventDefault();e.stopPropagation();open(u);
+  },true);
+  /* iframe 裡：「回平台」的連結改成回到平台頁籤；其他照常在框內換頁 */
+  F().addEventListener("load",()=>{
+    document.getElementById("embLd").style.display="none";fit();
+    let d;try{d=F().contentDocument;}catch(e){return;}if(!d)return;
+    try{curUrl=F().contentWindow.location.href;document.getElementById("embNew").href=curUrl;}catch(e){}
+    d.documentElement.classList.add("in-portal");
+    /* 在平台裡不用再提醒「加入我的最愛」 */
+    const tidy=()=>{try{d.querySelectorAll(".banner").forEach(b=>{if(/我的最愛/.test(b.textContent))b.style.display="none";});
+      const w=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let x;while((x=w.nextNode()))if(/建議加入我的最愛/.test(x.nodeValue)){const p=x.parentElement;if(p&&p.textContent.trim().length<20)p.style.display="none";else x.nodeValue=x.nodeValue.replace(/[（(]?\s*⭐?\s*建議加入我的最愛\s*[）)]?/,"");}}catch(e){}};
+    [0,600,1500,3000].forEach(t=>setTimeout(tidy,t));
+    d.addEventListener("click",ev=>{
+      const a=ev.target.closest&&ev.target.closest("a[href]");if(!a)return;
+      let u;try{u=new URL(a.getAttribute("href"),d.location.href);}catch(e){return;}
+      if(u.origin!==location.origin)return;
+      const fn=u.pathname.split("/").pop();
+      if(fn===""||fn==="index.html"||fn==="index-v2.html"){ev.preventDefault();back();return;}
+      if(PAGES[fn]&&a.target==="_blank"){ev.preventDefault();F().src=u.href;}
+    },true);
+  });
+  /* 重新整理時若停在內嵌頁，回到原本頁籤 */
+  if(location.hash==="#emb"){try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}}
+})();
+</script>
+
+</body>
 </html>
