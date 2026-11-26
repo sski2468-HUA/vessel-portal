@@ -773,6 +773,7 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
 .ia3-t textarea{width:100%;min-height:62px;border:1.5px solid var(--line-2);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;resize:vertical}
 .ia3-t input[type=date]{width:150px;border:1.5px solid var(--line-2);border-radius:8px;padding:5px 7px;font-family:inherit}
 .ia3-t .ph,.ia3-t .ph img,.ia3-t .phadd{width:56px!important;height:56px!important;font-size:10.5px}
+.ia3-pv{margin:0 0 12px!important}.ia3-pv table{min-width:980px}.ia3-pv td{font-size:13px}.ia3-pv .ph,.ia3-pv .ph img{width:44px!important;height:44px!important}
 .ia3-t tr:not(.foc) .ia3-chips,.ia3-t tr:not(.foc) .ia3-today{display:none}
 .ia3-t .ia3-chips{margin:5px 0 0}
 /* 底部送出列 */
@@ -980,6 +981,22 @@ body.ia3-dmode #stepPanel3 #bar{padding-bottom:6px}
   });
   document.addEventListener("input",e=>{if(e.target.id==="ia3Q"){S3.q=e.target.value;redrawLeft();}});
   document.addEventListener("focusin",e=>{const r=e.target.closest&&e.target.closest("[data-ia3row]");if(r&&S3.foc!==r.dataset.ia3row){S3.foc=r.dataset.ia3row;document.querySelectorAll(".ia3-t tr").forEach(x=>x.classList.toggle("foc",x===r));}});
+  /* 2026-11-27 ④ 預覽：改成列表（一列一項），不用一張張大卡片 */
+  const _rp=renderPreview;
+  window.renderPreview=renderPreview=function(keep){
+    const r=_rp.apply(this,arguments);
+    try{
+      const items=ALL(),readyItems=items.filter(isReadyD),pend=items.filter(d=>stOf(d)==="red"),done=items.filter(d=>["sent","lock"].includes(stOf(d)));
+      const shownL={send:readyItems,pend:pend,done:done}[pvFlt]||readyItems;
+      const box=$q("#previewBox .rows");if(!box||!shownL.length)return r;
+      const ph=a=>(a||[]).length?`<div class="phs">${a.map(p=>`<div class="ph"><img src="${PhotoCloud.src(p)}" onclick="openLightbox(this.src)"></div>`).join("")}</div>`:`<span class="hint">—</span>`;
+      box.innerHTML=`<div class="ia3-t ia3-pv"><table><thead><tr><th style="width:44px">No.</th><th style="width:120px">項目</th><th>缺失內容</th><th>改善措施</th><th style="width:100px">完成日期</th><th>證據／備註</th><th style="width:130px">改善後照片</th><th style="width:120px">狀態</th></tr></thead><tbody>${shownL.map(d=>{const st=stOf(d),x=val(d);
+        return `<tr class="st-${st}"><td><b>${seqOf(d)}</b></td><td style="font-weight:700">${esc(d.category||"")}<div style="margin-top:3px">${typeBadge(d)}</div></td><td><div class="fd">${esc(d.finding||"")}</div></td>
+          <td><div class="fd">${x.action?esc(x.action):'<span class="hint">（尚未填寫）</span>'}</div></td><td style="white-space:nowrap">${x.corrected?esc(x.corrected):'<span class="hint">—</span>'}</td>
+          <td><div class="fd">${x.evidence?esc(x.evidence):'<span class="hint">—</span>'}</div></td><td>${ph(x.photos)}</td><td><span class="badge ${st}">${esc(badgeText(d,st))}</span></td></tr>`;}).join("")}</tbody></table></div>`;
+    }catch(e){console.warn("ia3 preview",e);}
+    return r;
+  };
   const _gs=goStep;window.goStep=goStep=function(n){const r=_gs.apply(this,arguments);if(n!==3)document.body.classList.remove("ia3-dmode");return r;};
   /* 已開著的頁面（例如先打開清單）直接套用 */
   try{if(typeof shipRows!=="undefined"&&shipRows.length&&$q("#shipPage").style.display!=="none")renderShip();}catch(e){}
