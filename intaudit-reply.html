@@ -692,5 +692,273 @@ function closeSubmitStatus(){$("#submitModal").classList.remove("show");}
   await initRec();
 })();
 </script>
+<!-- ════════ 2026-11-27 改善單改版（照 模擬_船上改善單_清單與填寫）：
+     ① 本船改善單清單＝列表＋進度條；② FLOW 精簡列表（缺失內容完整顯示，照片點開）；
+     ③ 系統填報：「☰ 清單填寫（左清單＋右表單）」與「▦ 表格填寫」兩種模式可切換，會記住選擇 ════════ -->
+<style id="ia3-css">
+/* ── ① 清單 ── */
+.ia3-lt{margin:0 14px 14px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ia3-lt table,.ia3-ft table,.ia3-t table{width:100%;border-collapse:collapse;font-size:13.5px}
+.ia3-lt th,.ia3-ft th,.ia3-t th{background:#f5f8fa;color:#4a5d70;font-weight:700;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12.5px}
+.ia3-lt td,.ia3-ft td,.ia3-t td{padding:10px;border-bottom:1px solid #eef2f5;vertical-align:top}
+.ia3-lt tr:last-child td,.ia3-ft tr:last-child td{border-bottom:0}
+.ia3-pb{display:flex;height:9px;border-radius:5px;overflow:hidden;background:#e8eef3;min-width:150px;margin-top:3px}.ia3-pb i{display:block;height:100%}
+.ia3-pb .a{background:#5aa077}.ia3-pb .b{background:#7ea3c2}.ia3-pb .c{background:#e07a6c}
+.ia3-pn{font-size:12px;color:var(--ink-3);margin-top:4px;white-space:nowrap}.ia3-pn b{font-family:Consolas,monospace}
+.ia3-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 14px 10px}
+.ia3-tools select{border:1.5px solid var(--line-2);border-radius:8px;background:#fff;padding:6px 10px;font-size:13px;font-family:inherit}
+.ia3-sp{flex:1}
+#shipTabs{margin:14px 14px 10px}
+/* ── ② FLOW ── */
+.ia3-ft{margin:0 0 12px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ia3-ft .fd{white-space:pre-line;line-height:1.65}
+.ia3-phn{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-2);border-radius:7px;padding:2px 8px;font-size:12.5px;font-weight:700;color:#1a4c75;background:#fff;cursor:pointer;font-family:inherit;white-space:nowrap}
+.ia3-thumbs{display:none;margin-top:8px}.ia3-ft tr.open .ia3-thumbs{display:flex}
+/* ── ③ 工具列 ── */
+#stepPanel3 #bar{position:static;background:none;border:0;padding:0 14px 10px}
+#stepPanel3 #sysTypeTabs,#stepPanel3 #modeTabs{display:none!important}
+.ia3-tb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}
+.ia3-tb .chip{padding:5px 13px;font-size:13.5px}.ia3-tb .chip b{font-size:15px}
+.ia3-tb select{width:auto!important;max-width:220px;border:1.5px solid var(--line-2);border-radius:8px;background:#fff;padding:6px 9px;font-size:13px;font-family:inherit}
+.ia3-vt{display:flex;border:1.5px solid var(--line-2);border-radius:8px;overflow:hidden}.ia3-vt button{border:0;background:#fff;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--ink-2)}
+.ia3-vt button.on{background:#1a4c75;color:#fff}
+/* ── ③ 清單填寫：左清單＋右表單 ── */
+.ia3d{display:grid;grid-template-columns:290px minmax(0,1fr);gap:12px;margin:0 14px 12px;align-items:start}
+.ia3l{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:calc(100vh - 110px);position:sticky;top:56px}
+.ia3l .srch{position:sticky;top:0;z-index:2;background:#fff;padding:8px;border-bottom:1px solid var(--line)}
+.ia3l .srch input{width:100%;border:1.5px solid var(--line-2);border-radius:8px;padding:6px 9px;font-size:13px;font-family:inherit}
+.ia3l .grp{font-size:12px;font-weight:800;color:#4a5d70;background:#f5f8fa;padding:6px 12px;border-bottom:1px solid var(--line)}
+.ia3l .grp.fold{cursor:pointer;color:#1a4c75}
+.ia3l .it{display:flex;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid #eef2f5;cursor:pointer;font-size:13px}
+.ia3l .it:hover{background:#f7fafc}.ia3l .it.cur{background:#e9f1f8;box-shadow:inset 3px 0 0 #1a4c75}
+.ia3l .it i{width:9px;height:9px;border-radius:50%;flex:none;background:#c0392b}
+.ia3l .it.s-green i{background:#5aa077}.ia3l .it.s-sent i,.ia3l .it.s-lock i{background:#7ea3c2}.ia3l .it.s-ret i{background:#d97a2b}
+.ia3l .it .x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ia3l .it b{color:#1a4c75;margin-right:4px}
+.ia3r{min-width:0}
+.ia3r .row{grid-template-columns:1fr;margin:0}
+.ia3r .rl{border-right:none;border-bottom:1px dashed var(--line)}
+.ia3-pos{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+.ia3-pos button{border:1.5px solid var(--line-2);background:#fff;border-radius:7px;padding:3px 11px;cursor:pointer;font-weight:800;font-family:inherit}
+.ia3-pos .mb{display:none}
+.ia3-next{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+/* 常用句、今天 */
+.ia3-chips{display:flex;gap:5px;flex-wrap:wrap;margin:-4px 0 10px}
+.ia3-chips button{border:1px dashed #9fb3c6;background:#f7fafc;border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit;color:#33475b}
+.ia3-chips button:hover{background:#e6eff7;border-style:solid}
+.ia3-today{border:1px solid var(--line-2);background:#fff;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit;margin-top:5px}
+/* ── ③ 表格填寫 ── */
+.ia3-t{margin:0 14px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:auto}
+.ia3-t table{min-width:900px}
+.ia3-t thead th{position:sticky;top:0;z-index:1}
+.ia3-t tr.st-green td{background:#f4fbf6}.ia3-t tr.st-ret td{background:#fff8f0}.ia3-t tr.st-sent td,.ia3-t tr.st-lock td{color:#7b8a96}
+.ia3-t tr.foc td{background:#eef5fb}
+.ia3-t .fd{white-space:pre-line;line-height:1.6;font-size:13px}
+.ia3-t textarea{width:100%;min-height:62px;border:1.5px solid var(--line-2);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;resize:vertical}
+.ia3-t input[type=date]{width:150px;border:1.5px solid var(--line-2);border-radius:8px;padding:5px 7px;font-family:inherit}
+.ia3-t .ph,.ia3-t .ph img,.ia3-t .phadd{width:56px!important;height:56px!important;font-size:10.5px}
+.ia3-t tr:not(.foc) .ia3-chips,.ia3-t tr:not(.foc) .ia3-today{display:none}
+.ia3-t .ia3-chips{margin:5px 0 0}
+/* 底部送出列 */
+.ia3-send{position:sticky;bottom:0;z-index:15;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(20,40,60,.08);padding:10px 14px;display:flex;gap:10px;align-items:center;margin-top:6px}
+.ia3-send .t{flex:1;font-size:13.5px}.ia3-send .t b{color:#2e7d4f;font-size:15px}
+.ia3-send button{border:0;background:#d97a2b;color:#fff;border-radius:10px;padding:10px 18px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+.ia3-send button[disabled]{background:#c9d3dc;cursor:not-allowed}
+#navrow3{display:none!important}
+@media(max-width:760px){
+  .ia3d{grid-template-columns:1fr}.ia3d .ia3l{display:none;position:static;max-height:none}.ia3d.showlist .ia3l{display:block}.ia3d.showlist .ia3r{display:none}
+  .ia3-pos .mb{display:inline-block}
+  .ia3-lt thead,.ia3-ft thead{display:none}.ia3-lt tr,.ia3-ft tr{display:block;border-bottom:1px solid #eef2f5;padding:4px 0}.ia3-lt td,.ia3-ft td{display:block;border:0;padding:4px 12px}
+  .ia3-t table{min-width:0}.ia3-t thead{display:none}.ia3-t tr{display:block;border-bottom:6px solid var(--paper)}.ia3-t td{display:block;border:0;padding:5px 12px}
+  .ia3-vt{display:none}
+}
+</style>
+<script>
+(function(){
+  if(typeof renderSysStep!=="function")return;
+  const $q=s=>document.querySelector(s);
+  const CHIPS=[]; /* 2026-11-27 使用者：改善單不需要預設文字給船上選 */
+  const VKEY="vsm_ia3_view";
+  const S3={view:(()=>{try{return localStorage.getItem(VKEY)||"d";}catch(e){return "d";}})(),st:"todo",cur:null,q:"",showDone:false,foc:null};
+  const ALL=()=>nonFlow(rec);
+  const seqOf=d=>ALL().indexOf(d)+1;
+  const stX=d=>{const s=stOf(d),rp=rpOf(d);return s==="red"&&rp&&rp.status==="returned"?"ret":s;};
+  const stPass=d=>{const s=stX(d);return S3.st==="all"||(S3.st==="todo"&&(s==="red"||s==="ret"))||(S3.st==="green"&&s==="green")||(S3.st==="sent"&&(s==="sent"||s==="lock"));};
+  const shown=()=>subset().filter(stPass);
+  const riskCls=r=>r==="高"?"h":r==="中"?"m":"l";
+  const isReadyD=d=>{const x=drafts[d.uid];return x&&isComplete(x)&&!(rpOf(d)&&sameAsReply(x,rpOf(d).payload));};
+
+  /* ══ ① 本船改善單清單：列表 ══ */
+  let yr="";
+  window.setShipTab=setShipTab=function(k){shipTab=k;renderShip();};
+  window.renderShip=renderShip=function(){
+    const open=shipRows.filter(x=>!x.closed),closed=shipRows.filter(x=>x.closed);
+    $q("#shipTabs").innerHTML=`<button class="${shipTab==="open"?"on":""}" onclick="setShipTab('open')">進行中（${open.length}）</button><button class="${shipTab==="closed"?"on":""}" onclick="setShipTab('closed')">已結案（${closed.length}）</button><button class="${shipTab==="all"?"on":""}" onclick="setShipTab('all')">全部（${shipRows.length}）</button>`;
+    let tools=$q("#ia3ShipTools");
+    const yrs=[...new Set(shipRows.map(x=>String(dateText(x.r)).slice(0,4)).filter(y=>/^\d{4}$/.test(y)))];
+    if(!tools){tools=document.createElement("div");tools.id="ia3ShipTools";tools.className="ia3-tools";$q("#shipTabs").after(tools);}
+    tools.innerHTML=yrs.length>1?`<span class="ia3-sp"></span><select id="ia3Yr"><option value="">全部年份</option>${yrs.map(y=>`<option ${yr===y?"selected":""}>${y}</option>`).join("")}</select>`:"";
+    const ys=$q("#ia3Yr");if(ys)ys.onchange=e=>{yr=e.target.value;renderShip();};
+    let list=shipTab==="open"?open:shipTab==="closed"?closed:shipRows;
+    if(yr)list=list.filter(x=>String(dateText(x.r)).startsWith(yr));
+    if(!list.length){$q("#shipList").innerHTML=`<div class="banner">${shipTab==="open"?"目前沒有進行中的改善單。":shipTab==="closed"?"還沒有已結案的改善單。":"沒有符合的改善單。"}</div>`;return;}
+    $q("#shipList").innerHTML=`<div class="ia3-lt"><table><thead><tr><th>檢查日期</th><th>種類</th><th>檢查人／地點</th><th>改善進度</th><th></th></tr></thead><tbody>${list.map(({r,n,c,closed})=>{
+      const todo=c.none+c.returned,pc=v=>n?v/n*100:0;
+      return `<tr><td style="white-space:nowrap;font-weight:700;color:#1a4c75">${esc(dateText(r))}</td><td><span class="pill type">${esc(typeLabels(r))}</span></td>
+        <td>${esc(r.inspector||"")}<div class="hint">${esc(r.psn||"")}</div></td>
+        <td><div class="ia3-pb"><i class="a" style="width:${pc(c.reviewed)}%"></i><i class="b" style="width:${pc(c.submitted)}%"></i><i class="c" style="width:${pc(todo)}%"></i></div>
+          <div class="ia3-pn">共 <b>${n}</b> 項${c.reviewed?`・<span style="color:#2e7d4f">已結案 <b>${c.reviewed}</b></span>`:""}${c.submitted?`・<span style="color:#1a4c75">待審核 <b>${c.submitted}</b></span>`:""}${todo?`・<span style="color:#c0392b">待填寫 <b>${todo}</b></span>`:""}</div></td>
+        <td style="text-align:right;white-space:nowrap"><a class="btn ${closed?"":"primary"}" href="?rid=${r.id}${PVQ}">${closed?"查看":"開啟填寫"}</a> <button class="btn" onclick="listWord(${r.id},this)">⬇ Word</button></td></tr>`;}).join("")}</tbody></table></div>`;
+  };
+
+  /* ══ ② FLOW：精簡列表，缺失內容完整顯示，照片點開 ══ */
+  window.renderFlowStep=renderFlowStep=function(){
+    const all=(rec.defs||[]).filter(d=>d.closeMode==="FLOW");
+    const tl=typeTabList(all);
+    const ttab=(k,l,n)=>`<button type="button" class="mtab ${flowTypeFlt===k?"on":""}" onclick="setFlowTypeFlt('${k}')">${esc(l)}<b>${n}</b></button>`;
+    $q("#flowTypeTabs").innerHTML=tl.length>1?ttab("all","全部",all.length)+tl.map(([l,n])=>ttab(l,l,n)).join(""):"";
+    const flows=all.filter(d=>flowTypeFlt==="all"||typeKeyOf(d)===flowTypeFlt);
+    $q("#flowList").innerHTML=flows.length?`<div class="ia3-ft"><table><thead><tr><th style="width:52px">No.</th><th>項目</th><th>種類</th><th>風險</th><th>缺失內容</th><th>照片</th></tr></thead><tbody>${flows.map(d=>{const k=all.indexOf(d)+1,ph=d.photos||[];
+      return `<tr id="fl-${esc(d.uid||k)}"><td><b style="color:#1a4c75">${k}</b></td><td style="font-weight:700;white-space:nowrap">${esc(d.category||"")}${d.topic?`<div class="hint" style="font-weight:400;white-space:normal">${esc(d.topic)}</div>`:""}</td>
+        <td>${typeBadge(d)}</td><td>${d.risk?`<span class="risk ${riskCls(d.risk)}">${esc(d.risk)}</span>`:""}</td>
+        <td><div class="fd">${esc(d.finding||"")}</div>${ph.length?`<div class="phs ia3-thumbs">${ph.map(p=>`<div class="ph"><img src="${PhotoCloud.src(p)}" onclick="openLightbox(this.src)"></div>`).join("")}</div>`:""}</td>
+        <td>${ph.length?`<button type="button" class="ia3-phn" onclick="this.closest('tr').classList.toggle('open');this.lastChild.textContent=this.closest('tr').classList.contains('open')?' ▾':' ▸'">📷 ${ph.length}<span> ▸</span></button>`:`<span class="hint">—</span>`}</td></tr>`;}).join("")}</tbody></table></div>`
+      :`<div class="banner" style="margin:0">這張改善單沒有 FLOW 類的缺失。</div>`;
+  };
+
+  /* ══ ③ 系統填報 ══ */
+  function toolbar(){
+    const items=subset(),c={todo:0,green:0,sent:0};
+    items.forEach(d=>{const s=stX(d);if(s==="red"||s==="ret")c.todo++;else if(s==="green")c.green++;else c.sent++;});
+    const tl=typeTabList(ALL());
+    const icN=ALL().filter(d=>d.closeMode==="內控").length,sysN=ALL().filter(d=>d.closeMode==="系統內結案").length;
+    const ch=(k,l,cls,n)=>`<button type="button" class="chip ${cls} ${S3.st===k?"on":""}" data-ia3st="${k}">${l}<b>${n}</b></button>`;
+    $q("#bar").innerHTML=`<div class="ia3-tb">${ch("todo","未改善","red",c.todo)}${ch("green","已填妥・待送出","green",c.green)}${ch("sent","已送出","sent",c.sent)}${ch("all","全部","all",items.length)}<span class="ia3-sp"></span>
+      ${tl.length>1?`<select id="ia3Type"><option value="all">全部檢查種類</option>${tl.map(([l,n])=>`<option value="${esc(l)}" ${sysTypeFlt===l?"selected":""}>${esc(l)}（${n}）</option>`).join("")}</select>`:""}
+      ${icN&&sysN?`<select id="ia3Mode"><option value="all">全部追蹤方式</option><option value="內控" ${modeFlt==="內控"?"selected":""}>內控（${icN}）</option><option value="系統內結案" ${modeFlt==="系統內結案"?"selected":""}>系統結案（${sysN}）</option></select>`:""}
+      <div class="ia3-vt"><button type="button" data-ia3v="d" class="${S3.view==="d"?"on":""}">☰ 清單填寫</button><button type="button" data-ia3v="t" class="${S3.view==="t"?"on":""}">▦ 表格填寫</button></div></div>`;
+    const ts=$q("#ia3Type");if(ts)ts.onchange=e=>{sysTypeFlt=e.target.value;S3.cur=null;draw();};
+    const ms=$q("#ia3Mode");if(ms)ms.onchange=e=>{modeFlt=e.target.value;S3.cur=null;draw();};
+    $q("#modeNote").innerHTML=MODE_TAB_NOTE[modeFlt]?`<div class="cmnote">${MODE_TAB_NOTE[modeFlt]}</div>`:"";
+  }
+  function sendBar(){
+    let el=$q("#ia3Send");if(!el){el=document.createElement("div");el.id="ia3Send";el.className="ia3-send";$q("#stepPanel3").appendChild(el);}
+    const n=ALL().filter(isReadyD).length;
+    el.innerHTML=`<span class="t">${n?`已填妥 <b>${n}</b> 項，可以先送出，其餘之後再回來填`:"填好任何一項（改善措施＋完成日期）就可以先送出"}</span><button type="button" ${n?"":"disabled"} onclick="goStep(4)">送出已填妥的 ${n} 項 ›</button>`;
+  }
+  /* 常用句、今天 */
+  function enhance(root,d){
+    if(!root||!d)return;
+    const ta=root.querySelector('textarea[data-f="action"]');
+    if(ta&&CHIPS.length&&!root.querySelector(".ia3-chips")){
+      const box=document.createElement("div");box.className="ia3-chips";
+      box.innerHTML=CHIPS.map(c=>`<button type="button">${c}</button>`).join("");
+      box.onclick=e=>{const b=e.target.closest("button");if(!b)return;let v;
+        if(b.textContent==="同上一項"){const L=ALL(),p=L[L.indexOf(d)-1];v=p?val(p).action:"";if(!v){toast("上一項還沒有填改善措施");return;}}
+        else v=(ta.value.trim()?ta.value.replace(/[，。,\s]*$/,"")+"，":"")+b.textContent;
+        ta.value=v;ta.dispatchEvent(new Event("input",{bubbles:true}));};
+      (ta.closest("label")||ta).after(box);
+    }
+    const dt=root.querySelector('input[data-f="corrected"]');
+    if(dt&&!root.querySelector(".ia3-today")){
+      const b=document.createElement("button");b.type="button";b.className="ia3-today";b.textContent="今天";
+      b.onclick=()=>{dt.value=todayIso();dt.dispatchEvent(new Event("change",{bubbles:true}));};
+      dt.after(b);
+    }
+  }
+  /* ── 清單填寫 ── */
+  function leftHtml(){
+    const items=subset(),q=S3.q.trim().toLowerCase();
+    const m=d=>!q||[seqOf(d),d.category,d.finding,d.topic].join(" ").toLowerCase().includes(q);
+    const grp=(ks,l,fold)=>{const a=items.filter(d=>ks.includes(stX(d))&&m(d));if(!a.length)return "";
+      if(fold&&!S3.showDone&&!q)return `<div class="grp fold" data-ia3fold>${l}（${a.length}）　▸ 點開</div>`;
+      return `<div class="grp">${l}（${a.length}）</div>`+a.map(d=>`<div class="it s-${stX(d)} ${S3.cur===d.uid?"cur":""}" data-ia3pick="${esc(d.uid)}"><i></i><span class="x"><b>${seqOf(d)}</b>${esc(d.category||"")}</span>${d.risk?`<span class="risk ${riskCls(d.risk)}">${esc(d.risk)}</span>`:""}</div>`).join("");};
+    return `<div class="srch"><input id="ia3Q" placeholder="🔍 搜尋編號或項目（共 ${items.length} 項）" value="${esc(S3.q)}"></div>`+
+      grp(["ret"],"⟲ 督導退回")+grp(["red"],"未改善")+grp(["green"],"已填妥・待送出")+grp(["sent","lock"],"已送出／已結案",1);
+  }
+  function pickDefault(){
+    const L=shown();if(S3.cur&&L.some(d=>d.uid===S3.cur))return;
+    const all=subset();if(S3.cur&&all.some(d=>d.uid===S3.cur))return;
+    const f=L[0]||all.find(d=>["ret","red"].includes(stX(d)))||all[0];S3.cur=f?f.uid:null;
+  }
+  function rightHtml(){
+    const d=subset().find(x=>x.uid===S3.cur);if(!d)return `<div class="banner" style="margin:0">這個篩選下沒有項目。</div>`;
+    const todo=subset().filter(x=>["ret","red"].includes(stX(x))),pi=todo.indexOf(d);
+    return `<div class="ia3-pos"><button type="button" class="mb" data-ia3list>‹ 全部項目</button>${pi>=0?`<span>待改善第 <b>${pi+1}</b> / ${todo.length} 項</span><button type="button" data-ia3mv="-1">‹</button><button type="button" data-ia3mv="1">›</button>`:`<span>No.${seqOf(d)}</span>`}</div>
+      ${rowHtml(d,seqOf(d))}
+      <div class="ia3-next"><button type="button" class="btn primary" data-ia3next>${stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›"}</button></div>`;
+  }
+  function drawD(){
+    pickDefault();
+    $q("#defList").innerHTML=`<div class="ia3d" id="ia3d"><div class="ia3l" id="ia3l">${leftHtml()}</div><div class="ia3r" id="ia3r">${rightHtml()}</div></div>`;
+    const d=byUid(S3.cur);if(d)enhance(document.getElementById("def-"+d.uid),d);
+  }
+  function redrawLeft(){const l=$q("#ia3l");if(!l)return;const st=l.scrollTop,qq=$q("#ia3Q"),had=qq&&document.activeElement===qq,p=had?qq.selectionStart:0;l.innerHTML=leftHtml();l.scrollTop=st;if(had){const n=$q("#ia3Q");n.focus();n.setSelectionRange(p,p);}}
+  function redrawRight(){const r=$q("#ia3r");if(!r)return;r.innerHTML=rightHtml();const d=byUid(S3.cur);if(d)enhance(document.getElementById("def-"+d.uid),d);}
+  /* ── 表格填寫 ── */
+  function tRow(d){
+    const st=stX(d),rp=rpOf(d),x=val(d),seq=seqOf(d),lock=st==="lock";
+    const f=`<div class="ih" style="margin-bottom:4px">${esc(d.category||"")}${typeBadge(d)}${d.risk?`<span class="risk ${riskCls(d.risk)}">風險 ${esc(d.risk)}</span>`:""}</div>${d.topic?`<div class="hint">${esc(d.topic)}</div>`:""}<div class="fd">${esc(d.finding||"")}</div>
+      ${(d.photos||[]).length?`<div class="phs" style="margin-top:6px">${d.photos.map(p=>`<div class="ph"><img src="${PhotoCloud.src(p)}" onclick="openLightbox(this.src)"></div>`).join("")}</div>`:""}
+      ${rp&&rp.status==="returned"&&rp.payload&&rp.payload.returnNote?`<div class="errors" style="margin:6px 0 0;padding:6px 10px">督導退回原因：${esc(rp.payload.returnNote)}</div>`:""}`;
+    if(lock){const p=rp.payload||{};
+      return `<tr id="t-${esc(d.uid)}" class="st-lock"><td><b>${seq}</b></td><td>${f}</td><td>${esc(p.action||"")}<div style="margin-top:6px"><button type="button" class="btn" style="font-size:12px;padding:3px 8px" onclick="reopenDef('${d.uid}')">✏ 需要修改</button></div></td><td>${esc(p.corrected||"")}</td><td>${(p.photos||[]).length?`<div class="phs">${p.photos.map(a=>`<div class="ph"><img src="${PhotoCloud.src(a)}" onclick="openLightbox(this.src)"></div>`).join("")}</div>`:"—"}</td><td><span class="badge lock">✓ 已結案</span></td></tr>`;}
+    return `<tr id="t-${esc(d.uid)}" class="st-${st} ${S3.foc===d.uid?"foc":""}" data-ia3row="${esc(d.uid)}"><td><b>${seq}</b></td><td style="max-width:360px">${f}</td>
+      <td style="min-width:220px"><label style="display:block;margin:0"><textarea data-f="action" placeholder="怎麼改善的？" oninput="setF('${d.uid}','action',this.value)">${esc(x.action)}</textarea></label>${reopened[d.uid]?`<button type="button" class="btn" style="font-size:12px;padding:3px 8px;margin-top:4px" onclick="cancelReopen('${d.uid}')">↩ 取消變更</button>`:""}</td>
+      <td><input type="date" data-f="corrected" max="${todayIso()}" value="${esc(x.corrected)}" onchange="setF('${d.uid}','corrected',this.value)"></td>
+      <td>${phHtml(d)}</td><td><span class="badge ${stOf(d)}" id="tb-${esc(d.uid)}">${esc(badgeText(d,stOf(d)))}</span></td></tr>`;
+  }
+  function drawT(){
+    const L=shown().sort((a,b)=>({ret:0,red:1,green:2,sent:3,lock:4}[stX(a)]-{ret:0,red:1,green:2,sent:3,lock:4}[stX(b)]));
+    $q("#defList").innerHTML=L.length?`<div class="ia3-t"><table><thead><tr><th style="width:44px">No.</th><th>項目／缺失內容</th><th>改善措施 *</th><th>完成日期 *</th><th>改善後照片</th><th>狀態</th></tr></thead><tbody>${L.map(tRow).join("")}</tbody></table></div>`
+      :`<div class="banner" style="margin:0 14px">${S3.st==="todo"?"🎉 這個篩選下沒有待改善的項目。":"這個篩選下沒有項目。"}</div>`;
+    L.forEach(d=>enhance(document.getElementById("t-"+d.uid),d));
+  }
+  function draw(){toolbar();if(S3.view==="t")drawT();else drawD();sendBar();renderGlobalBar();}
+  window.renderSysStep=renderSysStep=function(){
+    const bn=$q("#stepPanel3>.banner");if(bn&&!bn.dataset.ia3){bn.dataset.ia3=1;bn.innerHTML="每一項填<b>改善措施</b>和<b>改善完成日期</b>（照片選填，最多 3 張）。<b>不用一次填完</b>：填好幾項就按最下面「送出」，其餘之後再回來。內容會自動存成草稿。";}
+    if(!S3.entered){S3.entered=1;const c=k=>subset().filter(d=>k.includes(stX(d))).length;S3.st=c(["ret","red"])?"todo":c(["green"])?"green":"all";}
+    draw();
+  };
+  /* 現有函式接上新畫面 */
+  const _rerow=rerow;
+  window.rerow=rerow=function(uid){
+    if(currentStep!==3)return _rerow.apply(this,arguments);
+    if(S3.view==="t"){const el=document.getElementById("t-"+uid),d=byUid(uid);if(el&&d){el.outerHTML=tRow(d);enhance(document.getElementById("t-"+uid),d);}}
+    else if(uid===S3.cur)redrawRight();
+    updateBar();
+  };
+  const _paint=paintStatus;
+  window.paintStatus=paintStatus=function(uid){
+    _paint.apply(this,arguments);
+    if(currentStep!==3)return;const d=byUid(uid);if(!d)return;
+    if(S3.view==="t"){const tr=document.getElementById("t-"+uid);if(tr){tr.className=`st-${stX(d)} ${S3.foc===uid?"foc":""}`;const b=document.getElementById("tb-"+uid);if(b){b.className="badge "+stOf(d);b.textContent=badgeText(d,stOf(d));}}}
+    else{const nb=$q(".ia3-next .btn");if(nb&&uid===S3.cur)nb.textContent=stX(d)==="green"?"✓ 已填妥・下一項 ›":"下一項 ›";}
+  };
+  window.updateBar=updateBar=function(){
+    renderGlobalBar();
+    if(currentStep!==3)return;
+    toolbar();sendBar();if(S3.view==="d")redrawLeft();
+  };
+  /* 點擊 */
+  document.addEventListener("click",e=>{
+    if(currentStep!==3)return;const t=e.target;
+    const sc=t.closest("[data-ia3st]");if(sc){S3.st=sc.dataset.ia3st;S3.cur=null;draw();return;}
+    const v=t.closest("[data-ia3v]");if(v){S3.view=v.dataset.ia3v;try{localStorage.setItem(VKEY,S3.view);}catch(_){}draw();return;}
+    const pk=t.closest("[data-ia3pick]");if(pk){S3.cur=pk.dataset.ia3pick;const dd=$q("#ia3d");if(dd)dd.classList.remove("showlist");redrawLeft();redrawRight();window.scrollTo({top:0,behavior:"smooth"});return;}
+    if(t.closest("[data-ia3fold]")){S3.showDone=true;redrawLeft();return;}
+    if(t.closest("[data-ia3list]")){const dd=$q("#ia3d");if(dd)dd.classList.add("showlist");return;}
+    const mv=t.closest("[data-ia3mv]");if(mv){const todo=subset().filter(x=>["ret","red"].includes(stX(x)));const i=todo.findIndex(x=>x.uid===S3.cur),n=todo[i+(+mv.dataset.ia3mv)];if(n){S3.cur=n.uid;redrawLeft();redrawRight();}return;}
+    if(t.closest("[data-ia3next]")){const L=subset(),i=L.findIndex(x=>x.uid===S3.cur);
+      const n=L.slice(i+1).find(x=>["ret","red"].includes(stX(x)))||L.find(x=>x.uid!==S3.cur&&["ret","red"].includes(stX(x)));
+      if(n){S3.cur=n.uid;redrawLeft();redrawRight();window.scrollTo({top:0,behavior:"smooth"});}else toast("🎉 已經沒有待改善的項目了，可以按最下面「送出」");return;}
+  });
+  document.addEventListener("input",e=>{if(e.target.id==="ia3Q"){S3.q=e.target.value;redrawLeft();}});
+  document.addEventListener("focusin",e=>{const r=e.target.closest&&e.target.closest("[data-ia3row]");if(r&&S3.foc!==r.dataset.ia3row){S3.foc=r.dataset.ia3row;document.querySelectorAll(".ia3-t tr").forEach(x=>x.classList.toggle("foc",x===r));}});
+  /* 已開著的頁面（例如先打開清單）直接套用 */
+  try{if(typeof shipRows!=="undefined"&&shipRows.length&&$q("#shipPage").style.display!=="none")renderShip();}catch(e){}
+  try{if(rec&&currentStep===2)renderFlowStep();if(rec&&currentStep===3)renderSysStep();}catch(e){}
+})();
+</script>
+
 </body>
 </html>

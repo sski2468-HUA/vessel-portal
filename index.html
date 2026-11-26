@@ -1673,22 +1673,23 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
 </script><!-- ════════ 2026-11-27 平台內嵌：改善單、線上填單、分享缺失自查都在本頁作業（不跳新視窗）；外部網站、PDF 照舊另開 ════════ -->
 <style id="pemb-css">
 #p-emb{padding:0!important}
-#p-emb .eb{display:flex;align-items:center;gap:10px;padding:8px 2px 8px;flex-wrap:wrap}
+#p-emb .eb{display:flex;align-items:center;gap:10px;padding:0 0 4px;flex-wrap:wrap}#p-emb .eb .pt{margin:0}
 #p-emb .eb .bk{border:1.5px solid #b9c6d2;background:#fff;border-radius:8px;padding:5px 12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px;color:#1a4c75}
 #p-emb .eb b{font-size:15px;color:#1a4c75}
 #p-emb .eb .nw{margin-left:auto;font-size:12.5px;color:#6b7c88;text-decoration:none}
 #p-emb .eb .nw:hover{color:#1a4c75;text-decoration:underline}
-#embF{display:block;width:100%;border:1px solid #dbe3ea;border-radius:10px;background:#fff;min-height:420px}
+#embF{display:block;width:100%;border:0;background:transparent;min-height:420px}
 #p-emb .ld{position:absolute;inset:60px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:60px;color:#6b7c88;font-size:13px;pointer-events:none}
 #p-emb{position:relative}
 </style>
 <script>
 (function(){
   const main=document.querySelector("main");if(!main||typeof go!=="function"||typeof RENDER==="undefined")return;
-  const PAGES={"intaudit-reply.html":["🛠 內部檢查改善單","ia"],"submit-airform.html":["📝 外部檢查線上填單","air"],
-    "submit-selfcheck-share.html":["🔍 分享缺失自查","camp"],"submit-selfcheck.html":["🔍 專案自查","camp"]};
+  const PAGES={"intaudit-reply.html":["🛠 內部檢查改善單","ia"],"submit-airform.html":["📝 外部檢查線上填單","air"]}; /* 2026-11-27 分享缺失自查、專案自查恢復原本的跳轉（開新視窗），不內嵌 */
+  const HINT={"intaudit-reply.html":"本船歷次內部檢查改善單，填寫改善回報","submit-airform.html":"外部檢查結束後填寫檢查結果與缺失","submit-selfcheck-share.html":"依公司分享的缺失做自查並回報","submit-selfcheck.html":"專案自查任務"};
+  let loads=0;
   const sec=document.createElement("section");sec.className="page";sec.id="p-emb";
-  sec.innerHTML=`<div class="eb"><button type="button" class="bk" id="embBack">‹ 返回</button><b id="embT"></b><a class="nw" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面"></iframe><div class="ld" id="embLd">讀取中…</div>`;
+  sec.innerHTML=`<div class="eb"><h2 class="pt" id="embT"></h2><span style="flex:1"></span><button type="button" class="bk" id="embBack" style="display:none">‹ 返回上一頁</button><a class="nw" style="margin-left:0" id="embNew" target="_blank" rel="noopener" title="需要時可另開新視窗">↗ 另開新視窗</a></div><iframe id="embF" title="內嵌頁面" allowtransparency="true"></iframe><div class="ld" id="embLd">讀取中…</div>`;
   main.appendChild(sec);
   RENDER.emb=()=>{};
   /* 選單：內部檢查改善單 */
@@ -1710,10 +1711,10 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     const u=new URL(url,location.href),fn=u.pathname.split("/").pop(),info=PAGES[fn]||["",""];
     const cur=document.querySelector(".page.on");if(cur&&cur.id!=="p-emb")prev=cur.id.replace(/^p-/,"");
     _go("emb");mark(info[1]);curKey=info[1];
-    document.getElementById("embT").textContent=info[0];
+    document.getElementById("embT").innerHTML=`${info[0]} <span class="hint">${HINT[fn]||""}</span>`;
     document.getElementById("embNew").href=u.href;
     const f=F();
-    if(curUrl!==u.href){curUrl=u.href;document.getElementById("embLd").style.display="";f.src=u.href;}
+    if(curUrl!==u.href){curUrl=u.href;loads=0;document.getElementById("embBack").style.display="none";document.getElementById("embLd").style.display="";f.src=u.href;}
     if(push!==false){try{history.pushState({emb:u.href},"",location.pathname+location.search+"#emb");}catch(e){}}
     window.scrollTo(0,0);requestAnimationFrame(fit);setTimeout(fit,300);
   }
@@ -1721,7 +1722,7 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     if(history.state&&history.state.emb){history.back();return;}
     _go(prev||"home");
   }
-  document.getElementById("embBack").onclick=back;
+  document.getElementById("embBack").onclick=()=>{if(loads>1){loads-=2;try{F().contentWindow.history.back();return;}catch(e){}}back();};
   addEventListener("popstate",e=>{
     const st=e.state;
     if(st&&st.emb)open(st.emb,false);
@@ -1754,6 +1755,19 @@ header h1 .ic{width:22px;height:22px;margin-right:6px;vertical-align:-.2em}
     let d;try{d=F().contentDocument;}catch(e){return;}if(!d)return;
     try{curUrl=F().contentWindow.location.href;document.getElementById("embNew").href=curUrl;}catch(e){}
     d.documentElement.classList.add("in-portal");
+    loads++;document.getElementById("embBack").style.display=loads>1?"":"none";
+    /* 改善單：看起來跟平台其他頁一樣（拿掉自己的深藍標題、外框與左右留白） */
+    if(/intaudit-reply\.html$/.test(d.location.pathname)&&!d.getElementById("inportal-css")){const st=d.createElement("style");st.id="inportal-css";st.textContent=`
+      html.in-portal,html.in-portal body{background:transparent!important}
+      html.in-portal .wrap{max-width:none!important;padding:0 0 60px!important}
+      html.in-portal header{background:none!important;color:#4a5d70!important;padding:0 0 8px!important}
+      html.in-portal header h1{display:none!important}
+      html.in-portal header p{color:#6b7c88!important;font-size:13px!important;margin:0!important}
+      html.in-portal header a{color:#1a4c75!important}
+      html.in-portal .wrap>*,html.in-portal #shipPage>*,html.in-portal #main>*,html.in-portal [id^=stepPanel]>*{margin-left:0!important;margin-right:0!important}
+      html.in-portal .ia3-lt,html.in-portal .ia3-tools,html.in-portal .ia3d,html.in-portal .ia3-t,html.in-portal #shipTabs{margin-left:0!important;margin-right:0!important}
+      html.in-portal #stepPanel3 #bar{padding-left:0!important;padding-right:0!important}
+      html.in-portal .globalbar{margin-top:0!important}`;d.head.appendChild(st);}
     /* 在平台裡不用再提醒「加入我的最愛」 */
     const tidy=()=>{try{d.querySelectorAll(".banner").forEach(b=>{if(/我的最愛/.test(b.textContent))b.style.display="none";});
       const w=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT);let x;while((x=w.nextNode()))if(/建議加入我的最愛/.test(x.nodeValue)){const p=x.parentElement;if(p&&p.textContent.trim().length<20)p.style.display="none";else x.nodeValue=x.nodeValue.replace(/[（(]?\s*⭐?\s*建議加入我的最愛\s*[）)]?/,"");}}catch(e){}};
